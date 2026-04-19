@@ -1,0 +1,253 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Variáveis CSS — Tema Claro ─────────────────────────────── */
+:root {
+  --brand-bg:        247 245 242;   /* #F7F5F2 */
+  --brand-surface:   255 255 255;   /* #FFFFFF */
+  --brand-surface-2: 253 249 246;   /* #FDF9F6 */
+  --brand-border:    237 233 227;   /* #EDE9E3 */
+  --brand-border-2:  217 211 201;   /* #D9D3C9 */
+  --brand-text:      28 20 16;      /* #1C1410 */
+  --brand-text-2:    107 94 80;     /* #6B5E50 */
+  --brand-text-3:    168 153 138;   /* #A8998A */
+}
+
+/* ─── Variáveis CSS — Tema Escuro ────────────────────────────── */
+html.dark {
+  --brand-bg:        22 18 16;      /* #161210 */
+  --brand-surface:   30 25 23;      /* #1E1917 */
+  --brand-surface-2: 35 31 28;      /* #231F1C */
+  --brand-border:    46 39 32;      /* #2E2720 */
+  --brand-border-2:  61 52 41;      /* #3D3429 */
+  --brand-text:      240 235 228;   /* #F0EBE4 */
+  --brand-text-2:    168 147 126;   /* #A8937E */
+  --brand-text-3:    107 90 73;     /* #6B5A49 */
+}
+
+/* ─── View Transition — Troca de tema ───────────────────────── */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+  animation: theme-reveal 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+@keyframes theme-reveal {
+  from { clip-path: circle(0% at var(--vt-x, 50%) var(--vt-y, 50%)); }
+  to   { clip-path: circle(150% at var(--vt-x, 50%) var(--vt-y, 50%)); }
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-brand-bg text-brand-text font-body antialiased;
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: 'Outfit', system-ui, sans-serif;
+    @apply font-bold;
+  }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { @apply bg-brand-bg; }
+  ::-webkit-scrollbar-thumb { @apply bg-brand-border-2 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-brand-orange; }
+}
+
+@layer components {
+  /* â”€â”€â”€ BotÃµes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  .btn-primary {
+    @apply bg-gradient-brand text-white font-semibold px-5 py-2.5 rounded-xl
+           shadow-brand hover:shadow-brand-lg transition-all duration-200
+           hover:scale-[1.02] active:scale-[0.98] cursor-pointer
+           flex items-center gap-2 justify-center text-sm;
+  }
+
+  .btn-secondary {
+    @apply bg-brand-surface text-brand-text font-semibold px-5 py-2.5 rounded-xl
+           border border-brand-border hover:border-brand-orange/50
+           transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]
+           cursor-pointer flex items-center gap-2 justify-center text-sm
+           shadow-sm hover:shadow-card;
+  }
+
+  .btn-danger {
+    @apply bg-red-50 text-red-600 font-semibold px-5 py-2.5 rounded-xl
+           border border-red-200 hover:bg-red-100 hover:border-red-300
+           transition-all duration-200 cursor-pointer
+           flex items-center gap-2 justify-center text-sm;
+  }
+
+  .btn-success {
+    @apply bg-emerald-50 text-emerald-700 font-semibold px-5 py-2.5 rounded-xl
+           border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300
+           transition-all duration-200 cursor-pointer
+           flex items-center gap-2 justify-center text-sm;
+  }
+
+  /* â”€â”€â”€ Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  .card {
+    @apply bg-brand-surface rounded-2xl border border-brand-border shadow-card p-5;
+  }
+
+  .card-highlight {
+    @apply bg-brand-surface rounded-2xl border border-brand-orange/30
+           shadow-brand p-5;
+  }
+
+  /* â”€â”€â”€ Inputs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  .input-field {
+    @apply w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3
+           text-brand-text placeholder-brand-text-3 focus:outline-none
+           focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/10
+           transition-all duration-200 text-sm;
+  }
+
+  /* â”€â”€â”€ Badges de status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  .badge-pending {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold
+           bg-amber-50 text-amber-700 border border-amber-200;
+  }
+
+  .badge-ready {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold
+           bg-emerald-50 text-emerald-700 border border-emerald-200;
+  }
+
+  .badge-delivered {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold
+           bg-blue-50 text-blue-700 border border-blue-200;
+  }
+
+  .badge-cancelled {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold
+           bg-red-50 text-red-600 border border-red-200;
+  }
+
+  /* â”€â”€â”€ Sidebar / Nav â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-brand-text-2
+           hover:text-brand-text hover:bg-brand-bg transition-all duration-200
+           cursor-pointer font-medium text-sm;
+  }
+
+  .sidebar-link.active {
+    @apply text-brand-orange bg-brand-orange/8 font-semibold;
+  }
+
+  /* â”€â”€â”€ Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center
+           animate-fade-in;
+  }
+
+  .modal-box {
+    @apply bg-brand-surface rounded-2xl border border-brand-border shadow-card-hover
+           animate-slide-up overflow-hidden;
+  }
+
+  /* â”€â”€â”€ Misc â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  .divider {
+    @apply border-t border-brand-border my-4;
+  }
+
+  .queue-number {
+    @apply w-9 h-9 rounded-xl bg-gradient-brand text-white font-bold text-sm
+           flex items-center justify-center shadow-brand flex-shrink-0;
+  }
+}
+
+@layer utilities {
+  .text-gradient-brand {
+    background: linear-gradient(135deg, #C93517, #E8650A);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .print-only { display: none; }
+
+  .bg-brand-orange\/8 { background-color: rgba(232,101,10,0.08); }
+}
+
+/* ─── Overrides Dark Mode — classes sem variáveis CSS ────────── */
+/* Botões */
+html.dark .btn-danger {
+  background-color: rgba(185, 28, 28, 0.15);
+  color: rgb(252 165 165);
+  border-color: rgba(185, 28, 28, 0.3);
+}
+html.dark .btn-danger:hover {
+  background-color: rgba(185, 28, 28, 0.25);
+  border-color: rgba(185, 28, 28, 0.5);
+}
+html.dark .btn-success {
+  background-color: rgba(6, 78, 59, 0.2);
+  color: rgb(110 231 183);
+  border-color: rgba(6, 78, 59, 0.4);
+}
+html.dark .btn-success:hover {
+  background-color: rgba(6, 78, 59, 0.3);
+  border-color: rgba(6, 78, 59, 0.6);
+}
+
+/* Badges de status */
+html.dark .badge-pending {
+  background-color: rgba(120, 53, 15, 0.2);
+  color: rgb(252 211 77);
+  border-color: rgba(120, 53, 15, 0.4);
+}
+html.dark .badge-ready {
+  background-color: rgba(6, 78, 59, 0.2);
+  color: rgb(52 211 153);
+  border-color: rgba(6, 78, 59, 0.4);
+}
+html.dark .badge-delivered {
+  background-color: rgba(30, 58, 138, 0.2);
+  color: rgb(147 197 253);
+  border-color: rgba(30, 58, 138, 0.4);
+}
+html.dark .badge-cancelled {
+  background-color: rgba(127, 29, 29, 0.2);
+  color: rgb(252 165 165);
+  border-color: rgba(127, 29, 29, 0.4);
+}
+
+/* Input focus ring */
+html.dark .input-field:focus {
+  box-shadow: 0 0 0 2px rgba(232, 101, 10, 0.15);
+}
+
+/* Scrollbar */
+html.dark ::-webkit-scrollbar-track {
+  background-color: rgb(22 18 16);
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background-color: rgb(61 52 41);
+}
+
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  body { background: white !important; color: black !important; }
+}
+
+

@@ -1,0 +1,44 @@
+# Node modules
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Vite cache
+.vite/
+
+# Tailwind cache
+.tailwind*
+
+# Env files
+.env
+.env.*
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+
+# Misc
+*.log
+*.tmp
+
+# Public build artifacts
+frontend/public/build/
+
+# Ignore coverage reports
+coverage/
+
+# Ignore local config
+*.local.js
+*.local.json
