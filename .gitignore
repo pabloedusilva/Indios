@@ -1,44 +1,67 @@
-# Node modules
+# =========================
+# Node.js (dependências)
+# =========================
 node_modules/
 
-# Build output
-dist/
-build/
-
-# Logs
+# Logs de erro (npm, yarn, pnpm)
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# OS generated files
+# =========================
+# Variáveis de ambiente
+# =========================
+.env
+.env.local
+.env.*.local
+
+# =========================
+# Build / arquivos gerados
+# =========================
+dist/
+build/
+.next/
+out/
+
+# =========================
+# Logs do sistema
+# =========================
+logs/
+*.log
+
+# =========================
+# Arquivos do sistema operacional
+# =========================
 .DS_Store
 Thumbs.db
 
-# Vite cache
-.vite/
-
-# Tailwind cache
-.tailwind*
-
-# Env files
-.env
-.env.*
-
-# Editor directories and files
+# =========================
+# IDEs e editores
+# =========================
 .vscode/
 .idea/
 *.swp
+*.swo
 
-# Misc
-*.log
-*.tmp
+# =========================
+# Cache e arquivos temporários
+# =========================
+.cache/
+.parcel-cache/
+vite.svg
 
-# Public build artifacts
-frontend/public/build/
+# =========================
+# Tailwind / CSS maps
+# =========================
+*.css.map
 
-# Ignore coverage reports
+# =========================
+# Testes
+# =========================
 coverage/
 
-# Ignore local config
-*.local.js
-*.local.json
+# =========================
+# Segurança / certificados
+# =========================
+*.pem

@@ -1,0 +1,33 @@
+{
+  "name": "indios-churrasco-gourmet-api",
+  "version": "1.0.0",
+  "description": "API REST — Índios Churrasco Gourmet",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "setup": "node src/config/migrations.js",
+    "reset": "node reset.js",
+    "seed": "node scripts/seedUsuario.js"
+  },
+  "dependencies": {
+    "axios": "^1.15.0",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.3.2",
+    "express-validator": "^7.2.0",
+    "jsonwebtoken": "^9.0.3",
+    "mercadopago": "^2.12.0",
+    "mysql2": "^3.22.0",
+    "node-cron": "^4.2.1",
+    "pdfkit": "^0.18.0",
+    "qrcode": "^1.5.4",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
