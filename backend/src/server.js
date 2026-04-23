@@ -12,14 +12,9 @@ const app  = require('./app')
 const port = process.env.PORT || 3333
 const { iniciarScheduler } = require('./utils/relatorioScheduler')
 
-app.listen(port, async () => {
-  console.log('Servidor: ✅ ONLINE')
+app.listen(port, () => {
+  console.log(`🚀 Servidor rodando na porta ${port}`)
+  console.log(`📡 Ambiente: ${process.env.NODE_ENV || 'development'}`)
+  console.log(`🌐 CORS habilitado para: ${process.env.CLIENT_URL || 'http://localhost:5173'}`)
   iniciarScheduler()
-  try {
-    const r = await fetch('http://localhost:5173')
-    if (r.ok) console.log('Frontend: ✅ CONECTADO')
-    else console.log('Frontend: ❌ OFFLINE')
-  } catch {
-    console.log('Frontend: ❌ OFFLINE')
-  }
 })

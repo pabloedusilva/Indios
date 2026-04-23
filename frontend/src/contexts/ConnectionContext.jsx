@@ -1,195 +1,119 @@
 // =============================================================
 //  contexts/ConnectionContext.jsx — Contexto de verificação de conexão
 //
-//  · Verifica conexão com backend antes de renderizar qualquer rota
-//  · Exibe loader fullscreen enquanto verifica
-//  · Permite retry em caso de erro
-//  · Bloqueia toda a aplicação até conexão ser estabelecida
+//  · Usa hook useBackendStatus para detecção resiliente
+//  · Zero flicker visual em recarregamentos
+//  · Loader apenas quando necessário (> 300ms)
+//  · Transições suaves e profissionais com fade-out elaborado
 // =============================================================
 
-import { createContext, useContext, useState, useEffect, useRef } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
+import { useBackendStatus } from '../hooks/useBackendStatus'
 
 const ConnectionContext = createContext(null)
 
 export function ConnectionProvider({ children }) {
-  // ── Estados ──────────────────────────────────────────────────
-  const [connectionStatus, setConnectionStatus] = useState('checking') // 'checking' | 'connected' | 'error'
-  const [statusMessage, setStatusMessage] = useState('Carregando...')
-  const [showRetry, setShowRetry] = useState(false)
-  
-  // Refs para controle de timers
-  const messageTimerRef = useRef(null)
-  const startTimeRef = useRef(null)
-  const checkIntervalRef = useRef(null)
+  const { isOnline, showLoader, error, retry } = useBackendStatus()
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const [showChildren, setShowChildren] = useState(false)
 
-  // ── Função: Verificar conexão com backend ───────────────────
-  const checkConnection = async () => {
-    try {
-      // Criar AbortController para timeout de 10 segundos
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000)
-
-      // Fazer requisição ao endpoint de health check
-      const response = await fetch('/api/health', {
-        method: 'GET',
-        signal: controller.signal,
-        credentials: 'include',
-      })
-
-      clearTimeout(timeoutId)
-
-      if (response.ok) {
-        // Conexão bem-sucedida
-        setConnectionStatus('connected')
-        setStatusMessage('Conectado!')
-        setShowRetry(false)
+  // ── Effect: Transição quando conectar ───────────────────────
+  useEffect(() => {
+    if (isOnline && !showChildren) {
+      // Delay maior para mostrar "Conectado!" claramente (1500ms)
+      setTimeout(() => {
+        setIsTransitioning(true)
         
-        // Limpar timer de mensagens progressivas
-        if (messageTimerRef.current) {
-          clearInterval(messageTimerRef.current)
-          messageTimerRef.current = null
-        }
-      } else {
-        // Erro HTTP (4xx, 5xx)
-        throw new Error('Erro ao conectar com o servidor')
-      }
-    } catch (error) {
-      // Erro de rede, timeout ou outro erro
-      console.error('Erro na verificação de conexão:', error)
-      setConnectionStatus('error')
-      setStatusMessage('Não foi possível conectar ao servidor. Verifique sua conexão.')
-      setShowRetry(true)
-      
-      // Limpar timer de mensagens progressivas
-      if (messageTimerRef.current) {
-        clearInterval(messageTimerRef.current)
-        messageTimerRef.current = null
-      }
+        // Após fade-out completo (800ms), mostrar app
+        setTimeout(() => {
+          setShowChildren(true)
+        }, 800)
+      }, 1500)
     }
-  }
+  }, [isOnline, showChildren])
 
-  // ── Função: Atualizar mensagens progressivas ────────────────
-  const updateProgressiveMessages = () => {
-    if (connectionStatus !== 'checking') return
-
-    const elapsed = Date.now() - startTimeRef.current
-
-    if (elapsed >= 4000) {
-      setStatusMessage('Conectando ao servidor...')
-    } else if (elapsed >= 2000) {
-      setStatusMessage('Aguarde só mais um momento...')
-    } else {
-      setStatusMessage('Carregando...')
-    }
-  }
-
-  // ── Função: Tentar novamente ────────────────────────────────
-  const handleRetry = () => {
-    setConnectionStatus('checking')
-    setStatusMessage('Carregando...')
-    setShowRetry(false)
-    startTimeRef.current = Date.now()
-    checkConnection()
-  }
-
-  // ── Effect: Iniciar verificação ao montar ───────────────────
-  useEffect(() => {
-    startTimeRef.current = Date.now()
-    checkConnection()
-
-    // Verificar conexão periodicamente a cada 30 segundos quando conectado
-    checkIntervalRef.current = setInterval(() => {
-      if (connectionStatus === 'connected') {
-        // Verificação silenciosa em background
-        fetch('/api/health', { 
-          method: 'GET',
-          credentials: 'include' 
-        }).catch(() => {
-          // Se perder conexão, voltar para checking
-          setConnectionStatus('checking')
-          setStatusMessage('Carregando...')
-          startTimeRef.current = Date.now()
-          checkConnection()
-        })
-      }
-    }, 30000)
-
-    return () => {
-      if (checkIntervalRef.current) {
-        clearInterval(checkIntervalRef.current)
-      }
-    }
-  }, [])
-
-  // ── Effect: Timer para mensagens progressivas ───────────────
-  useEffect(() => {
-    if (connectionStatus === 'checking') {
-      messageTimerRef.current = setInterval(updateProgressiveMessages, 100)
-    } else {
-      if (messageTimerRef.current) {
-        clearInterval(messageTimerRef.current)
-      }
-    }
-
-    return () => {
-      if (messageTimerRef.current) {
-        clearInterval(messageTimerRef.current)
-      }
-    }
-  }, [connectionStatus])
-
-  // ── Render: Loader ou Children ──────────────────────────────
-  // Se não estiver conectado, mostra loader fullscreen
-  if (connectionStatus !== 'connected') {
+  // ── Render: App ou Loader ────────────────────────────────────
+  // Se já conectou e terminou transição, mostra app
+  if (showChildren) {
     return (
-      <div 
-        className="fixed inset-0 flex flex-col items-center justify-center z-[9999]"
-        style={{ backgroundColor: '#000000' }}
-      >
-        {/* ── Vídeo de loader ──────────────────────────────────── */}
-        <video
-          src="/loader.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-64 h-64 object-contain"
-          aria-label="Carregando aplicação"
-        />
-
-        {/* ── Mensagem de status ───────────────────────────────── */}
-        <p
-          role="status"
-          aria-live="polite"
-          className={`mt-6 text-base font-medium ${
-            connectionStatus === 'error' 
-              ? 'text-brand-red' 
-              : 'text-white'
-          }`}
-        >
-          {statusMessage}
-        </p>
-
-        {/* ── Botão de retry (condicional) ─────────────────────── */}
-        {showRetry && (
-          <button
-            onClick={handleRetry}
-            className="mt-6 bg-white text-black font-semibold px-6 py-3 rounded-xl hover:bg-gray-100 transition-all duration-200 hover:scale-105 active:scale-95"
-            aria-label="Tentar conectar novamente"
-          >
-            Tentar Novamente
-          </button>
-        )}
-      </div>
+      <ConnectionContext.Provider value={{ isOnline }}>
+        {children}
+      </ConnectionContext.Provider>
     )
   }
 
-  // Se conectado, renderiza os children (toda a aplicação)
-  return (
-    <ConnectionContext.Provider value={{ connectionStatus }}>
-      {children}
-    </ConnectionContext.Provider>
-  )
+  // Se conectou mas ainda não mostrou loader, mostra app direto (zero flicker)
+  if (isOnline && !showLoader) {
+    return (
+      <ConnectionContext.Provider value={{ isOnline }}>
+        {children}
+      </ConnectionContext.Provider>
+    )
+  }
+
+  // Se deve mostrar loader (demorou > 300ms ou erro)
+  if (showLoader || error) {
+    return (
+      <ConnectionContext.Provider value={{ isOnline }}>
+        {/* Loader com fundo preto e transição suave */}
+        <div 
+          className={`fixed inset-0 flex flex-col items-center justify-center z-[9999] ${
+            isTransitioning 
+              ? 'animate-loader-fade-out' 
+              : 'opacity-100'
+          }`}
+          style={{ backgroundColor: '#000000' }}
+        >
+          {/* ── Container com fade-out adicional ──────────────────── */}
+          <div className={`flex flex-col items-center ${
+            isTransitioning ? 'animate-content-fade-out' : 'opacity-100'
+          }`}>
+            {/* ── Vídeo de loader ────────────────────────────────── */}
+            <video
+              src="/loader.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-64 h-64 object-contain"
+              aria-label="Carregando aplicação"
+            />
+
+            {/* ── Mensagem de status ─────────────────────────────── */}
+            <div className="mt-6 h-8 flex items-center justify-center relative w-full px-4">
+              <p
+                role="status"
+                aria-live="polite"
+                className={`absolute text-base font-medium whitespace-nowrap transition-all duration-300 ${
+                  error 
+                    ? 'text-brand-red' 
+                    : isOnline 
+                      ? 'text-white animate-pulse-soft' 
+                      : 'text-white'
+                }`}
+              >
+                {error || (isOnline ? 'Conectado!' : 'Conectando ao servidor...')}
+              </p>
+            </div>
+
+            {/* ── Botão de retry (condicional) ───────────────────── */}
+            {error && (
+              <button
+                onClick={retry}
+                className="mt-6 bg-white text-black font-semibold px-6 py-3 rounded-xl hover:bg-gray-100 transition-all duration-200 hover:scale-105 active:scale-95 animate-fade-in"
+                aria-label="Tentar conectar novamente"
+              >
+                Tentar Novamente
+              </button>
+            )}
+          </div>
+        </div>
+      </ConnectionContext.Provider>
+    )
+  }
+
+  // Estado inicial: não mostra nada (evita flicker)
+  return null
 }
 
 export function useConnection() {

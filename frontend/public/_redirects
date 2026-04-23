@@ -1,0 +1,3 @@
+# Redirects para React Router funcionar corretamente
+# Todas as rotas devem servir o index.html
+/*    /index.html   200

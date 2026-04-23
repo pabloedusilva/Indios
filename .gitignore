@@ -1,58 +1,136 @@
+# =============================================================
+#  .gitignore — Arquivos e pastas ignorados pelo Git
+#
+#  · Protege arquivos sensíveis (credenciais, tokens, etc.)
+#  · Evita subir arquivos desnecessários (node_modules, build, etc.)
+#  · Organizado por categoria para fácil manutenção
+# =============================================================
+
 # =========================
 # Node.js (dependências)
 # =========================
 node_modules/
-
-# Logs de erro (npm, yarn, pnpm)
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
 # =========================
-# Variáveis de ambiente
+# Variáveis de ambiente (SENSÍVEL)
 # =========================
 .env
 .env.local
 .env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Manter apenas os arquivos de exemplo
+!.env.example
+!.env.development
+!.env.production
 
 # =========================
 # Build / arquivos gerados
 # =========================
 dist/
+dist-ssr/
 build/
 .next/
 out/
+*.local
+
+# =========================
+# Banco de dados (SENSÍVEL)
+# =========================
+*.sqlite
+*.sqlite3
+*.db
+*.sql
+*.dump
+
+# Relatórios gerados
+backend/relatorios/*.pdf
+backend/relatorios/*.xlsx
+backend/relatorios/*.csv
+
+# Manter apenas o README
+!backend/relatorios/README.md
 
 # =========================
 # Logs do sistema
 # =========================
 logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # =========================
 # Arquivos do sistema operacional
 # =========================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
 
 # =========================
 # IDEs e editores
 # =========================
+# VSCode
 .vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# JetBrains (WebStorm, IntelliJ, etc.)
 .idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
 *.swp
 *.swo
+*~
+
+# Emacs
+*~
+\#*\#
+.\#*
 
 # =========================
 # Cache e arquivos temporários
 # =========================
 .cache/
 .parcel-cache/
-vite.svg
+.npm/
+.eslintcache
+.stylelintcache
+.node_repl_history
+*.tsbuildinfo
 
 # =========================
-# Tailwind / CSS maps
+# Vite / React
+# =========================
+vite.svg
+.vite/
+
+# =========================
+# Tailwind / CSS
 # =========================
 *.css.map
 
@@ -60,8 +138,103 @@ vite.svg
 # Testes
 # =========================
 coverage/
+*.lcov
+.nyc_output/
+test-results/
+playwright-report/
 
 # =========================
-# Segurança / certificados
+# Segurança / certificados (SENSÍVEL)
 # =========================
 *.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+
+# Chaves SSH
+id_rsa
+id_rsa.pub
+*.ppk
+
+# =========================
+# Uploads / arquivos de usuários (SENSÍVEL)
+# =========================
+uploads/
+public/uploads/
+backend/uploads/
+
+# Manter apenas o README
+!uploads/README.md
+!public/uploads/README.md
+!backend/uploads/README.md
+
+# =========================
+# Backups
+# =========================
+*.backup
+*.bak
+*.old
+*.orig
+*.tmp
+
+# =========================
+# Arquivos compactados
+# =========================
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# Exceto arquivos de exemplo
+!example.zip
+
+# =========================
+# Documentos sensíveis
+# =========================
+*.docx
+*.xlsx
+*.pdf
+
+# Exceto documentação do projeto
+!docs/*.pdf
+!README.pdf
+
+# =========================
+# Scripts e configurações locais
+# =========================
+.local/
+local/
+*.local.js
+*.local.json
+
+# =========================
+# Render / Deploy
+# =========================
+.render/
+
+# =========================
+# PWA / Service Workers
+# =========================
+sw.js
+workbox-*.js
+
+# Exceto os gerados pelo build
+!dist/sw.js
+!dist/workbox-*.js
+
+# =========================
+# Outros
+# =========================
+.vercel
+.netlify
+.firebase/
+.firebaserc
+
+# Arquivos de lock alternativos (manter apenas um)
+# Descomente a linha do gerenciador que você NÃO usa:
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
