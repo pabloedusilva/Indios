@@ -6,7 +6,9 @@
 //  · Sem armazenamento de token em localStorage/sessionStorage
 // =============================================================
 
-const BASE = '/api/auth'
+// URL base do backend (vem do .env)
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333'
+const BASE = `${API_URL}/api/auth`
 
 /**
  * Realiza o login enviando as credenciais ao servidor.
