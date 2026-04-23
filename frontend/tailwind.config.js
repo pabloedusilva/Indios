@@ -49,6 +49,7 @@ export default {
       },
       animation: {
         'fade-in':  'fadeIn 0.25s ease-out',
+        'fade-out': 'fadeOut 0.7s ease-in forwards',
         'slide-up': 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
         'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
       },
@@ -56,6 +57,10 @@ export default {
         fadeIn: {
           '0%':   { opacity: '0' },
           '100%': { opacity: '1' },
+        },
+        fadeOut: {
+          '0%':   { opacity: '1' },
+          '100%': { opacity: '0' },
         },
         slideUp: {
           '0%':   { opacity: '0', transform: 'translateY(20px)' },
