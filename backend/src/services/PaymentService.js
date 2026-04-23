@@ -116,11 +116,11 @@ class PaymentService {
   }
 
   /**
-   * Cria uma preference de checkout no Mercado Pago.
-   * O frontend redireciona o usuário para o init_point retornado.
+   * Cria uma preference de checkout no Mercado Pago para PRODUÇÃO.
+   * Configurado para checkout direto sem login obrigatório.
    *
    * @param {string} usuarioId   - ID do usuário autenticado (external_reference)
-   * @returns {{ preferenceId, checkoutUrl, sandboxUrl, valor, mesReferencia, environment, credentialType }}
+   * @returns {{ preferenceId, checkoutUrl, valor, mesReferencia, environment, credentialType }}
    */
   async criarPreference(usuarioId) {
     const mes = mesAtual()
@@ -148,15 +148,15 @@ class PaymentService {
       external_reference: `${usuarioId}|${mes}`,
       notification_url: `${APP_URL}/api/pagamentos/webhook`,
       
-      // Configuração de métodos de pagamento - PIX prioritário
+      // ✅ CONFIGURAÇÃO PRODUÇÃO - CHECKOUT DIRETO SEM LOGIN
       payment_methods: {
-        excluded_payment_methods: [],
-        excluded_payment_types: [],
-        installments: 1, // Apenas à vista
+        excluded_payment_methods: [], // Permite todos os métodos
+        excluded_payment_types: [],   // PIX, cartão, boleto disponíveis
+        installments: 12,             // Parcelamento até 12x
         default_payment_method_id: null,
       },
       
-      // URLs de retorno
+      // URLs de retorno para produção
       back_urls: {
         success: `${CLIENT_URL}/dashboard?payment=success`,
         failure: `${CLIENT_URL}/dashboard?payment=failure`,
@@ -168,24 +168,64 @@ class PaymentService {
       expiration_date_from: new Date().toISOString(),
       expiration_date_to:   new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutos
       
-      // Configurações adicionais de segurança
+      // ✅ CONFIGURAÇÕES PARA PRODUÇÃO
       binary_mode: false, // Permite status pending para PIX
+      statement_descriptor: 'INDIOSMANAGER', // Nome na fatura
       
+      // Metadados para controle interno
       metadata: {
         usuario_id:     usuarioId,
         mes_referencia: mes,
         environment:    environmentInfo.environment,
         credential_type: environmentInfo.credentialType,
         created_at:     new Date().toISOString(),
+        checkout_type:  'production', // Marca como produção
       },
       
-      // Configurações específicas para PIX
+      // ✅ CONFIGURAÇÕES ESPECÍFICAS PARA PRODUÇÃO
       purpose: 'wallet_purchase',
       
-      // Informações do pagador (opcional, mas melhora a experiência)
+      // ✅ INFORMAÇÕES BÁSICAS (não obriga login específico)
       payer: {
-        name: 'Cliente IndiosManager',
+        name: 'Cliente',
+        surname: 'IndiosManager',
         email: 'cliente@indiosmanager.com',
+        phone: {
+          area_code: '11',
+          number: '999999999'
+        },
+        address: {
+          street_name: 'Av. Paulista',
+          street_number: 1000,
+          zip_code: '01310-100'
+        }
+      },
+      
+      // ✅ INFORMAÇÕES ADICIONAIS PARA MELHOR EXPERIÊNCIA
+      additional_info: {
+        items: [
+          {
+            id: `mensalidade-${mes}`,
+            title: `Mensalidade IndiosManager — ${mes}`,
+            description: 'Pagamento mensal do servidor IndiosManager',
+            quantity: 1,
+            unit_price: VALOR_MENSALIDADE,
+            category_id: 'services', // Categoria: serviços
+          }
+        ],
+        payer: {
+          first_name: 'Cliente',
+          last_name: 'IndiosManager',
+          phone: {
+            area_code: '11',
+            number: '999999999'
+          },
+          address: {
+            zip_code: '01310-100',
+            street_name: 'Av. Paulista',
+            street_number: 1000
+          }
+        }
       },
     }
 
@@ -197,14 +237,11 @@ class PaymentService {
 
     console.log(`[PaymentService] Preference criada com sucesso: ${result.id}`)
     console.log(`[PaymentService] Checkout URL: ${result.init_point}`)
-    if (result.sandbox_init_point) {
-      console.log(`[PaymentService] Sandbox URL: ${result.sandbox_init_point}`)
-    }
 
+    // ✅ RETORNO PARA PRODUÇÃO - APENAS URL PRINCIPAL
     return {
       preferenceId: result.id,
-      checkoutUrl:  result.init_point,
-      sandboxUrl:   result.sandbox_init_point,
+      checkoutUrl:  result.init_point, // URL principal (produção)
       valor:        VALOR_MENSALIDADE,
       mesReferencia: mes,
       environment: environmentInfo.environment,
