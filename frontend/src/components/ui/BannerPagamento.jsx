@@ -19,8 +19,8 @@ function diaBRT() {
   return brt.getUTCDate()
 }
 
-const DIA_INICIO = 25 // Início da cobrança (dia 25 do mês)
-const DIAS_AVISO = 5  // 5 dias de aviso (25 a 29)
+const DIA_INICIO = 23 // Início da cobrança (dia 23 do mês)
+const DIAS_AVISO = 5  // 5 dias de aviso (23 a 27)
 
 export default function BannerPagamento() {
   const {
