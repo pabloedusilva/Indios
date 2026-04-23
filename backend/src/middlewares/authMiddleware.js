@@ -50,10 +50,11 @@ function requireAuth(req, res, next) {
     next()
   } catch (err) {
     // Token expirado ou inválido — limpa o cookie corrompido
+    const IS_PROD = process.env.NODE_ENV === 'production'
     res.clearCookie('auth_token', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: IS_PROD,
+      sameSite: IS_PROD ? 'none' : 'lax',
       path: '/',
     })
     return res.status(401).json({

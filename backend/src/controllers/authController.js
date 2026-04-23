@@ -15,7 +15,7 @@ function cookieOptions() {
   return {
     httpOnly: true,                     // inacessível via JS no cliente
     secure:   IS_PROD,                  // HTTPS only em produção
-    sameSite: 'strict',                 // proteção contra CSRF
+    sameSite: IS_PROD ? 'none' : 'lax', // 'none' permite cross-site em produção
     path:     '/',
     maxAge:   7 * 24 * 60 * 60 * 1000, // 7 dias em ms
   }
@@ -70,7 +70,7 @@ function logout(req, res) {
   res.clearCookie('auth_token', {
     httpOnly: true,
     secure:   IS_PROD,
-    sameSite: 'strict',
+    sameSite: IS_PROD ? 'none' : 'lax',
     path:     '/',
   })
   return res.json({ success: true, message: 'Sessão encerrada.' })

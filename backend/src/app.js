@@ -20,9 +20,8 @@ const { requireAuth }   = require('./middlewares/authMiddleware')
 const app = express()
 
 // ── CORS ──────────────────────────────────────────────────────
-//  Permite requisições do Vite dev server (porta 5173) e do
-//  build de produção servido por qualquer origem configurada
-//  em FRONTEND_URL (fallback: localhost:5173).
+//  Permite requisições do frontend hospedado no Render e localhost
+//  CLIENT_URL pode conter múltiplas origens separadas por vírgula
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
   .split(',')
   .map((o) => o.trim())
@@ -30,7 +29,7 @@ const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Permite chamadas sem origin (ex.: curl, Postman)
+      // Permite chamadas sem origin (ex.: curl, Postman, webhooks)
       if (!origin || allowedOrigins.includes(origin)) return callback(null, true)
       callback(new Error(`Origem não permitida pelo CORS: ${origin}`))
     },

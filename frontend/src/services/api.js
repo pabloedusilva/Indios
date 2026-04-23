@@ -1,4 +1,14 @@
-const BASE = '/api'
+// =============================================================
+//  services/api.js — Cliente HTTP para comunicação com backend
+//
+//  · Usa variável de ambiente para URL do backend
+//  · Desenvolvimento: http://localhost:3333
+//  · Produção: https://api.indios.onrender.com
+// =============================================================
+
+// URL base do backend (vem do .env)
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333'
+const BASE = `${API_URL}/api`
 
 async function request(path, method, body) {
   const options = {
@@ -33,4 +43,5 @@ export const api = {
   patch:  (path, body) => request(path, 'PATCH',  body),
   delete: (path)       => request(path, 'DELETE'),
 }
+
 
