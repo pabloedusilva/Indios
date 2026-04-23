@@ -45,11 +45,6 @@ function mesAtual() {
 // ── PaymentService ────────────────────────────────────────────
 
 class PaymentService {
-  /**
-   * Detecta o tipo de ambiente baseado no prefixo do MP_ACCESS_TOKEN.
-   * 
-   * @returns {{ environment: string, isProduction: boolean, credentialType: string }}
-   */
   detectEnvironment() {
     if (!MP_ACCESS_TOKEN) {
       return {
@@ -79,11 +74,6 @@ class PaymentService {
     }
   }
 
-  /**
-   * Valida se as credenciais estão configuradas corretamente para o ambiente.
-   * 
-   * @returns {{ valid: boolean, message?: string }}
-   */
   validateCredentials() {
     const { environment, isProduction, credentialType } = this.detectEnvironment()
     
@@ -118,9 +108,6 @@ class PaymentService {
   /**
    * Cria uma preference de checkout no Mercado Pago para PRODUÇÃO.
    * Configurado para checkout direto sem login obrigatório.
-   *
-   * @param {string} usuarioId   - ID do usuário autenticado (external_reference)
-   * @returns {{ preferenceId, checkoutUrl, valor, mesReferencia, environment, credentialType }}
    */
   async criarPreference(usuarioId) {
     const mes = mesAtual()
@@ -143,25 +130,22 @@ class PaymentService {
           quantity:    1,
           unit_price:  VALOR_MENSALIDADE,
           currency_id: 'BRL',
-          category_id: 'services', // Categoria específica para serviços
+          category_id: 'services',
         },
       ],
       external_reference: `${usuarioId}|${mes}`,
       notification_url: `${APP_URL}/api/pagamentos/webhook`,
       
-      // ✅ CONFIGURAÇÃO CRÍTICA - CHECKOUT SEM LOGIN OBRIGATÓRIO
-      marketplace: 'NONE', // Remove marketplace (evita login obrigatório)
+      marketplace: 'NONE',
       marketplace_fee: 0,
       
-      // ✅ MÉTODOS DE PAGAMENTO - TODOS DISPONÍVEIS
       payment_methods: {
-        excluded_payment_methods: [], // Permite TODOS os métodos
-        excluded_payment_types: [],   // Permite PIX, cartão, boleto, etc.
-        installments: 12,             // Parcelamento até 12x
-        default_payment_method_id: null, // Não força método específico
+        excluded_payment_methods: [],
+        excluded_payment_types: [],
+        installments: 12,
+        default_payment_method_id: null,
       },
       
-      // URLs de retorno para produção
       back_urls: {
         success: `${CLIENT_URL}/dashboard?payment=success`,
         failure: `${CLIENT_URL}/dashboard?payment=failure`,
@@ -169,32 +153,26 @@ class PaymentService {
       },
       auto_return: 'approved',
       
-      // ✅ CONFIGURAÇÕES DE EXPERIÊNCIA - SEM LOGIN
       expires: true,
       expiration_date_from: new Date().toISOString(),
-      expiration_date_to: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutos
+      expiration_date_to: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       
-      // ✅ CONFIGURAÇÕES CRÍTICAS PARA PRODUÇÃO SEM LOGIN
-      binary_mode: false, // Permite status pending (PIX)
-      statement_descriptor: 'INDIOSMANAGER', // Nome na fatura
+      binary_mode: false,
+      statement_descriptor: 'INDIOSMANAGER',
       
-      // ✅ CONFIGURAÇÕES DE CHECKOUT TRANSPARENTE
-      operation_type: 'regular_payment', // Pagamento regular
+      operation_type: 'regular_payment',
       
-      // Metadados para controle interno
       metadata: {
         usuario_id: usuarioId,
         mes_referencia: mes,
         environment: environmentInfo.environment,
         credential_type: environmentInfo.credentialType,
         created_at: new Date().toISOString(),
-        checkout_type: 'transparent_no_login', // Checkout transparente sem login
+        checkout_type: 'transparent_no_login',
       },
       
-      // ✅ CONFIGURAÇÕES ESPECÍFICAS PARA EVITAR LOGIN
       purpose: 'wallet_purchase',
       
-      // ✅ INFORMAÇÕES DO PAGADOR - GENÉRICAS (não força login)
       payer: {
         name: 'Cliente',
         surname: 'IndiosManager',
@@ -205,7 +183,7 @@ class PaymentService {
         },
         identification: {
           type: 'CPF',
-          number: '11111111111' // CPF genérico válido
+          number: '11111111111'
         },
         address: {
           street_name: 'Av. Paulista',
@@ -214,7 +192,6 @@ class PaymentService {
         }
       },
       
-      // ✅ INFORMAÇÕES ADICIONAIS PARA CHECKOUT TRANSPARENTE
       additional_info: {
         items: [
           {
@@ -240,44 +217,13 @@ class PaymentService {
           }
         }
       },
-      
-      // ✅ CONFIGURAÇÕES AVANÇADAS PARA TODOS OS MÉTODOS
-      differential_pricing: {
-        id: null // Remove pricing diferencial que pode limitar métodos
-      },
-      
-      // ✅ CONFIGURAÇÕES DE PROCESSAMENTO
-      processing_modes: ['aggregator'], // Modo agregador (mais métodos disponíveis)
-      
-      // ✅ CONFIGURAÇÕES DE EXPERIÊNCIA DO USUÁRIO
-      redirect_urls: {
-        success: `${CLIENT_URL}/dashboard?payment=success`,
-        failure: `${CLIENT_URL}/dashboard?payment=failure`,
-        pending: `${CLIENT_URL}/dashboard?payment=pending`,
-      },
     }
-
-    console.log(`[PaymentService] Criando preference para usuário ${usuarioId}, mês ${mes}`)
-    console.log(`[PaymentService] Ambiente: ${environmentInfo.environment}, Credencial: ${environmentInfo.credentialType}`)
-    console.log(`[PaymentService] Valor: R$ ${VALOR_MENSALIDADE}`)
-    console.log(`[PaymentService] Configurações aplicadas:`)
-    console.log(`  - Marketplace: NONE (sem login obrigatório)`)
-    console.log(`  - Payment methods: Todos habilitados`)
-    console.log(`  - Installments: Até 12x`)
-    console.log(`  - Processing modes: aggregator`)
-    console.log(`  - Operation type: regular_payment`)
 
     const result = await preference.create({ body })
 
-    console.log(`[PaymentService] ✅ Preference criada com sucesso: ${result.id}`)
-    console.log(`[PaymentService] 🔗 Checkout URL: ${result.init_point}`)
-    console.log(`[PaymentService] 💳 Métodos disponíveis: PIX, Cartão, Boleto, Saldo MP`)
-    console.log(`[PaymentService] 🚫 Login obrigatório: NÃO`)
-
-    // ✅ RETORNO PARA PRODUÇÃO - APENAS URL PRINCIPAL
     return {
       preferenceId: result.id,
-      checkoutUrl:  result.init_point, // URL principal (produção)
+      checkoutUrl:  result.init_point,
       valor:        VALOR_MENSALIDADE,
       mesReferencia: mes,
       environment: environmentInfo.environment,
@@ -286,15 +232,6 @@ class PaymentService {
     }
   }
 
-  /**
-   * Consulta o status de um pagamento pelo ID retornado pelo webhook.
-   * Retorna o objeto de pagamento completo do Mercado Pago.
-   * Inclui retry com backoff exponencial para falhas temporárias.
-   *
-   * @param {string|number} paymentId
-   * @param {number} maxTentativas - Número máximo de tentativas (padrão: 3)
-   * @param {number} timeoutMs - Timeout por tentativa em ms (padrão: 10000)
-   */
   async consultarPagamento(paymentId, maxTentativas = 3, timeoutMs = 10000) {
     const paymentClient = new Payment(mpClient)
     let ultimoErro = null
@@ -309,7 +246,6 @@ class PaymentService {
         })
         
         const payment = await Promise.race([consultaPromise, timeoutPromise])
-        const duration = Date.now() - startTime
         
         if (!payment || typeof payment !== 'object') {
           throw new Error('Resposta da API inválida ou vazia')
@@ -330,6 +266,7 @@ class PaymentService {
         
       } catch (err) {
         ultimoErro = err
+        
         const isNetworkError = err.message.includes('timeout') || 
                               err.message.includes('ECONNRESET') || 
                               err.message.includes('ENOTFOUND') ||
@@ -357,18 +294,6 @@ class PaymentService {
     throw ultimoErro
   }
 
-  /**
-   * Verifica a assinatura do webhook do Mercado Pago.
-   *
-   * O Mercado Pago envia o header x-signature com o formato:
-   *   ts=<timestamp>,v1=<hash>
-   * e o header x-request-id com o ID da requisição.
-   *
-   * @param {string} xSignature  - Valor do header x-signature
-   * @param {string} xRequestId  - Valor do header x-request-id
-   * @param {string} dataId      - ID do dado (ex: id do pagamento) do query param
-   * @returns {boolean}
-   */
   verificarAssinaturaWebhook(xSignature, xRequestId, dataId) {
     if (!MP_WEBHOOK_SECRET) {
       return false
@@ -404,7 +329,7 @@ class PaymentService {
   get valorMensalidade() {
     return VALOR_MENSALIDADE
   }
-
+  
   get mesAtual() {
     return mesAtual()
   }
