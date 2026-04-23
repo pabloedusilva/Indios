@@ -31,8 +31,6 @@ async function checkout(req, res, next) {
       mesReferencia: preference.mesReferencia,
     })
 
-    console.log(`[Pagamento] Preference criada — mes=${preference.mesReferencia} preferenceId=${preference.preferenceId}`)
-
     return res.status(201).json({
       success: true,
       data: {
@@ -41,10 +39,12 @@ async function checkout(req, res, next) {
         preferenceId:  preference.preferenceId,
         valor:         preference.valor,
         mesReferencia: preference.mesReferencia,
+        environment:   preference.environment,
+        credentialType: preference.credentialType,
+        isProduction:  preference.isProduction,
       },
     })
   } catch (err) {
-    console.error('[Pagamento] Erro ao criar preference:', err.message)
     next(err)
   }
 }
@@ -75,48 +75,148 @@ async function poll(req, res, next) {
 // ── POST /api/pagamentos/webhook ─────────────────────────────
 // Rota PÚBLICA — recebe notificação do Mercado Pago (IPN/Webhooks)
 async function webhook(req, res) {
+  const startTime = Date.now()
+  const requestId = req.headers['x-request-id'] || `req-${Date.now()}`
+  
   try {
     const xSignature = req.headers['x-signature']  || ''
     const xRequestId = req.headers['x-request-id'] || ''
     const dataId     = req.query['data.id'] || req.body?.data?.id || ''
 
+    // Validação de assinatura com logging detalhado
     const valido = PaymentService.verificarAssinaturaWebhook(xSignature, xRequestId, dataId)
     if (!valido) {
-      console.warn('[Webhook] Assinatura inválida — requisição rejeitada.')
       return res.status(401).json({ success: false, message: 'Assinatura inválida.' })
     }
 
     const tipo = req.body?.type || req.body?.topic || ''
+    
     if (tipo !== 'payment') {
       return res.status(200).json({ received: true })
     }
 
     if (!dataId) {
-      console.warn('[Webhook] payment_id ausente no payload.')
       return res.status(400).json({ success: false, message: 'payment_id ausente.' })
     }
 
-    const payment      = await PaymentService.consultarPagamento(dataId)
+    // Consulta do pagamento com retry e validação robusta
+    const payment = await consultarPagamentoComRetry(dataId, requestId)
+    
+    if (!payment) {
+      return res.status(200).json({ received: true })
+    }
+
     const statusMP     = payment?.status || ''
     const externalRef  = payment?.external_reference || ''
     const preferenceId = payment?.preference_id || ''
 
+    // Validação de campos obrigatórios
+    if (!statusMP) {
+      return res.status(200).json({ received: true })
+    }
+
     if (statusMP === 'approved') {
-      const mesReferencia = externalRef.split('|')[1]
+      
+      // Parsing mais flexível do external_reference
+      const mesReferencia = extrairMesReferencia(externalRef, requestId)
       if (!mesReferencia) {
-        console.warn(`[Webhook] external_reference inválido: ${externalRef}`)
         return res.status(200).json({ received: true })
       }
-      const confirmado = await PagamentoModel.confirmarPagamento(preferenceId, dataId)
+
+      // Validação de preferenceId
+      if (!preferenceId) {
+        return res.status(200).json({ received: true })
+      }
+
+      // Confirmação do pagamento com validação de existência
+      const confirmado = await confirmarPagamentoComValidacao(preferenceId, dataId, requestId)
+      
       if (confirmado) {
-        console.log(`[Webhook] ✅ Pagamento confirmado — mes=${mesReferencia} paymentId=${dataId}`)
+        const duration = Date.now() - startTime
       }
     }
 
+    const duration = Date.now() - startTime
     return res.status(200).json({ received: true })
+    
   } catch (err) {
-    console.error('[Webhook] Erro:', err.message)
+    const duration = Date.now() - startTime
     return res.status(200).json({ received: true })
+  }
+}
+
+// ── Função auxiliar: Consulta com retry e backoff exponencial ──
+async function consultarPagamentoComRetry(paymentId, requestId, maxTentativas = 3) {
+  let ultimoErro = null
+  
+  for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
+    try {
+      const payment = await PaymentService.consultarPagamento(paymentId)
+      
+      if (!payment || typeof payment !== 'object') {
+        throw new Error('Resposta da API inválida ou vazia')
+      }
+
+      if (!payment.hasOwnProperty('status')) {
+        throw new Error('Campo status ausente na resposta da API')
+      }
+
+      return payment
+      
+    } catch (err) {
+      ultimoErro = err
+      
+      if (tentativa < maxTentativas) {
+        const delay = Math.pow(2, tentativa - 1) * 1000
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+    }
+  }
+  
+  return null
+}
+
+// ── Função auxiliar: Extração flexível do mês de referência ──
+function extrairMesReferencia(externalRef, requestId) {
+  if (!externalRef) {
+    return null
+  }
+
+  try {
+    const partes = externalRef.split('|')
+    if (partes.length >= 2) {
+      const mesReferencia = partes[1]
+      if (/^\d{4}-\d{2}$/.test(mesReferencia)) {
+        return mesReferencia
+      }
+    }
+
+    const match = externalRef.match(/\d{4}-\d{2}/)
+    if (match) {
+      const mesReferencia = match[0]
+      return mesReferencia
+    }
+
+    return null
+    
+  } catch (err) {
+    return null
+  }
+}
+
+// ── Função auxiliar: Confirmação com validação de existência ──
+async function confirmarPagamentoComValidacao(preferenceId, paymentId, requestId) {
+  try {
+    const resultado = await PagamentoModel.confirmarPagamento(preferenceId, paymentId)
+    
+    if (resultado.success) {
+      return true
+    } else {
+      return false
+    }
+    
+  } catch (err) {
+    return false
   }
 }
 

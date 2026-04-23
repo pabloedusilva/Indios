@@ -16,9 +16,32 @@ const {
   webhook,
 } = require('../controllers/pagamentosController')
 
-// Rota pública — webhook do Mercado Pago (sem auth, mas com HMAC)
-// Deve ser declarada ANTES do middleware requireAuth
-router.post('/webhook', webhook)
+// Rotas públicas — devem ser declaradas ANTES do middleware requireAuth
+
+// Health check para verificar acessibilidade do webhook
+router.get('/webhook/health', (_req, res) => {
+  console.log('[Webhook Health] Health check endpoint accessed')
+  res.json({ 
+    status: 'ok', 
+    endpoint: '/api/pagamentos/webhook',
+    timestamp: new Date().toISOString(),
+    message: 'Webhook endpoint is accessible'
+  })
+})
+
+// Webhook do Mercado Pago (sem auth, mas com HMAC)
+router.post('/webhook', (req, res, next) => {
+  console.log('[Webhook] POST request received:', {
+    method: req.method,
+    path: req.path,
+    origin: req.get('origin'),
+    userAgent: req.get('user-agent'),
+    contentType: req.get('content-type'),
+    hasSignature: !!req.get('x-signature'),
+    hasRequestId: !!req.get('x-request-id')
+  })
+  webhook(req, res, next)
+})
 
 // Rotas protegidas
 router.use(requireAuth)

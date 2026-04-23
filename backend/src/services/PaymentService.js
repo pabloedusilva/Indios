@@ -25,7 +25,6 @@ const APP_URL           = process.env.APP_URL   || 'http://localhost:3333'
 const CLIENT_URL        = process.env.CLIENT_URL || 'http://localhost:5173'
 
 if (!MP_ACCESS_TOKEN) {
-  console.error('[PaymentService] FATAL: MP_ACCESS_TOKEN não configurado.')
   process.exit(1)
 }
 
@@ -47,14 +46,91 @@ function mesAtual() {
 
 class PaymentService {
   /**
+   * Detecta o tipo de ambiente baseado no prefixo do MP_ACCESS_TOKEN.
+   * 
+   * @returns {{ environment: string, isProduction: boolean, credentialType: string }}
+   */
+  detectEnvironment() {
+    if (!MP_ACCESS_TOKEN) {
+      return {
+        environment: 'unknown',
+        isProduction: false,
+        credentialType: 'missing'
+      }
+    }
+
+    const isProductionCredential = MP_ACCESS_TOKEN.startsWith('APP_USR-')
+    const isSandboxCredential = MP_ACCESS_TOKEN.startsWith('TEST-')
+    
+    let credentialType = 'unknown'
+    if (isProductionCredential) {
+      credentialType = 'production'
+    } else if (isSandboxCredential) {
+      credentialType = 'sandbox'
+    }
+
+    const nodeEnv = process.env.NODE_ENV || 'development'
+    const isProduction = isProductionCredential && nodeEnv === 'production'
+    
+    return {
+      environment: isProduction ? 'production' : 'development',
+      isProduction,
+      credentialType
+    }
+  }
+
+  /**
+   * Valida se as credenciais estão configuradas corretamente para o ambiente.
+   * 
+   * @returns {{ valid: boolean, message?: string }}
+   */
+  validateCredentials() {
+    const { environment, isProduction, credentialType } = this.detectEnvironment()
+    
+    if (credentialType === 'missing') {
+      return {
+        valid: false,
+        message: 'MP_ACCESS_TOKEN não configurado'
+      }
+    }
+    
+    if (credentialType === 'unknown') {
+      return {
+        valid: false,
+        message: 'MP_ACCESS_TOKEN com formato inválido (deve começar com APP_USR- ou TEST-)'
+      }
+    }
+    
+    const nodeEnv = process.env.NODE_ENV || 'development'
+    
+    if (credentialType === 'production' && nodeEnv === 'development') {
+    }
+    
+    if (credentialType === 'sandbox' && nodeEnv === 'production') {
+    }
+    
+    return {
+      valid: true,
+      message: `Credenciais ${credentialType} válidas para ambiente ${environment}`
+    }
+  }
+
+  /**
    * Cria uma preference de checkout no Mercado Pago.
    * O frontend redireciona o usuário para o init_point retornado.
    *
    * @param {string} usuarioId   - ID do usuário autenticado (external_reference)
-   * @returns {{ preferenceId, checkoutUrl, valor, mesReferencia }}
+   * @returns {{ preferenceId, checkoutUrl, sandboxUrl, valor, mesReferencia, environment, credentialType }}
    */
   async criarPreference(usuarioId) {
     const mes = mesAtual()
+    
+    const environmentInfo = this.detectEnvironment()
+    const credentialValidation = this.validateCredentials()
+    
+    if (!credentialValidation.valid) {
+      throw new Error(`Erro de configuração: ${credentialValidation.message}`)
+    }
 
     const preference = new Preference(mpClient)
 
@@ -69,17 +145,15 @@ class PaymentService {
           currency_id: 'BRL',
         },
       ],
-      // external_reference permite rastrear qual pagamento é qual no webhook
       external_reference: `${usuarioId}|${mes}`,
-      // Notificação de pagamento (webhook) — Mercado Pago chama esta URL
       notification_url: `${APP_URL}/api/pagamentos/webhook`,
-      // Expiração da preference: 30 minutos
       expiration_date_from: new Date().toISOString(),
       expiration_date_to:   new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-      // Metadados para rastreabilidade
       metadata: {
         usuario_id:     usuarioId,
         mes_referencia: mes,
+        environment:    environmentInfo.environment,
+        credential_type: environmentInfo.credentialType,
       },
     }
 
@@ -87,22 +161,85 @@ class PaymentService {
 
     return {
       preferenceId: result.id,
-      checkoutUrl:  result.init_point,       // URL de produção
-      sandboxUrl:   result.sandbox_init_point, // URL de sandbox (testes)
+      checkoutUrl:  result.init_point,
+      sandboxUrl:   result.sandbox_init_point,
       valor:        VALOR_MENSALIDADE,
       mesReferencia: mes,
+      environment: environmentInfo.environment,
+      credentialType: environmentInfo.credentialType,
+      isProduction: environmentInfo.isProduction,
     }
   }
 
   /**
    * Consulta o status de um pagamento pelo ID retornado pelo webhook.
    * Retorna o objeto de pagamento completo do Mercado Pago.
+   * Inclui retry com backoff exponencial para falhas temporárias.
    *
    * @param {string|number} paymentId
+   * @param {number} maxTentativas - Número máximo de tentativas (padrão: 3)
+   * @param {number} timeoutMs - Timeout por tentativa em ms (padrão: 10000)
    */
-  async consultarPagamento(paymentId) {
+  async consultarPagamento(paymentId, maxTentativas = 3, timeoutMs = 10000) {
     const paymentClient = new Payment(mpClient)
-    return paymentClient.get({ id: String(paymentId) })
+    let ultimoErro = null
+    
+    for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
+      try {
+        const startTime = Date.now()
+        
+        const consultaPromise = paymentClient.get({ id: String(paymentId) })
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error(`Timeout de ${timeoutMs}ms excedido`)), timeoutMs)
+        })
+        
+        const payment = await Promise.race([consultaPromise, timeoutPromise])
+        const duration = Date.now() - startTime
+        
+        if (!payment || typeof payment !== 'object') {
+          throw new Error('Resposta da API inválida ou vazia')
+        }
+
+        const camposObrigatorios = ['id', 'status']
+        const camposFaltando = camposObrigatorios.filter(campo => !payment.hasOwnProperty(campo))
+        
+        if (camposFaltando.length > 0) {
+          throw new Error(`Campos obrigatórios ausentes na resposta: ${camposFaltando.join(', ')}`)
+        }
+
+        if (String(payment.id) !== String(paymentId)) {
+          throw new Error(`ID do pagamento não confere: esperado ${paymentId}, recebido ${payment.id}`)
+        }
+
+        return payment
+        
+      } catch (err) {
+        ultimoErro = err
+        const isNetworkError = err.message.includes('timeout') || 
+                              err.message.includes('ECONNRESET') || 
+                              err.message.includes('ENOTFOUND') ||
+                              err.message.includes('ECONNREFUSED')
+        
+        const isRateLimitError = err.status === 429 || err.message.includes('rate limit')
+        const isServerError = err.status >= 500 && err.status < 600
+        
+        if (!isNetworkError && !isRateLimitError && !isServerError && tentativa === 1) {
+          throw err
+        }
+        
+        if (tentativa < maxTentativas) {
+          let delay = Math.pow(2, tentativa - 1) * 1000
+          
+          if (isRateLimitError) {
+            delay = Math.max(delay, 5000)
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+      }
+    }
+    
+    throw ultimoErro
   }
 
   /**
@@ -119,13 +256,11 @@ class PaymentService {
    */
   verificarAssinaturaWebhook(xSignature, xRequestId, dataId) {
     if (!MP_WEBHOOK_SECRET) {
-      console.error('[PaymentService] MP_WEBHOOK_SECRET não configurado — webhook rejeitado.')
       return false
     }
     if (!xSignature || !xRequestId) return false
 
     try {
-      // Extrai ts e v1 do header x-signature
       const parts = {}
       xSignature.split(',').forEach((part) => {
         const [k, v] = part.trim().split('=')
@@ -134,8 +269,6 @@ class PaymentService {
 
       if (!parts.ts || !parts.v1) return false
 
-      // Monta a string a ser assinada conforme documentação do Mercado Pago
-      // template: id:<dataId>;request-id:<xRequestId>;ts:<ts>;
       const manifest = `id:${dataId};request-id:${xRequestId};ts:${parts.ts};`
 
       const esperada = crypto
@@ -143,7 +276,6 @@ class PaymentService {
         .update(manifest)
         .digest('hex')
 
-      // Comparação segura contra timing attacks
       const recebida = Buffer.from(parts.v1, 'hex')
       const calculada = Buffer.from(esperada, 'hex')
 
