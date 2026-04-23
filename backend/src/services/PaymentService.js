@@ -147,17 +147,59 @@ class PaymentService {
       ],
       external_reference: `${usuarioId}|${mes}`,
       notification_url: `${APP_URL}/api/pagamentos/webhook`,
+      
+      // Configuração de métodos de pagamento - PIX prioritário
+      payment_methods: {
+        excluded_payment_methods: [],
+        excluded_payment_types: [],
+        installments: 1, // Apenas à vista
+        default_payment_method_id: null,
+      },
+      
+      // URLs de retorno
+      back_urls: {
+        success: `${CLIENT_URL}/dashboard?payment=success`,
+        failure: `${CLIENT_URL}/dashboard?payment=failure`,
+        pending: `${CLIENT_URL}/dashboard?payment=pending`,
+      },
+      auto_return: 'approved',
+      
+      // Configurações de expiração
       expiration_date_from: new Date().toISOString(),
-      expiration_date_to:   new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      expiration_date_to:   new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutos
+      
+      // Configurações adicionais de segurança
+      binary_mode: false, // Permite status pending para PIX
+      
       metadata: {
         usuario_id:     usuarioId,
         mes_referencia: mes,
         environment:    environmentInfo.environment,
         credential_type: environmentInfo.credentialType,
+        created_at:     new Date().toISOString(),
+      },
+      
+      // Configurações específicas para PIX
+      purpose: 'wallet_purchase',
+      
+      // Informações do pagador (opcional, mas melhora a experiência)
+      payer: {
+        name: 'Cliente IndiosManager',
+        email: 'cliente@indiosmanager.com',
       },
     }
 
+    console.log(`[PaymentService] Criando preference para usuário ${usuarioId}, mês ${mes}`)
+    console.log(`[PaymentService] Ambiente: ${environmentInfo.environment}, Credencial: ${environmentInfo.credentialType}`)
+    console.log(`[PaymentService] Valor: R$ ${VALOR_MENSALIDADE}`)
+
     const result = await preference.create({ body })
+
+    console.log(`[PaymentService] Preference criada com sucesso: ${result.id}`)
+    console.log(`[PaymentService] Checkout URL: ${result.init_point}`)
+    if (result.sandbox_init_point) {
+      console.log(`[PaymentService] Sandbox URL: ${result.sandbox_init_point}`)
+    }
 
     return {
       preferenceId: result.id,
