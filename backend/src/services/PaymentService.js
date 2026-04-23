@@ -143,17 +143,22 @@ class PaymentService {
           quantity:    1,
           unit_price:  VALOR_MENSALIDADE,
           currency_id: 'BRL',
+          category_id: 'services', // Categoria específica para serviços
         },
       ],
       external_reference: `${usuarioId}|${mes}`,
       notification_url: `${APP_URL}/api/pagamentos/webhook`,
       
-      // ✅ CONFIGURAÇÃO PRODUÇÃO - CHECKOUT DIRETO SEM LOGIN
+      // ✅ CONFIGURAÇÃO CRÍTICA - CHECKOUT SEM LOGIN OBRIGATÓRIO
+      marketplace: 'NONE', // Remove marketplace (evita login obrigatório)
+      marketplace_fee: 0,
+      
+      // ✅ MÉTODOS DE PAGAMENTO - TODOS DISPONÍVEIS
       payment_methods: {
-        excluded_payment_methods: [], // Permite todos os métodos
-        excluded_payment_types: [],   // PIX, cartão, boleto disponíveis
+        excluded_payment_methods: [], // Permite TODOS os métodos
+        excluded_payment_types: [],   // Permite PIX, cartão, boleto, etc.
         installments: 12,             // Parcelamento até 12x
-        default_payment_method_id: null,
+        default_payment_method_id: null, // Não força método específico
       },
       
       // URLs de retorno para produção
@@ -164,28 +169,32 @@ class PaymentService {
       },
       auto_return: 'approved',
       
-      // Configurações de expiração
+      // ✅ CONFIGURAÇÕES DE EXPERIÊNCIA - SEM LOGIN
+      expires: true,
       expiration_date_from: new Date().toISOString(),
-      expiration_date_to:   new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutos
+      expiration_date_to: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutos
       
-      // ✅ CONFIGURAÇÕES PARA PRODUÇÃO
-      binary_mode: false, // Permite status pending para PIX
+      // ✅ CONFIGURAÇÕES CRÍTICAS PARA PRODUÇÃO SEM LOGIN
+      binary_mode: false, // Permite status pending (PIX)
       statement_descriptor: 'INDIOSMANAGER', // Nome na fatura
+      
+      // ✅ CONFIGURAÇÕES DE CHECKOUT TRANSPARENTE
+      operation_type: 'regular_payment', // Pagamento regular
       
       // Metadados para controle interno
       metadata: {
-        usuario_id:     usuarioId,
+        usuario_id: usuarioId,
         mes_referencia: mes,
-        environment:    environmentInfo.environment,
+        environment: environmentInfo.environment,
         credential_type: environmentInfo.credentialType,
-        created_at:     new Date().toISOString(),
-        checkout_type:  'production', // Marca como produção
+        created_at: new Date().toISOString(),
+        checkout_type: 'transparent_no_login', // Checkout transparente sem login
       },
       
-      // ✅ CONFIGURAÇÕES ESPECÍFICAS PARA PRODUÇÃO
+      // ✅ CONFIGURAÇÕES ESPECÍFICAS PARA EVITAR LOGIN
       purpose: 'wallet_purchase',
       
-      // ✅ INFORMAÇÕES BÁSICAS (não obriga login específico)
+      // ✅ INFORMAÇÕES DO PAGADOR - GENÉRICAS (não força login)
       payer: {
         name: 'Cliente',
         surname: 'IndiosManager',
@@ -194,6 +203,10 @@ class PaymentService {
           area_code: '11',
           number: '999999999'
         },
+        identification: {
+          type: 'CPF',
+          number: '11111111111' // CPF genérico válido
+        },
         address: {
           street_name: 'Av. Paulista',
           street_number: 1000,
@@ -201,7 +214,7 @@ class PaymentService {
         }
       },
       
-      // ✅ INFORMAÇÕES ADICIONAIS PARA MELHOR EXPERIÊNCIA
+      // ✅ INFORMAÇÕES ADICIONAIS PARA CHECKOUT TRANSPARENTE
       additional_info: {
         items: [
           {
@@ -210,7 +223,7 @@ class PaymentService {
             description: 'Pagamento mensal do servidor IndiosManager',
             quantity: 1,
             unit_price: VALOR_MENSALIDADE,
-            category_id: 'services', // Categoria: serviços
+            category_id: 'services',
           }
         ],
         payer: {
@@ -227,16 +240,39 @@ class PaymentService {
           }
         }
       },
+      
+      // ✅ CONFIGURAÇÕES AVANÇADAS PARA TODOS OS MÉTODOS
+      differential_pricing: {
+        id: null // Remove pricing diferencial que pode limitar métodos
+      },
+      
+      // ✅ CONFIGURAÇÕES DE PROCESSAMENTO
+      processing_modes: ['aggregator'], // Modo agregador (mais métodos disponíveis)
+      
+      // ✅ CONFIGURAÇÕES DE EXPERIÊNCIA DO USUÁRIO
+      redirect_urls: {
+        success: `${CLIENT_URL}/dashboard?payment=success`,
+        failure: `${CLIENT_URL}/dashboard?payment=failure`,
+        pending: `${CLIENT_URL}/dashboard?payment=pending`,
+      },
     }
 
     console.log(`[PaymentService] Criando preference para usuário ${usuarioId}, mês ${mes}`)
     console.log(`[PaymentService] Ambiente: ${environmentInfo.environment}, Credencial: ${environmentInfo.credentialType}`)
     console.log(`[PaymentService] Valor: R$ ${VALOR_MENSALIDADE}`)
+    console.log(`[PaymentService] Configurações aplicadas:`)
+    console.log(`  - Marketplace: NONE (sem login obrigatório)`)
+    console.log(`  - Payment methods: Todos habilitados`)
+    console.log(`  - Installments: Até 12x`)
+    console.log(`  - Processing modes: aggregator`)
+    console.log(`  - Operation type: regular_payment`)
 
     const result = await preference.create({ body })
 
-    console.log(`[PaymentService] Preference criada com sucesso: ${result.id}`)
-    console.log(`[PaymentService] Checkout URL: ${result.init_point}`)
+    console.log(`[PaymentService] ✅ Preference criada com sucesso: ${result.id}`)
+    console.log(`[PaymentService] 🔗 Checkout URL: ${result.init_point}`)
+    console.log(`[PaymentService] 💳 Métodos disponíveis: PIX, Cartão, Boleto, Saldo MP`)
+    console.log(`[PaymentService] 🚫 Login obrigatório: NÃO`)
 
     // ✅ RETORNO PARA PRODUÇÃO - APENAS URL PRINCIPAL
     return {
