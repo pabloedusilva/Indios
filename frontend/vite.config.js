@@ -133,6 +133,13 @@ export default defineConfig({
       '@': '/src',
     },
   },
+  // ── Configuração de Build ───────────────────────────────────
+  publicDir: 'public',
+  build: {
+    outDir: 'dist',
+    // Garantir que arquivos da pasta public (incluindo _redirects) sejam copiados
+    copyPublicDir: true,
+  },
   // ── Proxy de desenvolvimento ────────────────────────────────
   server: {
     proxy: {
