@@ -106,6 +106,20 @@ export default function ModalPixPayment({ isOpen, onClose, pixData }) {
               </div>
             )}
           </div>
+
+          {/* Tempo restante */}
+          {tempoRestante && (
+            <div className="flex items-center gap-2 text-sm text-brand-text-2">
+              <MdTimer size={16} />
+              <span>
+                {tempoRestante === 'Expirado' ? (
+                  <span className="text-red-500 font-medium">PIX Expirado</span>
+                ) : (
+                  <>Expira em: <span className="font-mono font-medium">{tempoRestante}</span></>
+                )}
+              </span>
+            </div>
+          )}
           
           <p className="text-xs text-brand-text-3 text-center max-w-sm">
             Escaneie o QR Code com o app do seu banco ou use o código copia e cola abaixo
@@ -166,20 +180,6 @@ export default function ModalPixPayment({ isOpen, onClose, pixData }) {
 
         {/* Informações adicionais */}
         <div className="space-y-3">
-          {/* Tempo restante */}
-          {tempoRestante && (
-            <div className="flex items-center gap-2 text-sm text-brand-text-2">
-              <MdTimer size={16} />
-              <span>
-                {tempoRestante === 'Expirado' ? (
-                  <span className="text-red-500 font-medium">PIX Expirado</span>
-                ) : (
-                  <>Expira em: <span className="font-mono font-medium">{tempoRestante}</span></>
-                )}
-              </span>
-            </div>
-          )}
-
           {/* Instruções */}
           <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-xl">
             <div className="flex items-start gap-2">
@@ -197,15 +197,6 @@ export default function ModalPixPayment({ isOpen, onClose, pixData }) {
             </div>
           </div>
         </div>
-
-        {/* Botão fechar */}
-        <button
-          onClick={handleFechar}
-          className="w-full py-3 px-4 bg-brand-surface-2 text-brand-text-2 rounded-xl font-semibold hover:bg-brand-surface-3 transition-colors duration-200"
-        >
-          <MdClose size={20} className="inline mr-2" />
-          Fechar
-        </button>
 
       </div>
     </Modal>
