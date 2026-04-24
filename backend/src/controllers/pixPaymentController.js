@@ -1,22 +1,19 @@
 // =============================================================
-//  controllers/pixPaymentController.js — Controller de Pagamentos PIX
+//  controllers/pixPaymentController.js — Controller PIX
 //
-//  Responsabilidades:
-//    · Criar pagamentos PIX para usuários autenticados
-//    · Processar webhooks do Mercado Pago com validação
-//    · Consultar status de pagamentos
-//    · Validar entrada e tratar erros
+//  POST /api/pagamentos/pix          → cria pagamento (autenticado)
+//  GET  /api/pagamentos/status       → status do mês (autenticado)
+//  POST /api/pagamentos/webhook      → notificação Mercado Pago (HMAC)
+//  GET  /api/pagamentos/webhook/health → health check (público)
 // =============================================================
 
-const PagamentoModel = require('../models/PagamentoModel')
+const PagamentoModel  = require('../models/PagamentoModel')
 const PixPaymentService = require('../services/PixPaymentService')
 
-// ── Helpers de validação ──────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────
 
-function validarUsuarioAutenticado(req) {
-  if (!req.usuario?.id) {
-    throw new Error('Usuário não autenticado')
-  }
+function getUsuarioId(req) {
+  if (!req.usuario?.id) throw new Error('Usuário não autenticado')
   return req.usuario.id
 }
 
@@ -25,278 +22,242 @@ function mesAtual() {
   return brt.toISOString().slice(0, 7)
 }
 
-// ── Controller ─────────────────────────────────────────────────
+// ── Controller ────────────────────────────────────────────────
 
 const pixPaymentController = {
+
+  // POST /api/pagamentos/pix
   async criarPagamentoPix(req, res) {
-    const startTime = Date.now()
-    const requestId = req.headers['x-request-id'] || `req-${Date.now()}`
-    
+    const t0        = Date.now()
+    const requestId = req.headers['x-request-id'] || `req-${t0}`
+
     try {
-      console.log(`[PixController:${requestId}] Iniciando criação de pagamento PIX`)
-      
-      const usuarioId = validarUsuarioAutenticado(req)
+      const usuarioId    = getUsuarioId(req)
       const mesReferencia = mesAtual()
-      
-      console.log(`[PixController:${requestId}] Usuário: ${usuarioId}, Mês: ${mesReferencia}`)
-      
+
+      console.log(`[PIX:${requestId}] Criar PIX — usuário: ${usuarioId}, mês: ${mesReferencia}`)
+
+      // Mês já pago?
       const mesPago = await PagamentoModel.verificarMesPago(usuarioId, mesReferencia)
-      
       if (mesPago) {
-        console.log(`[PixController:${requestId}] Mês já está pago`)
         return res.status(200).json({
           success: true,
-          status: 'already_paid',
+          status:  'already_paid',
           message: 'Mês já está pago',
-          data: {
-            mesPago: true,
-            mesReferencia
-          }
+          data:    { mesPago: true, mesReferencia },
         })
       }
-      
-      console.log(`[PixController:${requestId}] Criando pagamento PIX na API`)
+
+      // Criar na API do Mercado Pago
       const pixData = await PixPaymentService.criarPagamentoPix(usuarioId)
-      
-      console.log(`[PixController:${requestId}] Salvando pagamento no banco`)
+
+      // Persistir no banco
       const pagamento = await PagamentoModel.criarPagamento({
         usuarioId,
-        valor: pixData.valor,
+        valor:         pixData.valor,
         mesReferencia,
-        mercadoPagoId: pixData.id,
-        qrCode: pixData.qrCode,
-        qrCodeBase64: pixData.qrCodeBase64
+        mercadoPagoId: String(pixData.id),   // sempre string
+        qrCode:        pixData.qrCode,
+        qrCodeBase64:  pixData.qrCodeBase64,
       })
-      
-      const duration = Date.now() - startTime
-      
-      console.log(`[PixController:${requestId}] Pagamento PIX criado em ${duration}ms`)
-      console.log(`[PixController:${requestId}] ID: ${pagamento.mercadoPagoId}, Reutilizado: ${pagamento.reutilizado}`)
-      
-      res.status(201).json({
+
+      console.log(`[PIX:${requestId}] PIX criado em ${Date.now() - t0}ms — id: ${pixData.id}, reutilizado: ${pagamento.reutilizado}`)
+
+      return res.status(201).json({
         success: true,
-        message: pagamento.reutilizado ? 'Pagamento PIX reutilizado' : 'Pagamento PIX criado com sucesso',
+        message: pagamento.reutilizado ? 'PIX reutilizado' : 'PIX criado com sucesso',
         data: {
-          id: pagamento.mercadoPagoId,
-          qrCode: pagamento.qrCode,
+          id:           pagamento.mercadoPagoId,
+          qrCode:       pagamento.qrCode,
           qrCodeBase64: pagamento.qrCodeBase64,
-          valor: pixData.valor,
+          valor:        pixData.valor,
           mesReferencia,
-          expiresAt: pixData.expiresAt,
-          status: pagamento.status,
-          reutilizado: pagamento.reutilizado
-        }
+          expiresAt:    pixData.expiresAt,
+          status:       pagamento.status,
+          reutilizado:  pagamento.reutilizado,
+        },
       })
-      
-    } catch (error) {
-      const duration = Date.now() - startTime
-      
-      console.error(`[PixController:${requestId}] Erro após ${duration}ms:`, error.message)
-      
-      if (error.message.includes('Já existe um pagamento aprovado')) {
-        return res.status(409).json({
-          success: false,
-          error: 'PAYMENT_ALREADY_EXISTS',
-          message: 'Já existe um pagamento aprovado para este mês'
-        })
-      }
-      
-      if (error.message.includes('Credenciais')) {
-        return res.status(500).json({
-          success: false,
-          error: 'CONFIGURATION_ERROR',
-          message: 'Erro de configuração do sistema de pagamentos'
-        })
-      }
-      
-      if (error.message.includes('Limite de requisições')) {
-        return res.status(429).json({
-          success: false,
-          error: 'RATE_LIMIT',
-          message: 'Muitas tentativas. Tente novamente em alguns minutos'
-        })
-      }
-      
-      res.status(500).json({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: 'Erro interno do servidor'
-      })
+
+    } catch (err) {
+      console.error(`[PIX:${requestId}] Erro ao criar PIX (${Date.now() - t0}ms):`, err.message)
+
+      if (err.message.includes('Já existe um pagamento aprovado'))
+        return res.status(409).json({ success: false, error: 'PAYMENT_ALREADY_EXISTS', message: err.message })
+
+      if (err.message.includes('Credenciais') || err.message.includes('configuração'))
+        return res.status(500).json({ success: false, error: 'CONFIGURATION_ERROR', message: 'Erro de configuração do sistema de pagamentos' })
+
+      if (err.message.includes('Limite de requisições'))
+        return res.status(429).json({ success: false, error: 'RATE_LIMIT', message: 'Muitas tentativas. Tente novamente em alguns minutos' })
+
+      return res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: 'Erro interno do servidor' })
     }
   },
 
+  // GET /api/pagamentos/status
   async consultarStatus(req, res) {
     const requestId = req.headers['x-request-id'] || `req-${Date.now()}`
-    
+
     try {
-      console.log(`[PixController:${requestId}] Consultando status do pagamento`)
-      
-      const usuarioId = validarUsuarioAutenticado(req)
+      const usuarioId    = getUsuarioId(req)
       const mesReferencia = mesAtual()
-      
-      const mesPago = await PagamentoModel.verificarMesPago(usuarioId, mesReferencia)
-      
-      console.log(`[PixController:${requestId}] Status: ${mesPago ? 'PAGO' : 'PENDENTE'}`)
-      
-      res.status(200).json({
+      const mesPago      = await PagamentoModel.verificarMesPago(usuarioId, mesReferencia)
+
+      console.log(`[PIX:${requestId}] Status — usuário: ${usuarioId}, mês: ${mesReferencia}, pago: ${mesPago}`)
+
+      return res.status(200).json({
         success: true,
         data: {
           mesPago,
           mesReferencia,
-          valor: PixPaymentService.valorMensalidade
-        }
+          valor: PixPaymentService.valorMensalidade,
+        },
       })
-      
-    } catch (error) {
-      console.error(`[PixController:${requestId}] Erro:`, error.message)
-      
-      res.status(500).json({
-        success: false,
-        error: 'INTERNAL_ERROR',
-        message: 'Erro ao consultar status do pagamento'
-      })
+
+    } catch (err) {
+      console.error(`[PIX:${requestId}] Erro ao consultar status:`, err.message)
+      return res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: 'Erro ao consultar status do pagamento' })
     }
   },
 
+  // POST /api/pagamentos/webhook
   async processarWebhook(req, res) {
-    const startTime = Date.now()
-    const requestId = req.headers['x-request-id'] || `webhook-${Date.now()}`
-    
+    const t0        = Date.now()
+    const requestId = req.headers['x-request-id'] || `wh-${t0}`
+
+    // Responde 200 imediatamente para o Mercado Pago não reenviar
+    // O processamento real acontece de forma assíncrona
+    res.status(200).json({ received: true })
+
     try {
-      console.log(`[PixController:${requestId}] Webhook recebido`)
-      console.log(`[PixController:${requestId}] Headers:`, {
-        'x-signature': req.headers['x-signature'] ? 'presente' : 'ausente',
-        'x-request-id': req.headers['x-request-id'] ? 'presente' : 'ausente',
-        'content-type': req.headers['content-type'],
-        'user-agent': req.headers['user-agent']
-      })
-      
-      const { type, data } = req.body
-      const dataId = req.query['data.id'] || data?.id
-      
-      console.log(`[PixController:${requestId}] Tipo: ${type}, Data ID: ${dataId}`)
-      
-      if (type !== 'payment') {
-        console.log(`[PixController:${requestId}] Tipo de notificação ignorado: ${type}`)
-        return res.status(200).json({ received: true, message: 'Tipo de notificação ignorado' })
+      console.log(`[WH:${requestId}] Webhook recebido`)
+      console.log(`[WH:${requestId}] Headers: x-signature=${req.headers['x-signature'] ? 'presente' : 'ausente'}, x-request-id=${req.headers['x-request-id'] ? 'presente' : 'ausente'}`)
+      console.log(`[WH:${requestId}] Body:`, JSON.stringify(req.body))
+
+      const { type, data, action } = req.body
+
+      // Aceitar tanto "payment" quanto "payment.updated" / "payment.created"
+      const isPaymentEvent = type === 'payment' || action?.startsWith('payment.')
+      if (!isPaymentEvent) {
+        console.log(`[WH:${requestId}] Evento ignorado: type=${type}, action=${action}`)
+        return
       }
-      
+
+      // Extrair ID do pagamento — Mercado Pago envia em data.id ou query data.id
+      const dataId = String(req.query['data.id'] || data?.id || '').trim()
       if (!dataId) {
-        console.error(`[PixController:${requestId}] Data ID ausente`)
-        return res.status(400).json({
-          success: false,
-          error: 'MISSING_DATA_ID',
-          message: 'ID do pagamento ausente na notificação'
-        })
+        console.error(`[WH:${requestId}] data.id ausente no webhook`)
+        return
       }
-      
+
+      console.log(`[WH:${requestId}] Payment ID: ${dataId}`)
+
+      // ── Validação HMAC ────────────────────────────────────────
       const xSignature = req.headers['x-signature']
       const xRequestId = req.headers['x-request-id']
-      
+
       const assinaturaValida = PixPaymentService.verificarAssinaturaWebhook(
         xSignature,
         xRequestId,
-        dataId
+        dataId,
       )
-      
+
       if (!assinaturaValida) {
-        console.error(`[PixController:${requestId}] Assinatura inválida`)
-        return res.status(401).json({
-          success: false,
-          error: 'INVALID_SIGNATURE',
-          message: 'Assinatura inválida'
-        })
+        console.error(`[WH:${requestId}] Assinatura HMAC inválida — descartando`)
+        return
       }
-      
-      console.log(`[PixController:${requestId}] Assinatura válida`)
-      
-      const pagamento = await PagamentoModel.buscarPorMercadoPagoId(dataId)
-      
-      if (!pagamento) {
-        console.error(`[PixController:${requestId}] Pagamento não encontrado: ${dataId}`)
-        return res.status(404).json({
-          success: false,
-          error: 'PAYMENT_NOT_FOUND',
-          message: 'Pagamento não encontrado'
-        })
-      }
-      
-      console.log(`[PixController:${requestId}] Pagamento encontrado - Status atual: ${pagamento.status}`)
-      
-      console.log(`[PixController:${requestId}] Consultando status na API do Mercado Pago`)
+
+      console.log(`[WH:${requestId}] Assinatura HMAC válida`)
+
+      // ── Consultar status REAL na API (nunca confiar só no payload) ──
       const paymentData = await PixPaymentService.consultarPagamento(dataId)
-      
-      console.log(`[PixController:${requestId}] Status na API: ${paymentData.status}`)
-      
-      if (paymentData.status !== pagamento.status) {
-        console.log(`[PixController:${requestId}] Atualizando status: ${pagamento.status} → ${paymentData.status}`)
-        
-        const atualizado = await PagamentoModel.atualizarStatus(
-          dataId,
-          paymentData.status,
-          {
-            webhook_received_at: new Date().toISOString(),
-            mercado_pago_data: {
-              status: paymentData.status,
-              status_detail: paymentData.status_detail,
-              transaction_amount: paymentData.transaction_amount,
-              date_approved: paymentData.date_approved,
-              date_last_updated: paymentData.date_last_updated
-            }
-          }
-        )
-        
-        if (atualizado) {
-          console.log(`[PixController:${requestId}] Status atualizado com sucesso`)
-          
-          if (paymentData.status === 'approved') {
-            console.log(`[PixController:${requestId}] Pagamento aprovado. Usuário: ${pagamento.usuario_id}`)
-          }
-        } else {
-          console.error(`[PixController:${requestId}] Falha ao atualizar status`)
-        }
-      } else {
-        console.log(`[PixController:${requestId}] Status já está atualizado`)
+      console.log(`[WH:${requestId}] Status na API: ${paymentData.status} (${paymentData.status_detail})`)
+
+      // Só processar se for aprovado
+      if (paymentData.status !== 'approved') {
+        console.log(`[WH:${requestId}] Status não é approved (${paymentData.status}) — ignorando`)
+        return
       }
-      
-      const duration = Date.now() - startTime
-      
-      console.log(`[PixController:${requestId}] Webhook processado em ${duration}ms`)
-      
-      res.status(200).json({
-        success: true,
-        message: 'Webhook processado com sucesso',
-        data: {
-          paymentId: dataId,
-          status: paymentData.status,
-          processed: true
+
+      // ── Buscar pagamento no banco pelo ID do Mercado Pago ─────
+      const pagamento = await PagamentoModel.buscarPorMercadoPagoId(dataId)
+
+      if (!pagamento) {
+        // Pode ser um pagamento criado antes da migração ou por outro meio
+        // Tentar identificar pelo external_reference (usuarioId|mesReferencia)
+        const externalRef = paymentData.external_reference || ''
+        console.warn(`[WH:${requestId}] Pagamento ${dataId} não encontrado no banco. external_reference: "${externalRef}"`)
+
+        if (externalRef && externalRef.includes('|')) {
+          const [usuarioId, mesReferencia] = externalRef.split('|')
+          console.log(`[WH:${requestId}] Tentando criar registro via external_reference — usuário: ${usuarioId}, mês: ${mesReferencia}`)
+
+          // Verificar se já está pago para este usuário/mês
+          const jaPago = await PagamentoModel.verificarMesPago(usuarioId, mesReferencia)
+          if (jaPago) {
+            console.log(`[WH:${requestId}] Mês ${mesReferencia} já está pago para usuário ${usuarioId} — idempotente`)
+            return
+          }
+
+          // Criar registro retroativo
+          await PagamentoModel.criarPagamentoAprovado({
+            usuarioId,
+            mesReferencia,
+            mercadoPagoId: dataId,
+            valor:         paymentData.transaction_amount,
+            dadosMercadoPago: {
+              status:             paymentData.status,
+              status_detail:      paymentData.status_detail,
+              transaction_amount: paymentData.transaction_amount,
+              date_approved:      paymentData.date_approved,
+              webhook_received_at: new Date().toISOString(),
+            },
+          })
+
+          console.log(`[WH:${requestId}] Registro retroativo criado e aprovado para usuário ${usuarioId}`)
+        } else {
+          console.error(`[WH:${requestId}] Não foi possível identificar o pagamento — external_reference inválido`)
         }
+        return
+      }
+
+      // Pagamento encontrado — atualizar status se necessário
+      if (pagamento.status === 'approved') {
+        console.log(`[WH:${requestId}] Pagamento já estava aprovado — idempotente`)
+        return
+      }
+
+      const atualizado = await PagamentoModel.atualizarStatus(dataId, 'approved', {
+        status:             paymentData.status,
+        status_detail:      paymentData.status_detail,
+        transaction_amount: paymentData.transaction_amount,
+        date_approved:      paymentData.date_approved,
+        webhook_received_at: new Date().toISOString(),
       })
-      
-    } catch (error) {
-      const duration = Date.now() - startTime
-      
-      console.error(`[PixController:${requestId}] Erro após ${duration}ms:`, error.message)
-      
-      res.status(200).json({
-        success: false,
-        error: 'WEBHOOK_ERROR',
-        message: 'Erro interno no processamento do webhook'
-      })
+
+      if (atualizado) {
+        console.log(`[WH:${requestId}] Pagamento ${dataId} aprovado! Usuário: ${pagamento.usuario_id} — ${Date.now() - t0}ms`)
+      } else {
+        console.error(`[WH:${requestId}] Falha ao atualizar status do pagamento ${dataId}`)
+      }
+
+    } catch (err) {
+      // Não relançar — já respondemos 200 ao Mercado Pago
+      console.error(`[WH:${requestId}] Erro no processamento (${Date.now() - t0}ms):`, err.message)
+      console.error(err.stack)
     }
   },
 
-  async healthCheck(req, res) {
-    console.log('[PixController] Health check do webhook acessado')
-    
-    res.status(200).json({
-      status: 'ok',
-      service: 'PIX Payment Webhook',
-      endpoint: '/api/pagamentos/webhook',
-      timestamp: new Date().toISOString(),
-      environment: PixPaymentService.detectEnvironment().environment
+  // GET /api/pagamentos/webhook/health
+  async healthCheck(_req, res) {
+    return res.status(200).json({
+      status:      'ok',
+      service:     'PIX Webhook',
+      endpoint:    '/api/pagamentos/webhook',
+      timestamp:   new Date().toISOString(),
+      environment: PixPaymentService.detectEnvironment().environment,
     })
-  }
+  },
 }
 
 module.exports = pixPaymentController

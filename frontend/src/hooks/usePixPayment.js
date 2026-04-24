@@ -5,27 +5,30 @@
 //    1. Ao montar, verifica se o mês já está pago (GET /status)
 //    2. "Pagar com PIX" → POST /pix → obtém QR Code e código copia e cola
 //    3. Exibe QR Code e código para o usuário
-//    4. Faz polling em /status para verificar se o pagamento foi confirmado
-//    5. Confirmado → sucesso=true → ModalSucesso aparece → banner some
+//    4. Polling em /status a cada 3s para detectar confirmação
+//       (o backend é atualizado via webhook do Mercado Pago)
+//    5. Confirmado → sucesso=true → banner some → ModalSucesso aparece
 // =============================================================
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '../services/api'
 
-const POLL_INTERVAL_MS = 3000
-const MAX_POLLS = 100
+const POLL_INTERVAL_MS = 3000   // 3 segundos entre cada verificação
+const MAX_POLLS        = 200    // ~10 minutos máximo de polling
 
 export function usePixPayment() {
-  const [mesPago, setMesPago] = useState(false)
+  const [mesPago,     setMesPago]     = useState(false)
   const [verificando, setVerificando] = useState(true)
-  const [criandoPix, setCriandoPix] = useState(false)
-  const [pixData, setPixData] = useState(null)
-  const [erro, setErro] = useState(null)
-  const [sucesso, setSucesso] = useState(false)
+  const [criandoPix,  setCriandoPix]  = useState(false)
+  const [pixData,     setPixData]     = useState(null)
+  const [erro,        setErro]        = useState(null)
+  const [sucesso,     setSucesso]     = useState(false)
 
-  const pollingRef = useRef(null)
+  const pollingRef   = useRef(null)
   const pollCountRef = useRef(0)
+  const pixIdRef     = useRef(null)   // ID do pagamento em andamento
 
+  // ── Verificar status ao montar ────────────────────────────
   useEffect(() => {
     verificarStatus()
   }, [])
@@ -34,45 +37,48 @@ export function usePixPayment() {
     try {
       setVerificando(true)
       const data = await api.get('/pagamentos/status')
-      
       if (data.mesPago) {
         setMesPago(true)
         setPixData(null)
       }
-    } catch (error) {
-      console.error('[usePixPayment] Erro ao verificar status:', error)
+    } catch (err) {
+      console.error('[PIX] Erro ao verificar status:', err.message)
     } finally {
       setVerificando(false)
     }
   }
 
-  function iniciarPolling() {
+  // ── Polling ───────────────────────────────────────────────
+  function iniciarPolling(paymentId) {
     pararPolling()
     pollCountRef.current = 0
-    
-    console.log('[usePixPayment] Iniciando polling de status')
-    
+    pixIdRef.current     = paymentId
+
+    console.log(`[PIX] Iniciando polling para pagamento ${paymentId}`)
+
     pollingRef.current = setInterval(async () => {
       pollCountRef.current += 1
-      
+
       if (pollCountRef.current > MAX_POLLS) {
-        console.log('[usePixPayment] Polling timeout - parando')
+        console.warn('[PIX] Polling expirou após 10 minutos')
         pararPolling()
         return
       }
-      
+
       try {
+        // Consulta o status no banco (atualizado pelo webhook)
         const data = await api.get('/pagamentos/status')
-        
+
         if (data.mesPago) {
-          console.log('[usePixPayment] Pagamento confirmado')
+          console.log('[PIX] ✅ Pagamento confirmado via polling!')
           pararPolling()
           setMesPago(true)
           setSucesso(true)
           setPixData(null)
         }
-      } catch (error) {
-        console.error('[usePixPayment] Erro no polling:', error)
+      } catch (err) {
+        // Erro temporário — continua tentando
+        console.warn('[PIX] Erro no polling (tentando novamente):', err.message)
       }
     }, POLL_INTERVAL_MS)
   }
@@ -84,101 +90,94 @@ export function usePixPayment() {
     }
   }
 
+  // Limpar polling ao desmontar
   useEffect(() => () => pararPolling(), [])
 
+  // ── Criar pagamento PIX ───────────────────────────────────
   const criarPagamentoPix = useCallback(async () => {
     setErro(null)
 
-    if (mesPago || sucesso) {
-      console.log('[usePixPayment] Mês já está pago')
-      return
-    }
+    if (mesPago || sucesso) return
 
     try {
       setCriandoPix(true)
-      console.log('[usePixPayment] Criando pagamento PIX...')
-      
+      console.log('[PIX] Criando pagamento...')
+
       const data = await api.post('/pagamentos/pix')
 
+      // Mês já estava pago
       if (data.status === 'already_paid') {
-        console.log('[usePixPayment] Mês já está pago')
         setMesPago(true)
         setSucesso(true)
         return
       }
 
-      console.log('[usePixPayment] PIX criado:', {
-        id: data.id,
-        valor: data.valor,
-        reutilizado: data.reutilizado
-      })
+      console.log('[PIX] PIX criado:', { id: data.id, valor: data.valor, reutilizado: data.reutilizado })
 
       setPixData({
-        id: data.id,
-        qrCode: data.qrCode,
+        id:           data.id,
+        qrCode:       data.qrCode,
         qrCodeBase64: data.qrCodeBase64,
-        valor: data.valor,
+        valor:        data.valor,
         mesReferencia: data.mesReferencia,
-        expiresAt: data.expiresAt,
-        reutilizado: data.reutilizado
+        expiresAt:    data.expiresAt,
+        reutilizado:  data.reutilizado,
       })
 
-      iniciarPolling()
+      iniciarPolling(data.id)
 
-    } catch (error) {
-      console.error('[usePixPayment] Erro ao criar PIX:', error)
-      
-      if (error.status === 409) {
-        setErro('Já existe um pagamento aprovado para este mês')
-      } else if (error.status === 429) {
-        setErro('Muitas tentativas. Tente novamente em alguns minutos')
-      } else {
-        setErro(error.message || 'Erro ao criar pagamento PIX. Tente novamente.')
-      }
+    } catch (err) {
+      console.error('[PIX] Erro ao criar PIX:', err.message)
+
+      if (err.message?.includes('409') || err.status === 409)
+        setErro('Já existe um pagamento aprovado para este mês.')
+      else if (err.status === 429)
+        setErro('Muitas tentativas. Aguarde alguns minutos.')
+      else
+        setErro(err.message || 'Erro ao gerar PIX. Tente novamente.')
     } finally {
       setCriandoPix(false)
     }
   }, [mesPago, sucesso])
 
-  const fecharSucesso = useCallback(() => {
-    setSucesso(false)
-  }, [])
+  // ── Ações auxiliares ──────────────────────────────────────
+  const fecharSucesso = useCallback(() => setSucesso(false), [])
 
   const cancelarPix = useCallback(() => {
-    console.log('[usePixPayment] Cancelando pagamento PIX')
     pararPolling()
     setPixData(null)
     setErro(null)
+    pixIdRef.current = null
   }, [])
 
   const copiarCodigoPix = useCallback(async () => {
     if (!pixData?.qrCode) return false
-
     try {
       await navigator.clipboard.writeText(pixData.qrCode)
-      console.log('[usePixPayment] Código PIX copiado')
       return true
-    } catch (error) {
-      console.error('[usePixPayment] Erro ao copiar código PIX:', error)
+    } catch {
       return false
     }
   }, [pixData])
 
   return {
+    // Estado
     mesPago,
     verificando,
     criandoPix,
     pixData,
     erro,
     sucesso,
-    
+
+    // Ações
     criarPagamentoPix,
     cancelarPix,
     copiarCodigoPix,
     fecharSucesso,
     verificarStatus,
-    
-    isPolling: !!pollingRef.current,
-    pollCount: pollCountRef.current
+
+    // Info
+    isPolling:  !!pollingRef.current,
+    pollCount:  pollCountRef.current,
   }
 }
