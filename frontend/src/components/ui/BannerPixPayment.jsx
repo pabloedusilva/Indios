@@ -45,8 +45,10 @@ export default function BannerPixPayment() {
   const [oculto, setOculto] = useState(false)
   const [mostrarModalPix, setMostrarModalPix] = useState(false)
 
+  // Fechar modal PIX e iniciar animação de saída quando pago
   useEffect(() => {
     if (mesPago && dentroJanela && !verificando) {
+      setMostrarModalPix(false)
       setSaindo(true)
       const t = setTimeout(() => setOculto(true), 550)
       return () => clearTimeout(t)

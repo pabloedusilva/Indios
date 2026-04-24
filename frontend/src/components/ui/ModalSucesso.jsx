@@ -26,11 +26,9 @@ export default function ModalSucesso({ isOpen, onClose }) {
       role="dialog"
       aria-modal="true"
       aria-label="Pagamento confirmado"
-      onClick={onClose}
     >
       <div
         className="modal-box flex flex-col items-center gap-5 py-10 px-8 max-w-xs text-center"
-        onClick={(e) => e.stopPropagation()}
         style={{ animation: 'popIn .35s cubic-bezier(.34,1.56,.64,1) both' }}
       >
         {/* Ícone SVG animado */}
