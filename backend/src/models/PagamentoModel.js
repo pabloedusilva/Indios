@@ -1,216 +1,220 @@
 // =============================================================
-//  models/PagamentoModel.js — Acesso à tabela pagamentos_servidor
+//  models/PagamentoModel.js — Modelo de Pagamentos PIX
 //
-//  Todos os campos em português, conforme estrutura do banco.
-//  Usa o pool de conexões compartilhado (mysql2/promise).
+//  Responsabilidades:
+//    · Gerenciar transações PIX no banco de dados
+//    · Controlar status de pagamentos (pending, approved, failed)
+//    · Associar pagamentos a usuários autenticados
+//    · Prevenir duplicidade e race conditions
 // =============================================================
 
-const pool = require('../config/database')
-const { randomUUID } = require('crypto')
+const db = require('../config/database')
 
-// Mapeia linha do banco para objeto JS com nomes amigáveis
-function mapPagamento(row) {
-  if (!row) return null
-  return {
-    id:            row.id,
-    usuarioId:     row.usuario_id,
-    valor:         parseFloat(row.valor),
-    status:        row.status,
-    preferenceId:  row.preference_id,
-    paymentId:     row.payment_id,
-    mesReferencia: row.mes_referencia,
-    criadoEm:      row.criado_em,
-    pagoEm:        row.pago_em,
-  }
-}
-
-const PagamentoModel = {
-  // ── Criação ──────────────────────────────────────────────
-  async criar({ usuarioId, valor, preferenceId, mesReferencia }) {
-    const id = randomUUID()
-    await pool.execute(
-      `INSERT INTO pagamentos_servidor
-         (id, usuario_id, valor, status, preference_id, mes_referencia)
-       VALUES (?, ?, ?, 'pendente', ?, ?)`,
-      [id, usuarioId, valor, preferenceId, mesReferencia],
-    )
-    return this.findById(id)
-  },
-
-  // ── Leitura ──────────────────────────────────────────────
-  async findById(id) {
-    const [rows] = await pool.execute(
-      'SELECT * FROM pagamentos_servidor WHERE id = ? LIMIT 1',
-      [id],
-    )
-    return mapPagamento(rows[0])
-  },
-
-  // Verifica se o mês de referência já foi pago
-  async findPagamentoMes(mesReferencia) {
-    const [rows] = await pool.execute(
-      `SELECT * FROM pagamentos_servidor
-       WHERE mes_referencia = ? AND status = 'pago'
-       ORDER BY pago_em DESC LIMIT 1`,
-      [mesReferencia],
-    )
-    return mapPagamento(rows[0])
-  },
-
-  // ── Atualização ──────────────────────────────────────────
-  // Confirma pagamento pelo preferenceId (recebido do webhook via payment.preference_id)
-  async confirmarPagamento(preferenceId, paymentId) {
-    const startTime = Date.now()
-    
-    if (!preferenceId || !paymentId) {
-      const erro = `Parâmetros obrigatórios ausentes - preference_id: ${preferenceId}, payment_id: ${paymentId}`
-      throw new Error(erro)
-    }
-    
-    const connection = await pool.getConnection()
+class PagamentoModel {
+  /**
+   * Cria um novo pagamento PIX no banco de dados
+   * @param {Object} pagamentoData - Dados do pagamento
+   * @param {string} pagamentoData.usuarioId - ID do usuário
+   * @param {number} pagamentoData.valor - Valor em reais
+   * @param {string} pagamentoData.mesReferencia - Mês de referência (YYYY-MM)
+   * @param {string} pagamentoData.mercadoPagoId - ID do pagamento no Mercado Pago
+   * @param {string} pagamentoData.qrCode - Código PIX copia e cola
+   * @param {string} pagamentoData.qrCodeBase64 - QR Code em base64
+   * @returns {Promise<Object>} Dados do pagamento criado
+   */
+  static async criarPagamento(pagamentoData) {
+    const connection = await db.getConnection()
     
     try {
       await connection.beginTransaction()
       
-      const [existingRows] = await connection.execute(
-        `SELECT id, status, mes_referencia, usuario_id, valor, criado_em
-         FROM pagamentos_servidor 
-         WHERE preference_id = ? AND status = 'pendente' 
-         LIMIT 1 FOR UPDATE`,
-        [preferenceId]
-      )
+      // Verificar se já existe pagamento aprovado para este mês/usuário
+      const [existente] = await connection.execute(`
+        SELECT id, status, mercado_pago_id 
+        FROM pagamentos 
+        WHERE usuario_id = ? AND mes_referencia = ? AND status = 'approved'
+        FOR UPDATE
+      `, [pagamentoData.usuarioId, pagamentoData.mesReferencia])
       
-      if (existingRows.length === 0) {
-        
-        const [paidRows] = await connection.execute(
-          `SELECT id, status, pago_em, payment_id FROM pagamentos_servidor 
-           WHERE preference_id = ? AND status = 'pago' 
-           LIMIT 1`,
-          [preferenceId]
-        )
-        
-        if (paidRows.length > 0) {
-          const registro = paidRows[0]
-          
-          if (registro.payment_id === paymentId) {
-            await connection.commit()
-            return { 
-              success: true, 
-              alreadyProcessed: true, 
-              message: 'Pagamento já foi processado anteriormente',
-              registroId: registro.id,
-              pagoEm: registro.pago_em
-            }
-          }
-          
-          await connection.rollback()
-          return { 
-            success: false, 
-            alreadyProcessed: true, 
-            message: 'Registro já foi processado com payment_id diferente',
-            existingPaymentId: registro.payment_id
-          }
-        }
-        
-        const [allRows] = await connection.execute(
-          `SELECT id, status, criado_em FROM pagamentos_servidor 
-           WHERE preference_id = ? 
-           LIMIT 1`,
-          [preferenceId]
-        )
-        
-        if (allRows.length > 0) {
-          const registro = allRows[0]
-          await connection.rollback()
-          return { 
-            success: false, 
-            found: true, 
-            message: `Registro encontrado mas com status '${registro.status}' (não pendente)`,
-            status: registro.status
-          }
-        }
-        
+      if (existente.length > 0) {
         await connection.rollback()
-        return { 
-          success: false, 
-          found: false, 
-          message: 'Preference_id não encontrado no banco de dados'
-        }
+        throw new Error('Já existe um pagamento aprovado para este mês')
       }
       
-      const registro = existingRows[0]
+      // Verificar se já existe pagamento pendente para este mês/usuário
+      const [pendente] = await connection.execute(`
+        SELECT id, status, mercado_pago_id, qr_code, qr_code_base64
+        FROM pagamentos 
+        WHERE usuario_id = ? AND mes_referencia = ? AND status = 'pending'
+        AND created_at > DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+        FOR UPDATE
+      `, [pagamentoData.usuarioId, pagamentoData.mesReferencia])
       
-      const [duplicatePaymentRows] = await connection.execute(
-        `SELECT id, preference_id FROM pagamentos_servidor 
-         WHERE payment_id = ? AND id != ?
-         LIMIT 1`,
-        [paymentId, registro.id]
-      )
-      
-      if (duplicatePaymentRows.length > 0) {
-        const duplicado = duplicatePaymentRows[0]
-        await connection.rollback()
-        return { 
-          success: false, 
-          duplicate: true, 
-          message: 'Payment_id já está sendo usado por outro registro',
-          conflictingRegistroId: duplicado.id
-        }
-      }
-      
-      const pagoEm = new Date()
-      
-      const [result] = await connection.execute(
-        `UPDATE pagamentos_servidor
-           SET status = 'pago', pago_em = ?, payment_id = ?
-         WHERE id = ? AND status = 'pendente'`,
-        [pagoEm, paymentId, registro.id]
-      )
-      
-      const duration = Date.now() - startTime
-      const sucesso = result.affectedRows > 0
-      
-      if (sucesso) {
+      if (pendente.length > 0) {
         await connection.commit()
-        
-        return { 
-          success: true, 
-          message: 'Pagamento confirmado com sucesso',
-          registroId: registro.id,
-          mesReferencia: registro.mes_referencia,
-          usuarioId: registro.usuario_id,
-          valor: registro.valor,
-          pagoEm: pagoEm.toISOString(),
-          duracaoMs: duration,
-          affectedRows: result.affectedRows
-        }
-      } else {
-        await connection.rollback()
-        
-        return { 
-          success: false, 
-          message: 'Nenhum registro foi atualizado - possível condição de corrida',
-          registroId: registro.id,
-          affectedRows: result.affectedRows,
-          debug: {
-            changedRows: result.changedRows,
-            warningCount: result.warningCount
-          }
+        return {
+          id: pendente[0].id,
+          mercadoPagoId: pendente[0].mercado_pago_id,
+          qrCode: pendente[0].qr_code,
+          qrCodeBase64: pendente[0].qr_code_base64,
+          status: pendente[0].status,
+          reutilizado: true
         }
       }
       
-    } catch (err) {
-      try {
-        await connection.rollback()
-      } catch (rollbackErr) {}
+      // Criar novo pagamento
+      const [result] = await connection.execute(`
+        INSERT INTO pagamentos (
+          usuario_id, valor, mes_referencia, mercado_pago_id, 
+          qr_code, qr_code_base64, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())
+      `, [
+        pagamentoData.usuarioId,
+        pagamentoData.valor,
+        pagamentoData.mesReferencia,
+        pagamentoData.mercadoPagoId,
+        pagamentoData.qrCode,
+        pagamentoData.qrCodeBase64
+      ])
       
-      const duration = Date.now() - startTime
+      await connection.commit()
       
-      throw err
+      return {
+        id: result.insertId,
+        mercadoPagoId: pagamentoData.mercadoPagoId,
+        qrCode: pagamentoData.qrCode,
+        qrCodeBase64: pagamentoData.qrCodeBase64,
+        status: 'pending',
+        reutilizado: false
+      }
+      
+    } catch (error) {
+      await connection.rollback()
+      throw error
     } finally {
       connection.release()
     }
-  },
+  }
+  
+  /**
+   * Busca pagamento por ID do Mercado Pago
+   * @param {string} mercadoPagoId - ID do pagamento no Mercado Pago
+   * @returns {Promise<Object|null>} Dados do pagamento ou null
+   */
+  static async buscarPorMercadoPagoId(mercadoPagoId) {
+    const [rows] = await db.execute(`
+      SELECT 
+        id, usuario_id, valor, mes_referencia, mercado_pago_id,
+        qr_code, qr_code_base64, status, created_at, updated_at
+      FROM pagamentos 
+      WHERE mercado_pago_id = ?
+    `, [mercadoPagoId])
+    
+    return rows.length > 0 ? rows[0] : null
+  }
+  
+  /**
+   * Atualiza status do pagamento (com proteção contra race conditions)
+   * @param {string} mercadoPagoId - ID do pagamento no Mercado Pago
+   * @param {string} novoStatus - Novo status (approved, failed, etc.)
+   * @param {Object} dadosAdicionais - Dados adicionais do pagamento
+   * @returns {Promise<boolean>} True se atualizou, false se não encontrou
+   */
+  static async atualizarStatus(mercadoPagoId, novoStatus, dadosAdicionais = {}) {
+    const connection = await db.getConnection()
+    
+    try {
+      await connection.beginTransaction()
+      
+      // Buscar pagamento atual com lock
+      const [pagamento] = await connection.execute(`
+        SELECT id, status, usuario_id, mes_referencia
+        FROM pagamentos 
+        WHERE mercado_pago_id = ?
+        FOR UPDATE
+      `, [mercadoPagoId])
+      
+      if (pagamento.length === 0) {
+        await connection.rollback()
+        return false
+      }
+      
+      const pagamentoAtual = pagamento[0]
+      
+      // Não atualizar se já está aprovado (idempotência)
+      if (pagamentoAtual.status === 'approved' && novoStatus === 'approved') {
+        await connection.commit()
+        return true
+      }
+      
+      // Atualizar status
+      const [result] = await connection.execute(`
+        UPDATE pagamentos 
+        SET status = ?, updated_at = NOW(),
+            dados_mercado_pago = ?
+        WHERE mercado_pago_id = ?
+      `, [novoStatus, JSON.stringify(dadosAdicionais), mercadoPagoId])
+      
+      await connection.commit()
+      
+      return result.affectedRows > 0
+      
+    } catch (error) {
+      await connection.rollback()
+      throw error
+    } finally {
+      connection.release()
+    }
+  }
+  
+  /**
+   * Verifica se o mês está pago para um usuário
+   * @param {string} usuarioId - ID do usuário
+   * @param {string} mesReferencia - Mês de referência (YYYY-MM)
+   * @returns {Promise<boolean>} True se está pago
+   */
+  static async verificarMesPago(usuarioId, mesReferencia) {
+    const [rows] = await db.execute(`
+      SELECT COUNT(*) as count
+      FROM pagamentos 
+      WHERE usuario_id = ? AND mes_referencia = ? AND status = 'approved'
+    `, [usuarioId, mesReferencia])
+    
+    return rows[0].count > 0
+  }
+  
+  /**
+   * Lista pagamentos de um usuário
+   * @param {string} usuarioId - ID do usuário
+   * @param {number} limit - Limite de registros
+   * @returns {Promise<Array>} Lista de pagamentos
+   */
+  static async listarPorUsuario(usuarioId, limit = 10) {
+    const [rows] = await db.execute(`
+      SELECT 
+        id, valor, mes_referencia, status, created_at, updated_at
+      FROM pagamentos 
+      WHERE usuario_id = ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `, [usuarioId, limit])
+    
+    return rows
+  }
+  
+  /**
+   * Remove pagamentos pendentes expirados (mais de 30 minutos)
+   * @returns {Promise<number>} Número de pagamentos removidos
+   */
+  static async limparPagamentosExpirados() {
+    const [result] = await db.execute(`
+      DELETE FROM pagamentos 
+      WHERE status = 'pending' 
+      AND created_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+    `)
+    
+    return result.affectedRows
+  }
 }
 
 module.exports = PagamentoModel

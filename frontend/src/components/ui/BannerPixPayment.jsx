@@ -1,17 +1,18 @@
-﻿// =============================================================
-//  components/ui/BannerPagamento.jsx
+// =============================================================
+//  components/ui/BannerPixPayment.jsx — Banner de Pagamento PIX
 //
 //  Exibe o banner de cobrança mensal do servidor apenas entre
-//  os dias 25 e 29, e somente se o mês ainda não foi pago.
-//  Ao clicar em "Pagar agora", abre o checkout do Mercado Pago
-//  em nova aba. Quando o pagamento é confirmado, o banner some
-//  com animação e o ModalSucesso é exibido.
+//  os dias 23 e 27, e somente se o mês ainda não foi pago.
+//  Ao clicar em "Pagar com PIX", cria o pagamento e exibe
+//  o QR Code e código copia e cola. Monitora automaticamente
+//  a confirmação do pagamento via polling.
 // =============================================================
 
 import { useEffect, useState } from 'react'
-import { usePagamento } from '../../hooks/usePagamento'
+import { usePixPayment } from '../../hooks/usePixPayment'
+import ModalPixPayment from './ModalPixPayment'
 import ModalSucesso from './ModalSucesso'
-import { MdWarning } from 'react-icons/md'
+import { MdWarning, MdQrCode2 } from 'react-icons/md'
 
 // Retorna o dia atual no horário de Brasília (UTC-3)
 function diaBRT() {
@@ -22,18 +23,19 @@ function diaBRT() {
 const DIA_INICIO = 23 // Início da cobrança (dia 23 do mês)
 const DIAS_AVISO = 5  // 5 dias de aviso (23 a 27)
 
-export default function BannerPagamento() {
+export default function BannerPixPayment() {
   const {
     mesPago,
     verificando,
-    abrindo,
-    erroCobrar,
+    criandoPix,
+    pixData,
+    erro,
     sucesso,
-    abrirCheckout,
+    criarPagamentoPix,
     fecharSucesso,
-  } = usePagamento()
+  } = usePixPayment()
 
-  const dia    = diaBRT()
+  const dia = diaBRT()
   const diaFim = DIA_INICIO + DIAS_AVISO - 1
 
   const dentroJanela = dia >= DIA_INICIO && dia <= diaFim
@@ -41,6 +43,7 @@ export default function BannerPagamento() {
   // Animação de saída quando o pagamento for confirmado
   const [saindo, setSaindo] = useState(false)
   const [oculto, setOculto] = useState(false)
+  const [mostrarModalPix, setMostrarModalPix] = useState(false)
 
   useEffect(() => {
     if (mesPago && dentroJanela && !verificando) {
@@ -50,11 +53,26 @@ export default function BannerPagamento() {
     }
   }, [mesPago, dentroJanela, verificando])
 
+  // Mostrar modal PIX quando dados estão disponíveis
+  useEffect(() => {
+    if (pixData) {
+      setMostrarModalPix(true)
+    }
+  }, [pixData])
+
   if (verificando || !dentroJanela || oculto) return null
   if (mesPago && !saindo) return null
 
   const diasRestantes = diaFim - dia + 1
-  const urgente       = diasRestantes <= 2
+  const urgente = diasRestantes <= 2
+
+  const handlePagarPix = async () => {
+    await criarPagamentoPix()
+  }
+
+  const handleFecharModalPix = () => {
+    setMostrarModalPix(false)
+  }
 
   return (
     <>
@@ -79,7 +97,7 @@ export default function BannerPagamento() {
             </div>
             <p className="text-sm font-medium text-white/95 truncate">
               <span className="font-bold text-white">Atenção:&nbsp;</span>
-              Efetue o pagamento do servidor para manter o sistema online.
+              Efetue o pagamento PIX do servidor para manter o sistema online.
             </p>
           </div>
 
@@ -89,8 +107,8 @@ export default function BannerPagamento() {
               {diasRestantes} {diasRestantes === 1 ? 'dia restante' : 'dias restantes'}
             </span>
             <button
-              onClick={abrirCheckout}
-              disabled={abrindo}
+              onClick={handlePagarPix}
+              disabled={criandoPix}
               className="
                 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold
                 bg-white text-[#C93517] shadow-sm border border-white/80
@@ -98,15 +116,23 @@ export default function BannerPagamento() {
                 active:scale-[0.98] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed
               "
             >
-              {abrindo ? 'Aguarde...' : 'Pagar agora'}
+              <MdQrCode2 size={14} />
+              {criandoPix ? 'Gerando PIX...' : 'Pagar com PIX'}
             </button>
           </div>
         </div>
 
-        {erroCobrar && (
-          <p className="text-center text-xs text-white/80 pb-1.5 -mt-1">{erroCobrar}</p>
+        {erro && (
+          <p className="text-center text-xs text-white/80 pb-1.5 -mt-1">{erro}</p>
         )}
       </div>
+
+      {/* Modal de pagamento PIX */}
+      <ModalPixPayment 
+        isOpen={mostrarModalPix}
+        onClose={handleFecharModalPix}
+        pixData={pixData}
+      />
 
       {/* Modal de sucesso após pagamento */}
       <ModalSucesso isOpen={sucesso} onClose={fecharSucesso} />

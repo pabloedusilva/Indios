@@ -1,50 +1,57 @@
 // =============================================================
-//  services/PaymentService.js — Integração com Mercado Pago
+//  services/PixPaymentService.js — Serviço de Pagamentos PIX
 //
 //  Responsabilidades:
-//    · Criar preference de checkout (Mercado Pago Checkout Pro)
-//    · Verificar assinatura HMAC dos webhooks
-//    · Consultar status de pagamento por preferenceId
-//
-//  Variáveis de ambiente obrigatórias (.env):
-//    MP_ACCESS_TOKEN   → Access Token do Mercado Pago (começa com APP_USR-)
-//    MP_WEBHOOK_SECRET → Secret para validar assinatura do webhook (x-signature)
-//    VALOR_MENSALIDADE → Valor fixo em reais (ex: 99.90)
-//    APP_URL           → URL pública do backend (para back_urls e webhook)
-//    CLIENT_URL        → URL pública do frontend (para back_urls de retorno)
+//    · Criar pagamentos PIX via API do Mercado Pago
+//    · Validar webhooks com assinatura HMAC
+//    · Consultar status de pagamentos na API
+//    · Gerenciar configurações e credenciais
 // =============================================================
 
-const { MercadoPagoConfig, Preference, Payment } = require('mercadopago')
+const { MercadoPagoConfig, Payment } = require('mercadopago')
 const crypto = require('crypto')
 
 // ── Validação de variáveis críticas ──────────────────────────
-const MP_ACCESS_TOKEN   = process.env.MP_ACCESS_TOKEN
+const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN
 const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET
 const VALOR_MENSALIDADE = parseFloat(process.env.VALOR_MENSALIDADE || '99.90')
-const APP_URL           = process.env.APP_URL   || 'http://localhost:3333'
-const CLIENT_URL        = process.env.CLIENT_URL || 'http://localhost:5173'
 
 if (!MP_ACCESS_TOKEN) {
+  console.error('[PixPaymentService] ERRO: MP_ACCESS_TOKEN não configurado')
+  process.exit(1)
+}
+
+if (!MP_WEBHOOK_SECRET) {
+  console.error('[PixPaymentService] ERRO: MP_WEBHOOK_SECRET não configurado')
   process.exit(1)
 }
 
 // ── Cliente SDK Mercado Pago ──────────────────────────────────
 const mpClient = new MercadoPagoConfig({
   accessToken: MP_ACCESS_TOKEN,
-  options: { timeout: 15000 },
+  options: { 
+    timeout: 15000,
+    idempotencyKey: undefined
+  },
 })
 
 // ── Helpers ───────────────────────────────────────────────────
 
 function mesAtual() {
-  // Formato YYYY-MM em horário de Brasília
   const brt = new Date(Date.now() - 3 * 60 * 60 * 1000)
   return brt.toISOString().slice(0, 7)
 }
 
-// ── PaymentService ────────────────────────────────────────────
+function gerarIdempotencyKey(usuarioId, mesReferencia) {
+  return crypto.createHash('sha256')
+    .update(`${usuarioId}-${mesReferencia}-${Date.now()}`)
+    .digest('hex')
+    .substring(0, 32)
+}
 
-class PaymentService {
+// ── PixPaymentService ─────────────────────────────────────────
+
+class PixPaymentService {
   detectEnvironment() {
     if (!MP_ACCESS_TOKEN) {
       return {
@@ -75,7 +82,7 @@ class PaymentService {
   }
 
   validateCredentials() {
-    const { environment, isProduction, credentialType } = this.detectEnvironment()
+    const { credentialType } = this.detectEnvironment()
     
     if (credentialType === 'missing') {
       return {
@@ -91,25 +98,13 @@ class PaymentService {
       }
     }
     
-    const nodeEnv = process.env.NODE_ENV || 'development'
-    
-    if (credentialType === 'production' && nodeEnv === 'development') {
-    }
-    
-    if (credentialType === 'sandbox' && nodeEnv === 'production') {
-    }
-    
     return {
       valid: true,
-      message: `Credenciais ${credentialType} válidas para ambiente ${environment}`
+      message: `Credenciais ${credentialType} válidas`
     }
   }
 
-  /**
-   * Cria uma preference de checkout no Mercado Pago para PRODUÇÃO.
-   * Configurado para checkout direto sem login obrigatório.
-   */
-  async criarPreference(usuarioId) {
+  async criarPagamentoPix(usuarioId) {
     const mes = mesAtual()
     
     const environmentInfo = this.detectEnvironment()
@@ -119,48 +114,31 @@ class PaymentService {
       throw new Error(`Erro de configuração: ${credentialValidation.message}`)
     }
 
-    const preference = new Preference(mpClient)
+    const idempotencyKey = gerarIdempotencyKey(usuarioId, mes)
+    const paymentClient = new Payment(new MercadoPagoConfig({
+      accessToken: MP_ACCESS_TOKEN,
+      options: { 
+        timeout: 15000,
+        idempotencyKey
+      }
+    }))
 
-    const body = {
-      items: [
-        {
-          id:          `mensalidade-${mes}`,
-          title:       `Mensalidade IndiosManager — ${mes}`,
-          description: 'Pagamento mensal do servidor IndiosManager',
-          quantity:    1,
-          unit_price:  VALOR_MENSALIDADE,
-          currency_id: 'BRL',
-          category_id: 'services',
-        },
-      ],
+    const paymentData = {
+      transaction_amount: VALOR_MENSALIDADE,
+      description: `Mensalidade IndiosManager - ${mes}`,
+      payment_method_id: 'pix',
       external_reference: `${usuarioId}|${mes}`,
-      notification_url: `${APP_URL}/api/pagamentos/webhook`,
+      notification_url: `${process.env.APP_URL}/api/pagamentos/webhook`,
       
-      marketplace: 'NONE',
-      marketplace_fee: 0,
-      
-      payment_methods: {
-        excluded_payment_methods: [],
-        excluded_payment_types: [],
-        installments: 12,
-        default_payment_method_id: null,
+      payer: {
+        email: 'cliente@indiosmanager.com',
+        first_name: 'Cliente',
+        last_name: 'IndiosManager',
+        identification: {
+          type: 'CPF',
+          number: '11111111111'
+        }
       },
-      
-      back_urls: {
-        success: `${CLIENT_URL}/dashboard?payment=success`,
-        failure: `${CLIENT_URL}/dashboard?payment=failure`,
-        pending: `${CLIENT_URL}/dashboard?payment=pending`,
-      },
-      auto_return: 'approved',
-      
-      expires: true,
-      expiration_date_from: new Date().toISOString(),
-      expiration_date_to: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-      
-      binary_mode: false,
-      statement_descriptor: 'INDIOSMANAGER',
-      
-      operation_type: 'regular_payment',
       
       metadata: {
         usuario_id: usuarioId,
@@ -168,67 +146,56 @@ class PaymentService {
         environment: environmentInfo.environment,
         credential_type: environmentInfo.credentialType,
         created_at: new Date().toISOString(),
-        checkout_type: 'transparent_no_login',
-      },
-      
-      purpose: 'wallet_purchase',
-      
-      payer: {
-        name: 'Cliente',
-        surname: 'IndiosManager',
-        email: 'cliente@indiosmanager.com',
-        phone: {
-          area_code: '11',
-          number: '999999999'
-        },
-        identification: {
-          type: 'CPF',
-          number: '11111111111'
-        },
-        address: {
-          street_name: 'Av. Paulista',
-          street_number: 1000,
-          zip_code: '01310-100'
-        }
-      },
-      
-      additional_info: {
-        items: [
-          {
-            id: `mensalidade-${mes}`,
-            title: `Mensalidade IndiosManager — ${mes}`,
-            description: 'Pagamento mensal do servidor IndiosManager',
-            quantity: 1,
-            unit_price: VALOR_MENSALIDADE,
-            category_id: 'services',
-          }
-        ],
-        payer: {
-          first_name: 'Cliente',
-          last_name: 'IndiosManager',
-          phone: {
-            area_code: '11',
-            number: '999999999'
-          },
-          address: {
-            zip_code: '01310-100',
-            street_name: 'Av. Paulista',
-            street_number: 1000
-          }
-        }
-      },
+        payment_type: 'pix_only'
+      }
     }
 
-    const result = await preference.create({ body })
+    console.log(`[PixPaymentService] Criando pagamento PIX para usuário ${usuarioId}, mês ${mes}`)
+    console.log(`[PixPaymentService] Ambiente: ${environmentInfo.environment}, Credencial: ${environmentInfo.credentialType}`)
+    console.log(`[PixPaymentService] Valor: R$ ${VALOR_MENSALIDADE}`)
+    console.log(`[PixPaymentService] Idempotency Key: ${idempotencyKey}`)
 
-    return {
-      preferenceId: result.id,
-      checkoutUrl:  result.init_point,
-      valor:        VALOR_MENSALIDADE,
-      mesReferencia: mes,
-      environment: environmentInfo.environment,
-      credentialType: environmentInfo.credentialType,
-      isProduction: environmentInfo.isProduction,
+    try {
+      const payment = await paymentClient.create({ body: paymentData })
+
+      console.log(`[PixPaymentService] Pagamento PIX criado com sucesso: ${payment.id}`)
+      console.log(`[PixPaymentService] Status: ${payment.status}`)
+      console.log(`[PixPaymentService] QR Code disponível: ${!!payment.point_of_interaction?.transaction_data?.qr_code}`)
+
+      const transactionData = payment.point_of_interaction?.transaction_data
+      
+      if (!transactionData?.qr_code) {
+        throw new Error('QR Code PIX não foi gerado pela API do Mercado Pago')
+      }
+
+      return {
+        id: payment.id,
+        status: payment.status,
+        qrCode: transactionData.qr_code,
+        qrCodeBase64: transactionData.qr_code_base64,
+        valor: VALOR_MENSALIDADE,
+        mesReferencia: mes,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        environment: environmentInfo.environment,
+        credentialType: environmentInfo.credentialType
+      }
+
+    } catch (error) {
+      console.error(`[PixPaymentService] Erro ao criar pagamento PIX:`, error.message)
+      
+      if (error.cause) {
+        console.error(`[PixPaymentService] Causa:`, error.cause)
+      }
+      
+      if (error.status === 400) {
+        throw new Error('Dados inválidos para criação do pagamento PIX')
+      } else if (error.status === 401) {
+        throw new Error('Credenciais do Mercado Pago inválidas')
+      } else if (error.status === 429) {
+        throw new Error('Limite de requisições excedido. Tente novamente em alguns minutos')
+      } else {
+        throw new Error(`Erro interno do Mercado Pago: ${error.message}`)
+      }
     }
   }
 
@@ -238,6 +205,8 @@ class PaymentService {
     
     for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
       try {
+        console.log(`[PixPaymentService] Consultando pagamento ${paymentId} (tentativa ${tentativa}/${maxTentativas})`)
+        
         const startTime = Date.now()
         
         const consultaPromise = paymentClient.get({ id: String(paymentId) })
@@ -246,6 +215,9 @@ class PaymentService {
         })
         
         const payment = await Promise.race([consultaPromise, timeoutPromise])
+        const duration = Date.now() - startTime
+        
+        console.log(`[PixPaymentService] Pagamento consultado em ${duration}ms - Status: ${payment.status}`)
         
         if (!payment || typeof payment !== 'object') {
           throw new Error('Resposta da API inválida ou vazia')
@@ -266,6 +238,7 @@ class PaymentService {
         
       } catch (err) {
         ultimoErro = err
+        console.error(`[PixPaymentService] Erro na tentativa ${tentativa}:`, err.message)
         
         const isNetworkError = err.message.includes('timeout') || 
                               err.message.includes('ECONNRESET') || 
@@ -286,6 +259,7 @@ class PaymentService {
             delay = Math.max(delay, 5000)
           }
           
+          console.log(`[PixPaymentService] Aguardando ${delay}ms antes da próxima tentativa`)
           await new Promise(resolve => setTimeout(resolve, delay))
         }
       }
@@ -296,9 +270,14 @@ class PaymentService {
 
   verificarAssinaturaWebhook(xSignature, xRequestId, dataId) {
     if (!MP_WEBHOOK_SECRET) {
+      console.error('[PixPaymentService] WEBHOOK_SECRET não configurado')
       return false
     }
-    if (!xSignature || !xRequestId) return false
+    
+    if (!xSignature || !xRequestId) {
+      console.error('[PixPaymentService] Headers x-signature ou x-request-id ausentes')
+      return false
+    }
 
     try {
       const parts = {}
@@ -307,7 +286,10 @@ class PaymentService {
         if (k && v) parts[k] = v
       })
 
-      if (!parts.ts || !parts.v1) return false
+      if (!parts.ts || !parts.v1) {
+        console.error('[PixPaymentService] Formato de assinatura inválido')
+        return false
+      }
 
       const manifest = `id:${dataId};request-id:${xRequestId};ts:${parts.ts};`
 
@@ -319,9 +301,23 @@ class PaymentService {
       const recebida = Buffer.from(parts.v1, 'hex')
       const calculada = Buffer.from(esperada, 'hex')
 
-      if (recebida.length !== calculada.length) return false
-      return crypto.timingSafeEqual(recebida, calculada)
-    } catch {
+      if (recebida.length !== calculada.length) {
+        console.error('[PixPaymentService] Tamanho da assinatura não confere')
+        return false
+      }
+      
+      const isValid = crypto.timingSafeEqual(recebida, calculada)
+      
+      if (isValid) {
+        console.log('[PixPaymentService] Assinatura webhook válida')
+      } else {
+        console.error('[PixPaymentService] Assinatura webhook inválida')
+      }
+      
+      return isValid
+      
+    } catch (error) {
+      console.error('[PixPaymentService] Erro ao verificar assinatura:', error.message)
       return false
     }
   }
@@ -329,10 +325,10 @@ class PaymentService {
   get valorMensalidade() {
     return VALOR_MENSALIDADE
   }
-  
+
   get mesAtual() {
     return mesAtual()
   }
 }
 
-module.exports = new PaymentService()
+module.exports = new PixPaymentService()
