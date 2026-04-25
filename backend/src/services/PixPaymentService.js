@@ -21,15 +21,12 @@ const VALOR_MENSALIDADE = parseFloat(process.env.VALOR_MENSALIDADE || '99.90')
 const APP_URL = (process.env.APP_URL || '').replace(/\/$/, '')
 
 if (!MP_ACCESS_TOKEN) {
-  console.error('[PixService] FATAL: MP_ACCESS_TOKEN não configurado')
-  process.exit(1)
+  console.error('[PixService] AVISO: MP_ACCESS_TOKEN não configurado — PIX não funcionará')
 }
 
 if (!MP_WEBHOOK_SECRET) {
-  console.error('[PixService] FATAL: MP_WEBHOOK_SECRET não configurado')
-  process.exit(1)
+  console.error('[PixService] AVISO: MP_WEBHOOK_SECRET não configurado — webhooks não serão validados')
 }
-
 // ── Cliente base do SDK ───────────────────────────────────────
 const mpClient = new MercadoPagoConfig({
   accessToken: MP_ACCESS_TOKEN,
@@ -79,8 +76,12 @@ class PixPaymentService {
     const mes = mesAtual()
     const env = this.detectEnvironment()
 
-    if (env.credentialType === 'missing' || env.credentialType === 'unknown') {
-      throw new Error(`Credenciais inválidas: ${env.credentialType}`)
+    // Validar credenciais antes de chamar a API
+    if (!MP_ACCESS_TOKEN) {
+      throw new Error('MP_ACCESS_TOKEN não configurado nas variáveis de ambiente')
+    }
+    if (env.credentialType === 'unknown') {
+      throw new Error(`MP_ACCESS_TOKEN com formato inválido: "${MP_ACCESS_TOKEN.substring(0, 10)}..." (deve começar com APP_USR- ou TEST-)`)
     }
 
     // Aviso se a notification_url for localhost (webhook não vai funcionar)
@@ -103,7 +104,7 @@ class PixPaymentService {
       payment_method_id:  'pix',
       external_reference: `${usuarioId}|${mes}`,
       notification_url:   notificationUrl,
-      date_of_expiration: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min
+      date_of_expiration: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h
       payer: {
         email:          'pagador@indiosmanager.com',
         first_name:     'Pagador',
@@ -138,17 +139,23 @@ class PixPaymentService {
         qrCodeBase64: txData.qr_code_base64 || null,
         valor:        VALOR_MENSALIDADE,
         mesReferencia: mes,
-        expiresAt:    new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        expiresAt:    new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h
       }
 
     } catch (err) {
       console.error('[PixService] Erro ao criar PIX:', err.message)
-      if (err.cause) console.error('[PixService] Causa:', JSON.stringify(err.cause))
+      if (err.cause)  console.error('[PixService] Causa:', JSON.stringify(err.cause))
+      if (err.status) console.error('[PixService] HTTP Status:', err.status)
 
-      if (err.status === 400) throw new Error('Dados inválidos para criação do PIX')
-      if (err.status === 401) throw new Error('Credenciais do Mercado Pago inválidas')
+      // Erros específicos da API do Mercado Pago
+      if (err.status === 400) {
+        const detail = err.cause ? JSON.stringify(err.cause) : err.message
+        throw new Error(`Dados inválidos para criação do PIX: ${detail}`)
+      }
+      if (err.status === 401) throw new Error('Credenciais do Mercado Pago inválidas ou expiradas (401)')
+      if (err.status === 403) throw new Error('Sem permissão para criar pagamentos PIX (403) — verifique as permissões da aplicação')
       if (err.status === 429) throw new Error('Limite de requisições excedido. Tente novamente em alguns minutos')
-      throw new Error(`Erro na API do Mercado Pago: ${err.message}`)
+      throw new Error(`Erro na API do Mercado Pago (${err.status || 'sem status'}): ${err.message}`)
     }
   }
 

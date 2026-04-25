@@ -51,17 +51,17 @@ const pixPaymentController = {
       // Criar na API do Mercado Pago
       const pixData = await PixPaymentService.criarPagamentoPix(usuarioId)
 
-      // Persistir no banco
+      // Persistir no banco (expires_at = 24h calculado no model)
       const pagamento = await PagamentoModel.criarPagamento({
         usuarioId,
         valor:         pixData.valor,
         mesReferencia,
-        mercadoPagoId: String(pixData.id),   // sempre string
+        mercadoPagoId: String(pixData.id),
         qrCode:        pixData.qrCode,
         qrCodeBase64:  pixData.qrCodeBase64,
       })
 
-      console.log(`[PIX:${requestId}] PIX criado em ${Date.now() - t0}ms — id: ${pixData.id}, reutilizado: ${pagamento.reutilizado}`)
+      console.log(`[PIX:${requestId}] PIX criado em ${Date.now() - t0}ms — id: ${pixData.id}, reutilizado: ${pagamento.reutilizado}, expira: ${pagamento.expiresAt}`)
 
       return res.status(201).json({
         success: true,
@@ -72,7 +72,7 @@ const pixPaymentController = {
           qrCodeBase64: pagamento.qrCodeBase64,
           valor:        pixData.valor,
           mesReferencia,
-          expiresAt:    pixData.expiresAt,
+          expiresAt:    pagamento.expiresAt,   // vem do banco, não do serviço
           status:       pagamento.status,
           reutilizado:  pagamento.reutilizado,
         },
@@ -80,17 +80,20 @@ const pixPaymentController = {
 
     } catch (err) {
       console.error(`[PIX:${requestId}] Erro ao criar PIX (${Date.now() - t0}ms):`, err.message)
+      if (err.cause) console.error(`[PIX:${requestId}] Causa:`, JSON.stringify(err.cause))
+      if (err.stack)  console.error(`[PIX:${requestId}] Stack:`, err.stack)
 
       if (err.message.includes('Já existe um pagamento aprovado'))
         return res.status(409).json({ success: false, error: 'PAYMENT_ALREADY_EXISTS', message: err.message })
 
-      if (err.message.includes('Credenciais') || err.message.includes('configuração'))
-        return res.status(500).json({ success: false, error: 'CONFIGURATION_ERROR', message: 'Erro de configuração do sistema de pagamentos' })
+      if (err.message.includes('Credenciais') || err.message.includes('configuração') || err.message.includes('inválidas'))
+        return res.status(500).json({ success: false, error: 'CONFIGURATION_ERROR', message: 'Erro de configuração do sistema de pagamentos. Verifique as credenciais.' })
 
       if (err.message.includes('Limite de requisições'))
         return res.status(429).json({ success: false, error: 'RATE_LIMIT', message: 'Muitas tentativas. Tente novamente em alguns minutos' })
 
-      return res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: 'Erro interno do servidor' })
+      // Retorna a mensagem real do erro para facilitar diagnóstico
+      return res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: err.message || 'Erro interno do servidor' })
     }
   },
 
