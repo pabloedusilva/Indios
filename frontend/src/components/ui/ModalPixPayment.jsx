@@ -71,7 +71,6 @@ export default function ModalPixPayment({ isOpen, onClose, pixData }) {
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 rounded-full text-sm font-medium mb-3">
             <MdQrCode2 size={16} />
             PIX Gerado
-            {pixData.reutilizado && <span className="text-xs opacity-75">(Reutilizado)</span>}
           </div>
           
           <h3 className="text-2xl font-bold text-brand-text mb-1">
