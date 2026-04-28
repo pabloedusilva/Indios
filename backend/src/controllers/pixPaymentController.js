@@ -32,14 +32,15 @@ const pixPaymentController = {
     const requestId = req.headers['x-request-id'] || `req-${t0}`
 
     try {
-      const usuarioId    = getUsuarioId(req)
+      const usuarioId     = getUsuarioId(req)
       const mesReferencia = mesAtual()
 
-      console.log(`[PIX:${requestId}] Criar PIX — usuário: ${usuarioId}, mês: ${mesReferencia}`)
+      console.log(`[PIX:${requestId}] Solicitação de PIX — usuário: ${usuarioId}, mês: ${mesReferencia}`)
 
-      // Mês já pago?
+      // ── 1. Mês já pago? ──────────────────────────────────────
       const mesPago = await PagamentoModel.verificarMesPago(usuarioId, mesReferencia)
       if (mesPago) {
+        console.log(`[PIX:${requestId}] Mês já está pago`)
         return res.status(200).json({
           success: true,
           status:  'already_paid',
@@ -48,40 +49,83 @@ const pixPaymentController = {
         })
       }
 
-      // Criar na API do Mercado Pago
-      const pixData = await PixPaymentService.criarPagamentoPix(usuarioId)
+      // ── 2. Verificar último registro no banco ─────────────────
+      const ultimo = await PagamentoModel.buscarUltimoPorUsuarioMes(usuarioId, mesReferencia)
 
-      // Persistir no banco (expires_at = 24h calculado no model)
+      // Decisão:
+      //   · Sem registro          → criar novo (forcarNovo=false, primeira vez)
+      //   · pending + válido      → reutilizar (não chamar API)
+      //   · pending + expirado    → criar novo (forcarNovo=true)
+      //   · expired               → criar novo (forcarNovo=true)
+      //   · failed / outro status → criar novo (forcarNovo=true)
+
+      if (ultimo) {
+        const agora     = new Date()
+        const expiresAt = ultimo.expires_at ? new Date(ultimo.expires_at) : null
+        const valido    = expiresAt && expiresAt > agora
+
+        if (ultimo.status === 'pending' && valido) {
+          // ── Reutilizar PIX pendente ainda válido ──────────────
+          console.log(`[PIX:${requestId}] Reutilizando PIX pendente válido — id: ${ultimo.mercado_pago_id}, expira: ${expiresAt.toISOString()}`)
+          return res.status(200).json({
+            success: true,
+            message: 'PIX reutilizado',
+            data: {
+              id:           ultimo.mercado_pago_id,
+              qrCode:       ultimo.qr_code,
+              qrCodeBase64: ultimo.qr_code_base64,
+              valor:        parseFloat(ultimo.valor),
+              mesReferencia,
+              expiresAt:    expiresAt.toISOString(),
+              status:       'pending',
+              reutilizado:  true,
+            },
+          })
+        }
+
+        // Qualquer outro status (expired, failed, pending expirado) → criar novo
+        console.log(`[PIX:${requestId}] Último registro status="${ultimo.status}", válido=${valido} — criando novo PIX`)
+      } else {
+        console.log(`[PIX:${requestId}] Nenhum registro anterior — criando primeiro PIX`)
+      }
+
+      // ── 3. Criar novo PIX na API do Mercado Pago ──────────────
+      // forcarNovo=true quando já existe registro anterior (evita reutilizar
+      // pagamento expirado via idempotencyKey determinística)
+      const forcarNovo = !!ultimo
+      const pixData    = await PixPaymentService.criarPagamentoPix(usuarioId, forcarNovo)
+
+      // ── 4. Persistir no banco ─────────────────────────────────
       const pagamento = await PagamentoModel.criarPagamento({
         usuarioId,
         valor:         pixData.valor,
         mesReferencia,
-        mercadoPagoId: String(pixData.id),
+        mercadoPagoId: pixData.id,
         qrCode:        pixData.qrCode,
         qrCodeBase64:  pixData.qrCodeBase64,
       })
 
-      console.log(`[PIX:${requestId}] PIX criado em ${Date.now() - t0}ms — id: ${pixData.id}, reutilizado: ${pagamento.reutilizado}, expira: ${pagamento.expiresAt}`)
+      console.log(`[PIX:${requestId}] PIX criado em ${Date.now() - t0}ms — id: ${pixData.id}, expira: ${pagamento.expiresAt}`)
 
       return res.status(201).json({
         success: true,
-        message: pagamento.reutilizado ? 'PIX reutilizado' : 'PIX criado com sucesso',
+        message: 'PIX criado com sucesso',
         data: {
           id:           pagamento.mercadoPagoId,
           qrCode:       pagamento.qrCode,
           qrCodeBase64: pagamento.qrCodeBase64,
           valor:        pixData.valor,
           mesReferencia,
-          expiresAt:    pagamento.expiresAt,   // vem do banco, não do serviço
-          status:       pagamento.status,
-          reutilizado:  pagamento.reutilizado,
+          expiresAt:    pagamento.expiresAt,
+          status:       'pending',
+          reutilizado:  false,
         },
       })
 
     } catch (err) {
-      console.error(`[PIX:${requestId}] Erro ao criar PIX (${Date.now() - t0}ms):`, err.message)
+      console.error(`[PIX:${requestId}] Erro (${Date.now() - t0}ms):`, err.message)
       if (err.cause) console.error(`[PIX:${requestId}] Causa:`, JSON.stringify(err.cause))
-      if (err.stack)  console.error(`[PIX:${requestId}] Stack:`, err.stack)
+      if (err.stack) console.error(`[PIX:${requestId}] Stack:`, err.stack)
 
       if (err.message.includes('Já existe um pagamento aprovado'))
         return res.status(409).json({ success: false, error: 'PAYMENT_ALREADY_EXISTS', message: err.message })
@@ -92,7 +136,6 @@ const pixPaymentController = {
       if (err.message.includes('Limite de requisições'))
         return res.status(429).json({ success: false, error: 'RATE_LIMIT', message: 'Muitas tentativas. Tente novamente em alguns minutos' })
 
-      // Retorna a mensagem real do erro para facilitar diagnóstico
       return res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: err.message || 'Erro interno do servidor' })
     }
   },

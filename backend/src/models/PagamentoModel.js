@@ -15,7 +15,25 @@ const PIX_EXPIRACAO_HORAS = 24
 
 class PagamentoModel {
 
+  // ── Buscar último registro do usuário para o mês ───────────
+  // Retorna o registro mais recente independente do status,
+  // usado pelo controller para decidir se reutiliza ou cria novo.
+  static async buscarUltimoPorUsuarioMes(usuarioId, mesReferencia) {
+    const [rows] = await db.execute(
+      `SELECT id, usuario_id, mercado_pago_id, qr_code, qr_code_base64,
+              status, expires_at, valor, created_at, updated_at
+       FROM pagamentos
+       WHERE usuario_id = ? AND mes_referencia = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [usuarioId, mesReferencia],
+    )
+    return rows[0] || null
+  }
+
   // ── Criar pagamento pendente ────────────────────────────────
+  // Insere um novo registro. O controller já verificou que não há
+  // pendente válido nem aprovado antes de chamar este método.
   static async criarPagamento(data) {
     const { usuarioId, valor, mesReferencia, mercadoPagoId, qrCode, qrCodeBase64 } = data
     const conn = await db.getConnection()
@@ -23,7 +41,7 @@ class PagamentoModel {
     try {
       await conn.beginTransaction()
 
-      // Já existe aprovado para este mês?
+      // Segurança: garantir que não existe aprovado (double-check com lock)
       const [aprovado] = await conn.execute(
         `SELECT id FROM pagamentos
          WHERE usuario_id = ? AND mes_referencia = ? AND status = 'approved'
@@ -35,32 +53,9 @@ class PagamentoModel {
         throw new Error('Já existe um pagamento aprovado para este mês')
       }
 
-      // Já existe pendente ainda válido (expires_at no futuro)?
-      const [pendente] = await conn.execute(
-        `SELECT id, mercado_pago_id, qr_code, qr_code_base64, status, expires_at
-         FROM pagamentos
-         WHERE usuario_id = ? AND mes_referencia = ? AND status = 'pending'
-           AND expires_at > NOW()
-         FOR UPDATE`,
-        [usuarioId, mesReferencia],
-      )
-      if (pendente.length > 0) {
-        await conn.commit()
-        return {
-          id:            pendente[0].id,
-          mercadoPagoId: pendente[0].mercado_pago_id,
-          qrCode:        pendente[0].qr_code,
-          qrCodeBase64:  pendente[0].qr_code_base64,
-          status:        pendente[0].status,
-          expiresAt:     pendente[0].expires_at,
-          reutilizado:   true,
-        }
-      }
-
       // Calcular expiração: 24h a partir de agora
       const expiresAt = new Date(Date.now() + PIX_EXPIRACAO_HORAS * 60 * 60 * 1000)
 
-      // Inserir novo pagamento
       const [result] = await conn.execute(
         `INSERT INTO pagamentos
            (usuario_id, valor, mes_referencia, mercado_pago_id,

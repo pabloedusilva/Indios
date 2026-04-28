@@ -14,19 +14,11 @@ const crypto = require('crypto')
 const MP_ACCESS_TOKEN   = process.env.MP_ACCESS_TOKEN
 const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET
 const VALOR_MENSALIDADE = parseFloat(process.env.VALOR_MENSALIDADE || '99.90')
+const APP_URL           = (process.env.APP_URL || '').replace(/\/$/, '')
 
-// URL pública do backend — usada na notification_url enviada ao Mercado Pago
-// Em produção deve ser a URL do Render (ex: https://api-indios.onrender.com)
-// Em desenvolvimento local o webhook não funciona (localhost não é acessível externamente)
-const APP_URL = (process.env.APP_URL || '').replace(/\/$/, '')
+if (!MP_ACCESS_TOKEN)   console.error('[PixService] AVISO: MP_ACCESS_TOKEN não configurado')
+if (!MP_WEBHOOK_SECRET) console.error('[PixService] AVISO: MP_WEBHOOK_SECRET não configurado')
 
-if (!MP_ACCESS_TOKEN) {
-  console.error('[PixService] AVISO: MP_ACCESS_TOKEN não configurado — PIX não funcionará')
-}
-
-if (!MP_WEBHOOK_SECRET) {
-  console.error('[PixService] AVISO: MP_WEBHOOK_SECRET não configurado — webhooks não serão validados')
-}
 // ── Cliente base do SDK ───────────────────────────────────────
 const mpClient = new MercadoPagoConfig({
   accessToken: MP_ACCESS_TOKEN,
@@ -36,62 +28,56 @@ const mpClient = new MercadoPagoConfig({
 // ── Helpers ───────────────────────────────────────────────────
 
 function mesAtual() {
-  // Formato YYYY-MM no horário de Brasília (UTC-3)
   const brt = new Date(Date.now() - 3 * 60 * 60 * 1000)
   return brt.toISOString().slice(0, 7)
 }
 
-function gerarIdempotencyKey(usuarioId, mesReferencia) {
-  // Chave determinística por usuário+mês — evita duplicatas na API
-  return crypto
-    .createHash('sha256')
-    .update(`${usuarioId}-${mesReferencia}`)
-    .digest('hex')
-    .substring(0, 36)
+// forcarNovo=true → inclui timestamp → Mercado Pago cria novo pagamento
+// forcarNovo=false → chave determinística → Mercado Pago reutiliza se existir
+function gerarIdempotencyKey(usuarioId, mesReferencia, forcarNovo = false) {
+  const seed = forcarNovo
+    ? `${usuarioId}-${mesReferencia}-${Date.now()}`
+    : `${usuarioId}-${mesReferencia}`
+  return crypto.createHash('sha256').update(seed).digest('hex').substring(0, 36)
 }
 
 // ── Classe principal ──────────────────────────────────────────
 
 class PixPaymentService {
 
-  // Detecta se as credenciais são de produção ou sandbox
   detectEnvironment() {
     if (!MP_ACCESS_TOKEN) return { environment: 'unknown', isProduction: false, credentialType: 'missing' }
-
     const isProd    = MP_ACCESS_TOKEN.startsWith('APP_USR-')
     const isSandbox = MP_ACCESS_TOKEN.startsWith('TEST-')
-
     const credentialType = isProd ? 'production' : isSandbox ? 'sandbox' : 'unknown'
-    const isProduction   = isProd && process.env.NODE_ENV === 'production'
-
     return {
-      environment:    isProduction ? 'production' : 'development',
-      isProduction,
+      environment:    isProd && process.env.NODE_ENV === 'production' ? 'production' : 'development',
+      isProduction:   isProd && process.env.NODE_ENV === 'production',
       credentialType,
     }
   }
 
-  // Cria um pagamento PIX na API do Mercado Pago
-  async criarPagamentoPix(usuarioId) {
+  // Cria um pagamento PIX na API do Mercado Pago.
+  // forcarNovo=true → gera nova idempotencyKey com timestamp,
+  //   garantindo que o Mercado Pago crie um novo pagamento mesmo
+  //   que já exista um anterior expirado com a mesma chave.
+  async criarPagamentoPix(usuarioId, forcarNovo = false) {
     const mes = mesAtual()
     const env = this.detectEnvironment()
 
-    // Validar credenciais antes de chamar a API
     if (!MP_ACCESS_TOKEN) {
       throw new Error('MP_ACCESS_TOKEN não configurado nas variáveis de ambiente')
     }
     if (env.credentialType === 'unknown') {
-      throw new Error(`MP_ACCESS_TOKEN com formato inválido: "${MP_ACCESS_TOKEN.substring(0, 10)}..." (deve começar com APP_USR- ou TEST-)`)
+      throw new Error(`MP_ACCESS_TOKEN com formato inválido (deve começar com APP_USR- ou TEST-)`)
     }
 
-    // Aviso se a notification_url for localhost (webhook não vai funcionar)
     const notificationUrl = `${APP_URL}/api/pagamentos/webhook`
     if (APP_URL.includes('localhost') || APP_URL.includes('127.0.0.1')) {
-      console.warn('[PixService] ⚠️  APP_URL é localhost — o webhook do Mercado Pago NÃO vai funcionar em desenvolvimento.')
-      console.warn('[PixService] ⚠️  Configure APP_URL com a URL pública do Render para receber webhooks.')
+      console.warn('[PixService] APP_URL é localhost — webhook não funcionará em desenvolvimento')
     }
 
-    const idempotencyKey = gerarIdempotencyKey(usuarioId, mes)
+    const idempotencyKey = gerarIdempotencyKey(usuarioId, mes, forcarNovo)
 
     const paymentClient = new Payment(new MercadoPagoConfig({
       accessToken: MP_ACCESS_TOKEN,
@@ -104,7 +90,7 @@ class PixPaymentService {
       payment_method_id:  'pix',
       external_reference: `${usuarioId}|${mes}`,
       notification_url:   notificationUrl,
-      date_of_expiration: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h
+      date_of_expiration: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       payer: {
         email:          'pagador@indiosmanager.com',
         first_name:     'Pagador',
@@ -112,20 +98,21 @@ class PixPaymentService {
         identification: { type: 'CPF', number: '11111111111' },
       },
       metadata: {
-        usuario_id:    usuarioId,
+        usuario_id:     usuarioId,
         mes_referencia: mes,
-        environment:   env.environment,
+        environment:    env.environment,
+        forcado_novo:   forcarNovo,
       },
     }
 
-    console.log(`[PixService] Criando PIX — usuário: ${usuarioId}, mês: ${mes}, valor: R$${VALOR_MENSALIDADE}`)
+    console.log(`[PixService] Criando PIX — usuário: ${usuarioId}, mês: ${mes}, valor: R$${VALOR_MENSALIDADE}, forcarNovo: ${forcarNovo}`)
     console.log(`[PixService] notification_url: ${notificationUrl}`)
     console.log(`[PixService] idempotencyKey: ${idempotencyKey}`)
 
     try {
       const payment = await paymentClient.create({ body })
+      const txData  = payment.point_of_interaction?.transaction_data
 
-      const txData = payment.point_of_interaction?.transaction_data
       if (!txData?.qr_code) {
         throw new Error('QR Code não retornado pela API do Mercado Pago')
       }
@@ -133,13 +120,13 @@ class PixPaymentService {
       console.log(`[PixService] PIX criado — id: ${payment.id}, status: ${payment.status}`)
 
       return {
-        id:           String(payment.id),
-        status:       payment.status,
-        qrCode:       txData.qr_code,
-        qrCodeBase64: txData.qr_code_base64 || null,
-        valor:        VALOR_MENSALIDADE,
+        id:            String(payment.id),
+        status:        payment.status,
+        qrCode:        txData.qr_code,
+        qrCodeBase64:  txData.qr_code_base64 || null,
+        valor:         VALOR_MENSALIDADE,
         mesReferencia: mes,
-        expiresAt:    new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h
+        expiresAt:     new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       }
 
     } catch (err) {
@@ -147,11 +134,7 @@ class PixPaymentService {
       if (err.cause)  console.error('[PixService] Causa:', JSON.stringify(err.cause))
       if (err.status) console.error('[PixService] HTTP Status:', err.status)
 
-      // Erros específicos da API do Mercado Pago
-      if (err.status === 400) {
-        const detail = err.cause ? JSON.stringify(err.cause) : err.message
-        throw new Error(`Dados inválidos para criação do PIX: ${detail}`)
-      }
+      if (err.status === 400) throw new Error(`Dados inválidos para criação do PIX: ${err.cause ? JSON.stringify(err.cause) : err.message}`)
       if (err.status === 401) throw new Error('Credenciais do Mercado Pago inválidas ou expiradas (401)')
       if (err.status === 403) throw new Error('Sem permissão para criar pagamentos PIX (403) — verifique as permissões da aplicação')
       if (err.status === 429) throw new Error('Limite de requisições excedido. Tente novamente em alguns minutos')
@@ -159,7 +142,7 @@ class PixPaymentService {
     }
   }
 
-  // Consulta o status real de um pagamento na API (com retry)
+  // Consulta o status real de um pagamento na API (com retry e backoff)
   async consultarPagamento(paymentId, maxTentativas = 3, timeoutMs = 10000) {
     const client = new Payment(mpClient)
     let ultimoErro
@@ -167,8 +150,8 @@ class PixPaymentService {
     for (let i = 1; i <= maxTentativas; i++) {
       try {
         console.log(`[PixService] Consultando pagamento ${paymentId} (tentativa ${i}/${maxTentativas})`)
-
         const t0 = Date.now()
+
         const payment = await Promise.race([
           client.get({ id: String(paymentId) }),
           new Promise((_, rej) => setTimeout(() => rej(new Error(`Timeout ${timeoutMs}ms`)), timeoutMs)),
@@ -209,14 +192,12 @@ class PixPaymentService {
       console.error('[PixService] MP_WEBHOOK_SECRET não configurado')
       return false
     }
-
     if (!xSignature || !xRequestId) {
       console.error('[PixService] Headers x-signature ou x-request-id ausentes')
       return false
     }
 
     try {
-      // Parsear "ts=...,v1=..."
       const parts = Object.fromEntries(
         xSignature.split(',').map(p => p.trim().split('=')).filter(([k, v]) => k && v)
       )
@@ -226,10 +207,8 @@ class PixPaymentService {
         return false
       }
 
-      // Manifesto conforme documentação do Mercado Pago
-      const manifest = `id:${dataId};request-id:${xRequestId};ts:${parts.ts};`
-
-      const esperada  = crypto.createHmac('sha256', MP_WEBHOOK_SECRET).update(manifest).digest('hex')
+      const manifest   = `id:${dataId};request-id:${xRequestId};ts:${parts.ts};`
+      const esperada   = crypto.createHmac('sha256', MP_WEBHOOK_SECRET).update(manifest).digest('hex')
       const bufEsperada = Buffer.from(esperada, 'hex')
       const bufRecebida = Buffer.from(parts.v1, 'hex')
 
