@@ -11,10 +11,10 @@
 import { useEffect } from 'react'
 
 export default function ModalSucesso({ isOpen, onClose }) {
-  // Auto-fecha após 3 segundos
+  // Auto-fecha após 5 segundos
   useEffect(() => {
     if (!isOpen) return
-    const t = setTimeout(onClose, 3000)
+    const t = setTimeout(onClose, 5000)
     return () => clearTimeout(t)
   }, [isOpen, onClose])
 

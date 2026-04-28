@@ -40,7 +40,6 @@ export default function BannerPixPayment() {
 
   const dentroJanela = dia >= DIA_INICIO && dia <= diaFim
 
-  // Animação de saída quando o pagamento for confirmado
   const [saindo, setSaindo] = useState(false)
   const [oculto, setOculto] = useState(false)
   const [mostrarModalPix, setMostrarModalPix] = useState(false)
@@ -62,9 +61,6 @@ export default function BannerPixPayment() {
     }
   }, [pixData])
 
-  if (verificando || !dentroJanela || oculto) return null
-  if (mesPago && !saindo) return null
-
   const diasRestantes = diaFim - dia + 1
   const urgente = diasRestantes <= 2
 
@@ -74,6 +70,18 @@ export default function BannerPixPayment() {
 
   const handleFecharModalPix = () => {
     setMostrarModalPix(false)
+  }
+
+  // ModalSucesso sempre renderizado fora do guard do banner
+  // para não ser desmontado quando o banner some
+  const modalSucesso = <ModalSucesso isOpen={sucesso} onClose={fecharSucesso} />
+
+  if (verificando || !dentroJanela || oculto) {
+    // Mesmo fora da janela, o modal de sucesso precisa aparecer
+    return modalSucesso
+  }
+  if (mesPago && !saindo) {
+    return modalSucesso
   }
 
   return (
@@ -130,14 +138,14 @@ export default function BannerPixPayment() {
       </div>
 
       {/* Modal de pagamento PIX */}
-      <ModalPixPayment 
+      <ModalPixPayment
         isOpen={mostrarModalPix}
         onClose={handleFecharModalPix}
         pixData={pixData}
       />
 
-      {/* Modal de sucesso após pagamento */}
-      <ModalSucesso isOpen={sucesso} onClose={fecharSucesso} />
+      {/* Modal de sucesso — fora do guard para não ser desmontado com o banner */}
+      {modalSucesso}
 
       <style>{`
         @keyframes bannerSlideUp {
