@@ -13,13 +13,12 @@ import {
   MdQrCode2, 
   MdContentCopy, 
   MdCheck, 
-  MdClose,
   MdTimer,
   MdInfo
 } from 'react-icons/md'
 
 export default function ModalPixPayment({ isOpen, onClose, pixData }) {
-  const { copiarCodigoPix, cancelarPix, isPolling, pollCount } = usePixPayment()
+  const { copiarCodigoPix, cancelarPix } = usePixPayment()
   const [copiado, setCopiado] = useState(false)
   const [tempoRestante, setTempoRestante] = useState(null)
 
@@ -36,9 +35,12 @@ export default function ModalPixPayment({ isOpen, onClose, pixData }) {
         setTempoRestante('Expirado')
         clearInterval(interval)
       } else {
-        const minutos = Math.floor(diff / 60000)
+        const horas = Math.floor(diff / 3600000)
+        const minutos = Math.floor((diff % 3600000) / 60000)
         const segundos = Math.floor((diff % 60000) / 1000)
-        setTempoRestante(`${minutos}:${segundos.toString().padStart(2, '0')}`)
+        setTempoRestante(
+          `${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`
+        )
       }
     }, 1000)
 
@@ -80,16 +82,6 @@ export default function ModalPixPayment({ isOpen, onClose, pixData }) {
             Mensalidade {pixData.mesReferencia}
           </p>
         </div>
-
-        {/* Status do polling */}
-        {isPolling && (
-          <div className="flex items-center justify-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 rounded-xl">
-            <div className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-sm font-medium">
-              Aguardando confirmação do pagamento... ({pollCount}/100)
-            </span>
-          </div>
-        )}
 
         {/* QR Code */}
         <div className="flex flex-col items-center gap-4">
