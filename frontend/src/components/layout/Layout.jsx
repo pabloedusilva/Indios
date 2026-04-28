@@ -2,9 +2,14 @@ import { useState } from 'react'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import BannerPixPayment from '../ui/BannerPixPayment'
+import ModalSucesso from '../ui/ModalSucesso'
+import { usePixPayment } from '../../hooks/usePixPayment'
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // O ModalSucesso vive aqui — nunca é desmontado por mudanças no banner
+  const { sucesso, fecharSucesso } = usePixPayment()
 
   return (
     <div className="flex h-screen bg-brand-bg overflow-hidden">
@@ -18,6 +23,9 @@ export default function Layout({ children }) {
           </div>
         </main>
       </div>
+
+      {/* Modal de sucesso montado no Layout — independente do ciclo de vida do banner */}
+      <ModalSucesso isOpen={sucesso} onClose={fecharSucesso} />
     </div>
   )
 }

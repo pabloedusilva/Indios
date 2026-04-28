@@ -6,22 +6,22 @@
 //  Ao clicar em "Pagar com PIX", cria o pagamento e exibe
 //  o QR Code e código copia e cola. Monitora automaticamente
 //  a confirmação do pagamento via polling.
+//
+//  Nota: o ModalSucesso é gerenciado pelo Layout, não aqui.
 // =============================================================
 
 import { useEffect, useState } from 'react'
 import { usePixPayment } from '../../hooks/usePixPayment'
 import ModalPixPayment from './ModalPixPayment'
-import ModalSucesso from './ModalSucesso'
 import { MdWarning, MdQrCode2 } from 'react-icons/md'
 
-// Retorna o dia atual no horário de Brasília (UTC-3)
 function diaBRT() {
   const brt = new Date(Date.now() - 3 * 60 * 60 * 1000)
   return brt.getUTCDate()
 }
 
-const DIA_INICIO = 23 // Início da cobrança (dia 23 do mês)
-const DIAS_AVISO = 5  // 5 dias de aviso (23 a 27)
+const DIA_INICIO = 23
+const DIAS_AVISO = 5
 
 export default function BannerPixPayment() {
   const {
@@ -30,21 +30,18 @@ export default function BannerPixPayment() {
     criandoPix,
     pixData,
     erro,
-    sucesso,
     criarPagamentoPix,
-    fecharSucesso,
   } = usePixPayment()
 
-  const dia = diaBRT()
+  const dia    = diaBRT()
   const diaFim = DIA_INICIO + DIAS_AVISO - 1
-
   const dentroJanela = dia >= DIA_INICIO && dia <= diaFim
 
-  const [saindo, setSaindo] = useState(false)
-  const [oculto, setOculto] = useState(false)
+  const [saindo,          setSaindo]          = useState(false)
+  const [oculto,          setOculto]          = useState(false)
   const [mostrarModalPix, setMostrarModalPix] = useState(false)
 
-  // Fechar modal PIX e iniciar animação de saída quando pago
+  // Iniciar animação de saída do banner quando pago
   useEffect(() => {
     if (mesPago && dentroJanela && !verificando) {
       setMostrarModalPix(false)
@@ -54,35 +51,17 @@ export default function BannerPixPayment() {
     }
   }, [mesPago, dentroJanela, verificando])
 
-  // Mostrar modal PIX quando dados estão disponíveis
+  // Abrir modal PIX quando QR Code estiver disponível
   useEffect(() => {
-    if (pixData) {
-      setMostrarModalPix(true)
-    }
+    if (pixData) setMostrarModalPix(true)
   }, [pixData])
 
+  // Não renderizar fora da janela de cobrança ou após ocultar
+  if (verificando || !dentroJanela || oculto) return null
+  if (mesPago && !saindo) return null
+
   const diasRestantes = diaFim - dia + 1
-  const urgente = diasRestantes <= 2
-
-  const handlePagarPix = async () => {
-    await criarPagamentoPix()
-  }
-
-  const handleFecharModalPix = () => {
-    setMostrarModalPix(false)
-  }
-
-  // ModalSucesso sempre renderizado fora do guard do banner
-  // para não ser desmontado quando o banner some
-  const modalSucesso = <ModalSucesso isOpen={sucesso} onClose={fecharSucesso} />
-
-  if (verificando || !dentroJanela || oculto) {
-    // Mesmo fora da janela, o modal de sucesso precisa aparecer
-    return modalSucesso
-  }
-  if (mesPago && !saindo) {
-    return modalSucesso
-  }
+  const urgente       = diasRestantes <= 2
 
   return (
     <>
@@ -95,12 +74,9 @@ export default function BannerPixPayment() {
             : 'bg-gradient-to-r from-[#C93517] to-[#E8650A] border-[#C93517]'}
         `}
       >
-        {/* Brilho decorativo */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12),transparent_60%)] pointer-events-none" />
 
         <div className="relative flex items-center justify-between gap-4 px-5 py-2.5 max-w-[1600px] mx-auto">
-
-          {/* Ícone + texto */}
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center">
               <MdWarning size={15} className="text-white" />
@@ -111,13 +87,12 @@ export default function BannerPixPayment() {
             </p>
           </div>
 
-          {/* Contador + botão */}
           <div className="flex items-center gap-2.5 flex-shrink-0">
             <span className="text-xs font-semibold text-white tabular-nums">
               {diasRestantes} {diasRestantes === 1 ? 'dia restante' : 'dias restantes'}
             </span>
             <button
-              onClick={handlePagarPix}
+              onClick={criarPagamentoPix}
               disabled={criandoPix}
               className="
                 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold
@@ -137,15 +112,11 @@ export default function BannerPixPayment() {
         )}
       </div>
 
-      {/* Modal de pagamento PIX */}
       <ModalPixPayment
         isOpen={mostrarModalPix}
-        onClose={handleFecharModalPix}
+        onClose={() => setMostrarModalPix(false)}
         pixData={pixData}
       />
-
-      {/* Modal de sucesso — fora do guard para não ser desmontado com o banner */}
-      {modalSucesso}
 
       <style>{`
         @keyframes bannerSlideUp {
