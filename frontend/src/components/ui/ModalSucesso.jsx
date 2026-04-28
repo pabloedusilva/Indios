@@ -5,18 +5,28 @@
 //    · Anel verde animado (stroke-dashoffset)
 //    · Checkmark animado (stroke-dashoffset)
 //    · Texto "Pago com sucesso!" com fadeIn+slideUp
-//    · Auto-fecha em 3 s
+//    · Auto-fecha em 5 s
+//
+//  O timer é disparado UMA única vez quando isOpen muda para true.
+//  Usa ref para o onClose para evitar que re-renders reiniciem o timer.
 // =============================================================
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
+
+const AUTO_CLOSE_MS = 5000
 
 export default function ModalSucesso({ isOpen, onClose }) {
-  // Auto-fecha após 5 segundos
+  // Guarda sempre a versão mais recente do onClose sem re-disparar o timer
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
+
+  // Timer disparado UMA vez quando isOpen vira true
+  // Não depende de onClose diretamente — usa a ref
   useEffect(() => {
     if (!isOpen) return
-    const t = setTimeout(onClose, 5000)
+    const t = setTimeout(() => onCloseRef.current?.(), AUTO_CLOSE_MS)
     return () => clearTimeout(t)
-  }, [isOpen, onClose])
+  }, [isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isOpen) return null
 
