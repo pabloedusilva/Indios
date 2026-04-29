@@ -1,40 +1,216 @@
-import { useNavigate } from 'react-router-dom'
-import { useApp } from '../contexts/AppContext'
+// =============================================================
+//  pages/Cardapio.jsx — Cardápio público
+//
+//  · Rota pública: /cardapio — acessível sem autenticação
+//  · Dados em tempo real via /api/cardapio (auto-refresh 60s)
+//  · Sem botão fechar — página independente
+//  · Desktop: 3 slots com double-buffer + crossfade suave
+//  · Mobile: 1 slot com double-buffer + crossfade suave
+// =============================================================
+
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { useCardapio } from '../hooks/useCardapio'
 import { formatarMoeda } from '../utils/formatters'
-import PageLoader from '../components/ui/PageLoader'
 import { Skeleton, SkeletonGroup } from '../components/ui/Skeleton'
-import { MdInventory2, MdClose } from 'react-icons/md'
+import { MdInventory2 } from 'react-icons/md'
 
-export default function Cardapio() {
-  const { produtos, loading } = useApp()
-  const navigate = useNavigate()
+// ── Lista de vídeos de fundo ──────────────────────────────────
+const VIDEOS = [
+  '/cardapio/1.mp4',
+  '/cardapio/2.mp4',
+  '/cardapio/3.mp4',
+  '/cardapio/4.mp4',
+  '/cardapio/5.mp4',
+  '/cardapio/6.mp4',
+]
 
-  const produtosDisponiveis = produtos.filter((p) => p.disponivel)
-  const categorias = [...new Set(produtosDisponiveis.map((p) => p.categoria))].sort()
+const FADE_MS = 600 // duração do fade-in do novo vídeo em ms
 
-  if (loading) return (
-    <div className="fixed inset-0 bg-brand-bg z-50 flex flex-col animate-fade-in">
-      {/* Header */}
-      <div className="bg-brand-surface border-b border-brand-border flex-shrink-0">
-        <div className="flex items-center justify-between px-6 py-4">
-          <SkeletonGroup className="flex items-center gap-2.5">
-            <Skeleton className="h-7 w-7 rounded-lg" />
-            <Skeleton className="h-5 w-48 rounded-lg" />
-          </SkeletonGroup>
-          <Skeleton className="h-8 w-8 rounded-xl animate-pulse" />
+function escolherAleatorio(excluir = []) {
+  const disponiveis = VIDEOS.map((_, i) => i).filter((i) => !excluir.includes(i))
+  if (disponiveis.length === 0) {
+    const ultimo = excluir[excluir.length - 1] ?? -1
+    const fb = VIDEOS.map((_, i) => i).filter((i) => i !== ultimo)
+    return fb[Math.floor(Math.random() * fb.length)]
+  }
+  return disponiveis[Math.floor(Math.random() * disponiveis.length)]
+}
+
+// ── Double-buffer video slot ──────────────────────────────────
+// Estratégia: o layer de SAÍDA fica sempre em opacity:1 (sem transição).
+// Só o layer de ENTRADA faz fade-in (0 → 1).
+// Quando o fade termina, o layer de saída some instantaneamente (opacity:0, sem transition).
+// Isso evita o efeito cinza que ocorre quando os dois layers ficam semi-transparentes ao mesmo tempo.
+function VideoSlot({ initialIndex }) {
+  const refA = useRef(null)
+  const refB = useRef(null)
+
+  // layerFront: qual layer está na frente visível (0=A, 1=B)
+  const layerFrontRef = useRef(0)
+  const busyRef = useRef(false)
+  const currentIndexRef = useRef(initialIndex)
+
+  const getRef = (layer) => layer === 0 ? refA : refB
+
+  // Troca: carrega próximo no layer de trás, faz fade-in, depois esconde o de frente
+  const trocar = useCallback(() => {
+    if (busyRef.current) return
+    busyRef.current = true
+
+    const backLayer = layerFrontRef.current === 0 ? 1 : 0
+    const elBack = getRef(backLayer).current
+    if (!elBack) { busyRef.current = false; return }
+
+    const nextIndex = escolherAleatorio([currentIndexRef.current])
+    currentIndexRef.current = nextIndex
+
+    // Prepara o layer de trás: invisível, sem transição, carrega o vídeo
+    elBack.style.transition = 'none'
+    elBack.style.opacity = '0'
+    elBack.src = VIDEOS[nextIndex]
+    elBack.load()
+
+    const doFade = () => {
+      elBack.play().catch(() => {})
+      // Força reflow para garantir que opacity:0 foi aplicado antes da transição
+      void elBack.offsetWidth
+      elBack.style.transition = `opacity ${FADE_MS}ms ease-in-out`
+      elBack.style.opacity = '1'
+
+      setTimeout(() => {
+        // Layer de frente some instantaneamente (já está coberto)
+        const frontEl = getRef(layerFrontRef.current).current
+        if (frontEl) {
+          frontEl.style.transition = 'none'
+          frontEl.style.opacity = '0'
+          // Pausa o vídeo antigo para liberar recursos
+          frontEl.pause()
+        }
+        layerFrontRef.current = backLayer
+        busyRef.current = false
+      }, FADE_MS)
+    }
+
+    // Aguarda dados suficientes para tocar sem travar
+    if (elBack.readyState >= 3) {
+      doFade()
+    } else {
+      const onReady = () => {
+        elBack.removeEventListener('canplaythrough', onReady)
+        clearTimeout(fallback)
+        doFade()
+      }
+      const fallback = setTimeout(() => {
+        elBack.removeEventListener('canplaythrough', onReady)
+        doFade()
+      }, 2500)
+      elBack.addEventListener('canplaythrough', onReady)
+    }
+  }, [])
+
+  // Inicialização
+  useEffect(() => {
+    const elA = refA.current
+    const elB = refB.current
+    if (!elA || !elB) return
+
+    // Layer A: visível, tocando
+    elA.style.opacity = '1'
+    elA.style.transition = 'none'
+    elA.src = VIDEOS[initialIndex]
+    elA.load()
+    elA.play().catch(() => {})
+
+    // Layer B: invisível, pré-carregando o próximo
+    elB.style.opacity = '0'
+    elB.style.transition = 'none'
+    const nextIndex = escolherAleatorio([initialIndex])
+    elB.src = VIDEOS[nextIndex]
+    elB.load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const baseStyle = {
+    position: 'absolute', inset: 0,
+    width: '100%', height: '100%',
+    objectFit: 'cover',
+  }
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000' }}>
+      <video ref={refA} style={{ ...baseStyle, opacity: 0 }} muted playsInline preload="auto" onEnded={trocar} />
+      <video ref={refB} style={{ ...baseStyle, opacity: 0 }} muted playsInline preload="auto" onEnded={trocar} />
+    </div>
+  )
+}
+
+// ── Fundo desktop: 3 slots lado a lado ───────────────────────
+function VideoBackgroundDesktop() {
+  const initialSlots = useRef(null)
+  if (!initialSlots.current) {
+    const shuffled = [...VIDEOS.keys()].sort(() => Math.random() - 0.5)
+    initialSlots.current = [shuffled[0], shuffled[1], shuffled[2]]
+  }
+
+  return (
+    <div className="absolute inset-0 flex overflow-hidden">
+      {[0, 1, 2].map((slotIdx) => (
+        <div key={slotIdx} className="flex-1 h-full overflow-hidden relative">
+          <VideoSlot initialIndex={initialSlots.current[slotIdx]} />
+        </div>
+      ))}
+      <div className="absolute inset-0 bg-black/85" />
+    </div>
+  )
+}
+
+// ── Fundo mobile: 1 slot ─────────────────────────────────────
+function VideoBackgroundMobile() {
+  const initialIndex = useRef(Math.floor(Math.random() * VIDEOS.length)).current
+
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      <VideoSlot initialIndex={initialIndex} />
+      <div className="absolute inset-0 bg-black/85" />
+    </div>
+  )
+}
+
+// ── Fundo responsivo ─────────────────────────────────────────
+function VideoBackground() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const handler = (e) => setIsMobile(!e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  return isMobile ? <VideoBackgroundMobile /> : <VideoBackgroundDesktop />
+}
+
+// ── Skeleton de loading ───────────────────────────────────────
+function CardapioSkeleton() {
+  return (
+    <div className="fixed inset-0 bg-black z-50 flex flex-col animate-fade-in">
+      {/* Header skeleton */}
+      <div className="border-b border-white/10 bg-black/40 backdrop-blur-md flex-shrink-0">
+        <div className="flex items-center gap-2.5 px-6 py-4">
+          <Skeleton className="h-7 w-7 rounded-lg bg-white/10" />
+          <Skeleton className="h-5 w-48 rounded-lg bg-white/10" />
         </div>
       </div>
-
-      {/* Conteúdo */}
+      {/* Conteúdo skeleton */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {Array.from({ length: 3 }).map((_, gi) => (
           <SkeletonGroup key={gi}>
-            <Skeleton className="h-3 w-24 mb-3" />
+            <Skeleton className="h-3 w-24 mb-4 bg-white/10" />
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
               {Array.from({ length: gi === 0 ? 6 : gi === 1 ? 4 : 8 }).map((_, i) => (
-                <div key={i} className="flex flex-col gap-1 px-3 py-2.5 min-h-[56px] rounded-xl bg-brand-surface border border-brand-border">
-                  <Skeleton className="h-3 w-full rounded" />
-                  <Skeleton className="h-3 w-14 rounded" />
+                <div key={i} className="flex flex-col gap-1 px-3 py-3 min-h-[64px] rounded-xl bg-white/10 border border-white/10">
+                  <Skeleton className="h-3 w-full rounded bg-white/10" />
+                  <Skeleton className="h-3 w-14 rounded bg-white/10" />
                 </div>
               ))}
             </div>
@@ -43,70 +219,127 @@ export default function Cardapio() {
       </div>
     </div>
   )
+}
+
+// ── Página principal ──────────────────────────────────────────
+export default function Cardapio() {
+  const { produtos, loading, error } = useCardapio()
+
+  // A API já retorna apenas disponíveis, mas garantimos no cliente também
+  const produtosDisponiveis = produtos.filter((p) => p.disponivel !== false)
+  const categorias = [...new Set(produtosDisponiveis.map((p) => p.categoria))].sort()
+
+  if (loading) return <CardapioSkeleton />
 
   return (
-    <div className="fixed inset-0 bg-brand-bg z-50 flex flex-col animate-fade-in">
+    <div className="fixed inset-0 flex flex-col animate-fade-in">
 
-      {/* ─── Header ─── */}
-      <div className="bg-brand-surface border-b border-brand-border flex-shrink-0">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-brand-orange/10 flex items-center justify-center">
+      {/* ── Fundo de vídeo ──────────────────────────────── */}
+      <VideoBackground />
+
+      {/* ── Header ──────────────────────────────────────── */}
+      <header className="relative z-10 flex-shrink-0 border-b border-white/10 bg-black/40 backdrop-blur-md">
+        <div className="flex items-center justify-between px-6 py-3">
+          {/* Esquerda — ícone + título */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-brand-orange/20 flex items-center justify-center flex-shrink-0">
               <MdInventory2 className="text-brand-orange" size={15} />
             </div>
-            <h2 className="font-heading text-lg font-bold text-brand-text">
+            <h1 className="font-heading text-base sm:text-lg font-bold text-white truncate">
               Cardápio Disponível
-              <span className="ml-2 text-sm font-normal text-brand-text-3">
-                {produtosDisponiveis.length} itens
-              </span>
-            </h2>
+              {!error && (
+                <span className="ml-2 text-xs sm:text-sm font-normal text-white/60">
+                  {produtosDisponiveis.length} {produtosDisponiveis.length === 1 ? 'item' : 'itens'}
+                </span>
+              )}
+            </h1>
           </div>
-          <button
-            onClick={() => navigate(-1)}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-brand-text-3
-                       hover:text-brand-text hover:bg-brand-bg transition-all"
-          >
-            <MdClose size={18} />
-          </button>
-        </div>
-      </div>
 
-      {/* ─── Conteúdo scrollável ─── */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-6 space-y-6">
-          {categorias.map((categoria) => {
+          {/* Direita — logo */}
+          <img
+            src="/logo.png"
+            alt="Logo"
+            className="h-8 sm:h-10 w-auto object-contain flex-shrink-0 ml-4 drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)]"
+          />
+        </div>
+      </header>
+
+      {/* ── Conteúdo scrollável ──────────────────────────── */}
+      <main className="relative z-10 flex-1 overflow-y-auto">
+        {/* ── Slogan — centralizado, logo abaixo do header ─ */}
+        <div className="flex justify-center px-6 pt-2 pb-0">
+          <img
+            src="/cardapio/slogan.png"
+            alt="Slogan Índios Churrasco Gourmet"
+            className="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] -mb-4"
+            draggable={false}
+          />
+        </div>
+
+        <div className="px-6 pt-0 pb-6 space-y-6">
+
+          {/* Estado de erro */}
+          {error && (
+            <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
+              <MdInventory2 className="text-white/20" size={40} />
+              <p className="text-white/40 text-sm">Não foi possível carregar o cardápio.</p>
+              <p className="text-white/25 text-xs">{error}</p>
+            </div>
+          )}
+
+          {/* Categorias e produtos */}
+          {!error && categorias.map((categoria) => {
             const itens = produtosDisponiveis.filter((p) => p.categoria === categoria)
             if (itens.length === 0) return null
             return (
-              <div key={categoria}>
-                <p className="text-[10px] font-semibold text-brand-text-3 uppercase tracking-wider mb-3">
-                  {categoria}
-                </p>
+              <section key={categoria}>
+                {/* Rótulo da categoria */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-0.5 h-4 rounded-full bg-brand-orange flex-shrink-0" />
+                  <p className="font-heading text-sm font-bold text-white uppercase tracking-[0.15em]">
+                    {categoria}
+                  </p>
+                </div>
+
+                {/* Grid de produtos */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
                   {itens.map((produto) => (
                     <div
                       key={produto.id}
-                      className="flex flex-col justify-between gap-1 px-3 py-2.5 min-h-[56px] rounded-xl
-                                 bg-brand-surface border border-brand-border
-                                 hover:border-brand-orange/30 hover:bg-brand-surface-2 transition-all"
+                      className="flex flex-col justify-between gap-1.5 px-3 py-3 min-h-[64px] rounded-xl
+                                 bg-white/10 border border-white/15 backdrop-blur-sm
+                                 hover:bg-white/15 hover:border-brand-orange/50 transition-all"
                     >
-                      <p className="text-xs font-semibold text-brand-text leading-tight">{produto.nome}</p>
-                      <p className="text-xs font-bold text-brand-orange">{formatarMoeda(produto.preco)}</p>
+                      <p className="text-sm font-semibold text-white leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
+                        {produto.nome}
+                      </p>
+                      <p className="text-sm font-bold text-brand-orange drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
+                        {formatarMoeda(produto.preco)}
+                      </p>
                     </div>
                   ))}
                 </div>
-              </div>
+              </section>
             )
           })}
 
-          {produtosDisponiveis.length === 0 && (
+          {/* Estado vazio */}
+          {!error && produtosDisponiveis.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
-              <MdInventory2 className="text-brand-border-2" size={40} />
-              <p className="text-brand-text-3 text-sm">Nenhum item disponível no momento</p>
+              <MdInventory2 className="text-white/20" size={40} />
+              <p className="text-white/40 text-sm">Nenhum item disponível no momento</p>
             </div>
           )}
+
         </div>
-      </div>
+
+        {/* ── Footer — sempre no final do conteúdo ─────── */}
+        <footer className="border-t border-white/10 mt-2">
+          <p className="text-center text-xs text-white/40 py-3">
+            Índios Churrasco Gourmet
+          </p>
+        </footer>
+      </main>
     </div>
   )
 }

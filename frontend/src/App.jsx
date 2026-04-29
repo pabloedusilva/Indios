@@ -23,6 +23,9 @@ function App() {
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
 
+            {/* ── Rota pública — sem autenticação ─────────── */}
+            <Route path="/cardapio" element={<Cardapio />} />
+
             <Route
               path="*"
               element={
@@ -39,7 +42,6 @@ function App() {
                           <Route path="/produtos"     element={<Produtos />} />
                           <Route path="/historico"    element={<Historico />} />
                           <Route path="/estatisticas" element={<Estatisticas />} />
-                          <Route path="/cardapio"     element={<Cardapio />} />
                           <Route path="*"             element={<Navigate to="/dashboard" replace />} />
                         </Routes>
                       </Layout>

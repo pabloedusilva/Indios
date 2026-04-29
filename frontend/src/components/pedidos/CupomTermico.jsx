@@ -1,7 +1,27 @@
-import { forwardRef } from 'react'
+import { forwardRef, useEffect, useState } from 'react'
 import { formatarData, formatarHora, formatarMoeda } from '../../utils/formatters'
 
+// Converte a logo para base64 para garantir que aparece na impressão (blob URL)
+function useLogoBase64() {
+  const [src, setSrc] = useState(null)
+  useEffect(() => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0)
+      setSrc(canvas.toDataURL('image/png'))
+    }
+    img.src = '/logo.png'
+  }, [])
+  return src
+}
+
 const CupomTermico = forwardRef(({ pedido }, ref) => {
+  const logoBase64 = useLogoBase64()
   if (!pedido) return null
 
   const linha = '─'.repeat(32)
@@ -22,8 +42,19 @@ const CupomTermico = forwardRef(({ pedido }, ref) => {
     >
       {/* Cabeçalho */}
       <div style={{ textAlign: 'center', marginBottom: '6px' }}>
-        <div style={{ fontSize: '15px', fontWeight: 'bold', letterSpacing: '1px' }}>
-          ÍNDIOS CHURRASCO GOURMET
+        {/* Logo em preto e branco */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
+          {logoBase64 && (
+            <img
+              src={logoBase64}
+              alt="Índios Churrasco Gourmet"
+              style={{
+                width: '72px',
+                height: 'auto',
+                filter: 'grayscale(100%) contrast(1.2)',
+              }}
+            />
+          )}
         </div>
         <div style={{ fontSize: '10px', marginTop: '2px' }}>
           Aqui o Churrasco tem mais sabor

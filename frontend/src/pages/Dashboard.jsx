@@ -203,7 +203,7 @@ export default function Dashboard() {
       desc: 'Itens disponíveis',
       icon: MdInventory2,
       color: 'bg-brand-orange/10 text-brand-orange',
-      onClick: () => navigate('/cardapio'),
+      onClick: () => window.open('/cardapio', '_blank', 'noopener,noreferrer'),
     },
     {
       label: 'Pedidos',

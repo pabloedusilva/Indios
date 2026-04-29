@@ -14,6 +14,7 @@ const dashboardRoutes   = require('./routes/dashboard')
 const categoriasRoutes  = require('./routes/categorias')
 const estatisticasRoutes = require('./routes/estatisticas')
 const pagamentosRoutes  = require('./routes/pagamentos')
+const cardapioRoutes    = require('./routes/cardapio')
 const errorHandler      = require('./middlewares/errorHandler')
 const { requireAuth }   = require('./middlewares/authMiddleware')
 
@@ -80,6 +81,8 @@ app.use(cookieParser())
 app.use('/api/auth',       authRoutes)
 // Webhook do Mercado Pago é público (sem requireAuth) mas protegido por HMAC
 app.use('/api/pagamentos', pagamentosRoutes)
+// Cardápio público — sem autenticação, rate limited
+app.use('/api/cardapio',   cardapioRoutes)
 
 // ── Health check (público) ────────────────────────────────────
 app.get('/api/health', (_req, res) => {
