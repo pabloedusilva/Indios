@@ -31,8 +31,12 @@ export async function login({ usuario, senha }) {
 
 /**
  * Encerra a sessão, invalidando o cookie de autenticação no servidor.
+ * Limpa também o cache de status de pagamento da sessão.
  */
 export async function logout() {
+  try {
+    sessionStorage.removeItem('pix_mes_pago')
+  } catch { /* sem suporte */ }
   await fetch(`${BASE}/logout`, {
     method: 'POST',
     credentials: 'include',

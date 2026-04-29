@@ -14,6 +14,7 @@ import {
 } from 'react-icons/md'
 import { useAuth } from '../../contexts/AuthContext'
 import toast from 'react-hot-toast'
+import Portal from './Portal'
 
 // ── Componente de campo de input reutilizável ─────────────────
 function Campo({ label, id, type = 'text', value, onChange, error, autoComplete, rightSlot, placeholder }) {
@@ -182,11 +183,12 @@ export default function ModalConfiguracoes({ isOpen, onClose }) {
   )
 
   return (
-    <div
-      ref={overlayRef}
-      className="modal-overlay p-4"
-      onClick={(e) => { if (e.target === overlayRef.current) handleClose() }}
-    >
+    <Portal>
+      <div
+        ref={overlayRef}
+        className="modal-overlay p-4"
+        onClick={(e) => { if (e.target === overlayRef.current) handleClose() }}
+      >
       <div className="modal-box w-full max-w-md max-h-[90vh] flex flex-col">
 
         {/* ── Header ──────────────────────────────────────── */}
@@ -338,6 +340,7 @@ export default function ModalConfiguracoes({ isOpen, onClose }) {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </Portal>
   )
 }

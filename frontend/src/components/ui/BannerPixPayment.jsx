@@ -1,56 +1,79 @@
-﻿// =============================================================
-//  components/ui/BannerPagamento.jsx
+// =============================================================
+//  components/ui/BannerPixPayment.jsx — Banner de Pagamento PIX
 //
 //  Exibe o banner de cobrança mensal do servidor apenas entre
-//  os dias 25 e 29, e somente se o mês ainda não foi pago.
-//  Ao clicar em "Pagar agora", abre o checkout do Mercado Pago
-//  em nova aba. Quando o pagamento é confirmado, o banner some
-//  com animação e o ModalSucesso é exibido.
+//  os dias 23 e 27, e somente se o mês ainda não foi pago.
+//  Ao clicar em "Pagar com PIX", cria o pagamento e exibe
+//  o QR Code e código copia e cola. Monitora automaticamente
+//  a confirmação do pagamento via polling.
+//
+//  Nota: o ModalSucesso é gerenciado pelo Layout, não aqui.
 // =============================================================
 
 import { useEffect, useState } from 'react'
-import { usePagamento } from '../../hooks/usePagamento'
-import ModalSucesso from './ModalSucesso'
-import { MdWarning } from 'react-icons/md'
+import { usePixPayment } from '../../hooks/usePixPayment'
+import ModalPixPayment from './ModalPixPayment'
+import { MdWarning, MdQrCode2 } from 'react-icons/md'
 
-// Retorna o dia atual no horário de Brasília (UTC-3)
 function diaBRT() {
   const brt = new Date(Date.now() - 3 * 60 * 60 * 1000)
   return brt.getUTCDate()
 }
 
-const DIA_INICIO = 19 // TODO: voltar para 25 após teste
-const DIAS_AVISO = 5
+const DIA_INICIO   = 25
+const DIAS_AVISO   = 5
+// Tempo mínimo que aguardamos após a verificação antes de exibir o banner.
+// Garante que, mesmo se a API responder "não pago", o banner só aparece
+// depois que temos certeza — eliminando qualquer flash para usuários pagos.
+const DELAY_EXIBIR = 600  // ms
 
-export default function BannerPagamento() {
+export default function BannerPixPayment() {
   const {
     mesPago,
     verificando,
-    abrindo,
-    erroCobrar,
-    sucesso,
-    abrirCheckout,
-    fecharSucesso,
-  } = usePagamento()
+    criandoPix,
+    pixData,
+    erro,
+    criarPagamentoPix,
+  } = usePixPayment()
 
   const dia    = diaBRT()
   const diaFim = DIA_INICIO + DIAS_AVISO - 1
-
   const dentroJanela = dia >= DIA_INICIO && dia <= diaFim
 
-  // Animação de saída quando o pagamento for confirmado
-  const [saindo, setSaindo] = useState(false)
-  const [oculto, setOculto] = useState(false)
+  const [saindo,          setSaindo]          = useState(false)
+  const [oculto,          setOculto]          = useState(false)
+  const [mostrarModalPix, setMostrarModalPix] = useState(false)
+  // Controla se o delay de segurança já passou
+  const [pronto,          setPronto]          = useState(false)
 
+  // Só libera o banner após a verificação terminar + delay de segurança
+  useEffect(() => {
+    if (verificando) {
+      setPronto(false)
+      return
+    }
+    const t = setTimeout(() => setPronto(true), DELAY_EXIBIR)
+    return () => clearTimeout(t)
+  }, [verificando])
+
+  // Iniciar animação de saída do banner quando pago
   useEffect(() => {
     if (mesPago && dentroJanela && !verificando) {
+      setMostrarModalPix(false)
       setSaindo(true)
       const t = setTimeout(() => setOculto(true), 550)
       return () => clearTimeout(t)
     }
   }, [mesPago, dentroJanela, verificando])
 
-  if (verificando || !dentroJanela || oculto) return null
+  // Abrir modal PIX quando QR Code estiver disponível
+  useEffect(() => {
+    if (pixData) setMostrarModalPix(true)
+  }, [pixData])
+
+  // Não renderizar enquanto verificando, delay não passou, fora da janela ou já oculto
+  if (!pronto || !dentroJanela || oculto) return null
   if (mesPago && !saindo) return null
 
   const diasRestantes = diaFim - dia + 1
@@ -67,30 +90,26 @@ export default function BannerPagamento() {
             : 'bg-gradient-to-r from-[#C93517] to-[#E8650A] border-[#C93517]'}
         `}
       >
-        {/* Brilho decorativo */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.12),transparent_60%)] pointer-events-none" />
 
         <div className="relative flex items-center justify-between gap-4 px-5 py-2.5 max-w-[1600px] mx-auto">
-
-          {/* Ícone + texto */}
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center">
               <MdWarning size={15} className="text-white" />
             </div>
             <p className="text-sm font-medium text-white/95 truncate">
               <span className="font-bold text-white">Atenção:&nbsp;</span>
-              Efetue o pagamento do servidor para manter o sistema online.
+              Efetue o pagamento PIX do servidor para manter o sistema online.
             </p>
           </div>
 
-          {/* Contador + botão */}
           <div className="flex items-center gap-2.5 flex-shrink-0">
             <span className="text-xs font-semibold text-white tabular-nums">
               {diasRestantes} {diasRestantes === 1 ? 'dia restante' : 'dias restantes'}
             </span>
             <button
-              onClick={abrirCheckout}
-              disabled={abrindo}
+              onClick={criarPagamentoPix}
+              disabled={criandoPix}
               className="
                 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold
                 bg-white text-[#C93517] shadow-sm border border-white/80
@@ -98,18 +117,22 @@ export default function BannerPagamento() {
                 active:scale-[0.98] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed
               "
             >
-              {abrindo ? 'Aguarde...' : 'Pagar agora'}
+              <MdQrCode2 size={14} />
+              {criandoPix ? 'Gerando PIX...' : 'Pagar com PIX'}
             </button>
           </div>
         </div>
 
-        {erroCobrar && (
-          <p className="text-center text-xs text-white/80 pb-1.5 -mt-1">{erroCobrar}</p>
+        {erro && (
+          <p className="text-center text-xs text-white/80 pb-1.5 -mt-1">{erro}</p>
         )}
       </div>
 
-      {/* Modal de sucesso após pagamento */}
-      <ModalSucesso isOpen={sucesso} onClose={fecharSucesso} />
+      <ModalPixPayment
+        isOpen={mostrarModalPix}
+        onClose={() => setMostrarModalPix(false)}
+        pixData={pixData}
+      />
 
       <style>{`
         @keyframes bannerSlideUp {

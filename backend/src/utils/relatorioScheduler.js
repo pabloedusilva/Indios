@@ -1,28 +1,37 @@
 // =============================================================
 //  utils/relatorioScheduler.js
 //
-//  Agendamento automático de relatórios PDF mensais.
-//  Regra: todo dia 1º de cada mês às 00:05, gera o relatório
-//  do mês anterior (se ainda não existir).
+//  Agendamento automático de relatórios e resumo do dashboard.
 //
-//  Também executa uma verificação no boot: se hoje é dia 1
-//  e o relatório do mês anterior ainda não foi gerado, gera.
+//  Relatórios mensais:
+//    · Todo dia 1 às 00:05 BRT salva os dados do mês anterior
+//      na tabela relatorios_mensais (idempotente — não duplica).
+//    · No boot, verifica se hoje é dia 1 e o relatório do mês
+//      anterior ainda não foi salvo.
+//
+//  Resumo do dashboard:
+//    · Toda meia-noite BRT recalcula o resumo do dia atual.
+//    · Também executa no boot.
 // =============================================================
 
 const cron = require('node-cron')
-const path = require('path')
-const fs   = require('fs')
+const db   = require('../config/database')
+const EstatisticasModel = require('../models/EstatisticasModel')
 
-const db = require('../config/database')
-const EstatisticasModel  = require('../models/EstatisticasModel')
-const { gerarPDFInterno } = require('../controllers/estatisticasController')
+// ── Helpers ───────────────────────────────────────────────────
 
-const RELATORIOS_DIR = path.join(__dirname, '..', '..', 'relatorios')
-const MAX_RELATORIOS  = 3
+// Retorna 'YYYY-MM' do mês anterior em relação a uma data
+function mesAnterior(data = new Date()) {
+  const d = new Date(data)
+  d.setDate(1)
+  d.setMonth(d.getMonth() - 1)
+  const ano = d.getFullYear()
+  const mes = String(d.getMonth() + 1).padStart(2, '0')
+  return `${ano}-${mes}`
+}
 
 // ── Resumo Dashboard ──────────────────────────────────────────
 
-// Recalcula e grava a linha única de resumo_dashboard para HOJE
 async function refreshResumoDashboard() {
   try {
     await db.execute(`
@@ -49,93 +58,61 @@ async function refreshResumoDashboard() {
         finalizados   = VALUES(finalizados),
         cancelados    = VALUES(cancelados)
     `)
-  } catch (err) {
-    // silencioso
+  } catch {
+    // silencioso — não derruba o servidor
   }
 }
 
-// ── Relatórios PDF ────────────────────────────────────────────
+// ── Relatórios Mensais ────────────────────────────────────────
 
-function garantirPasta() {
-  if (!fs.existsSync(RELATORIOS_DIR)) {
-    fs.mkdirSync(RELATORIOS_DIR, { recursive: true })
-  }
-}
-
-function listarPDFs() {
-  garantirPasta()
-  return fs
-    .readdirSync(RELATORIOS_DIR)
-    .filter((f) => /^relatorio-\d{4}-\d{2}\.pdf$/.test(f))
-    .sort()
-}
-
-function gerenciarLimite() {
-  const pdfs = listarPDFs()
-  if (pdfs.length >= MAX_RELATORIOS) {
-    const maisAntigo = pdfs[0]
-    fs.unlinkSync(path.join(RELATORIOS_DIR, maisAntigo))
-  }
-}
-
-// Retorna 'YYYY-MM' do mês anterior em relação a uma data
-function mesAnterior(data = new Date()) {
-  const d = new Date(data)
-  d.setDate(1)
-  d.setMonth(d.getMonth() - 1)
-  const ano = d.getFullYear()
-  const mes = String(d.getMonth() + 1).padStart(2, '0')
-  return `${ano}-${mes}`
-}
-
-async function gerarRelatorioMes(mes) {
-  const arquivo  = `relatorio-${mes}.pdf`
-  const filePath = path.join(RELATORIOS_DIR, arquivo)
-
-  if (fs.existsSync(filePath)) {
-    return
-  }
-
+// Salva os dados do mês no banco (idempotente — INSERT IGNORE)
+async function salvarRelatorioMes(mes) {
   try {
-    gerenciarLimite()
+    // Verifica se já existe para não recalcular desnecessariamente
+    const existente = await EstatisticasModel.buscarRelatorio(mes)
+    if (existente) {
+      console.log(`[Relatórios] Já existe relatório para ${mes} — ignorando.`)
+      return
+    }
+
+    console.log(`[Relatórios] Gerando relatório de ${mes}...`)
     const stats = await EstatisticasModel.estatisticasMes(mes)
-    await gerarPDFInterno(stats, filePath)
+    await EstatisticasModel.salvarRelatorio(mes, stats)
+    console.log(`[Relatórios] Relatório de ${mes} salvo no banco com sucesso.`)
   } catch (err) {
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+    console.error(`[Relatórios] Erro ao salvar relatório de ${mes}:`, err.message)
   }
 }
 
-// Verifica no boot se hoje é dia 1 e se falta gerar o relatório do mês anterior
+// Verifica no boot se hoje é dia 1 e o relatório do mês anterior ainda não foi salvo
 async function verificarNoBoot() {
-  const agora = new Date()
-  // Usa horário de Brasília (UTC-3)
+  const agora        = new Date()
   const horaBrasilia = new Date(agora.getTime() - 3 * 60 * 60 * 1000)
   if (horaBrasilia.getUTCDate() === 1) {
     const mes = mesAnterior(horaBrasilia)
-    await gerarRelatorioMes(mes)
+    await salvarRelatorioMes(mes)
   }
 }
 
+// ── Inicialização ─────────────────────────────────────────────
+
 function iniciarScheduler() {
-  // ── Cron: todo dia 1 às 00:05 BRT — gera relatório do mês anterior ──
-  // UTC 03:05 = 00:05 BRT
+  // Cron: todo dia 1 às 00:05 BRT (03:05 UTC) — salva relatório do mês anterior
   cron.schedule('5 3 1 * *', async () => {
     const mes = mesAnterior()
-    await gerarRelatorioMes(mes)
+    await salvarRelatorioMes(mes)
   })
 
-  // ── Cron: toda meia-noite BRT (03:00 UTC) — reseta resumo do dia ────
+  // Cron: toda meia-noite BRT (03:00 UTC) — reseta resumo do dia
   cron.schedule('0 3 * * *', async () => {
     await refreshResumoDashboard()
   })
 
-
-
-  // ── Boot: popula resumo_dashboard com dados de hoje ─────────────────
+  // Boot: popula resumo_dashboard com dados de hoje
   refreshResumoDashboard()
 
-  // ── Boot: verifica se hoje é dia 1 e falta gerar relatório ──────────
+  // Boot: verifica se hoje é dia 1 e falta salvar o relatório
   verificarNoBoot().catch(() => {})
 }
 
-module.exports = { iniciarScheduler, gerarRelatorioMes, mesAnterior, refreshResumoDashboard }
+module.exports = { iniciarScheduler, salvarRelatorioMes, mesAnterior, refreshResumoDashboard }

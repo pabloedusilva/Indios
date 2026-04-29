@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "setup": "node src/config/migrations.js",
-    "reset": "node reset.js",
-    "seed": "node scripts/seedUsuario.js"
+    "migrate": "node scripts/migrate.js",
+    "migrate:db": "node scripts/migrate-database.js",
+    "seed": "node scripts/seedUsuario.js",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "axios": "^1.15.0",
@@ -28,6 +30,9 @@
     "uuid": "^10.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.7"
+    "fast-check": "^4.7.0",
+    "nodemon": "^3.1.7",
+    "supertest": "^7.2.2",
+    "vitest": "^4.1.5"
   }
 }
