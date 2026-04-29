@@ -93,9 +93,15 @@ function gerarPDFBuffer(stats) {
     const BORDER = '#EDE9E3'
     const PAGE_W = 595  // largura total A4
 
+    // geradoEm do cabeçalho: data real de geração salva no banco
+    const dataGerado = stats.geradoEm ? new Date(stats.geradoEm) : new Date()
+    const geradoEmCabecalho = dataGerado.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ' as ' +
+      dataGerado.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
+
+    // rodapé: dinâmico — hora real do download em horário de Brasília
     const agora = new Date()
-    const geradoEm = agora.toLocaleDateString('pt-BR') + ' as ' +
-      agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    const geradoEm = agora.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ' as ' +
+      agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
 
     // ── Helpers de layout ─────────────────────────────────────
     const line = (y) => {
@@ -143,7 +149,7 @@ function gerarPDFBuffer(stats) {
     doc.fontSize(10).font('Helvetica').fillColor('rgba(255,255,255,0.85)')
        .text(`${nomeMesPDF(mes)} de ${ano}`, 0, 97, { width: PAGE_W, align: 'center', lineBreak: false })
     doc.fontSize(7.5).font('Helvetica').fillColor('rgba(255,255,255,0.60)')
-       .text(`Gerado em: ${geradoEm}`, 0, 114, { width: PAGE_W, align: 'center', lineBreak: false })
+       .text(`Gerado em: ${geradoEmCabecalho}`, 0, 114, { width: PAGE_W, align: 'center', lineBreak: false })
 
     // ── Cursor abaixo do cabeçalho ────────────────────────────
     doc.fillColor(DARK).text('', 50, HEADER_H + 18)

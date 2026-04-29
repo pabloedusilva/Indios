@@ -1,5 +1,6 @@
 ﻿import { useEffect, useRef } from 'react'
 import { MdClose } from 'react-icons/md'
+import Portal from './Portal'
 
 export default function Modal({
   isOpen, onClose, title, children, size = 'lg', fullscreen = false, overlayClassName = '',
@@ -39,25 +40,29 @@ export default function Modal({
 
   if (fullscreen) {
     return (
-      <div className="fixed inset-0 bg-brand-bg z-50 flex flex-col animate-fade-in">
-        <div className="bg-brand-surface border-b border-brand-border flex-shrink-0">
-          <ModalHeader />
+      <Portal>
+        <div className="fixed inset-0 bg-brand-bg z-50 flex flex-col animate-fade-in">
+          <div className="bg-brand-surface border-b border-brand-border flex-shrink-0">
+            <ModalHeader />
+          </div>
+          <div className="flex-1 overflow-y-auto">{children}</div>
         </div>
-        <div className="flex-1 overflow-y-auto">{children}</div>
-      </div>
+      </Portal>
     )
   }
 
   return (
-    <div
-      ref={overlayRef}
-      className={`modal-overlay p-4 ${overlayClassName}`}
-      onClick={(e) => { if (e.target === overlayRef.current) onClose() }}
-    >
-      <div className={`modal-box w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col`}>
-        <ModalHeader />
-        <div className="flex-1 overflow-y-auto">{children}</div>
+    <Portal>
+      <div
+        ref={overlayRef}
+        className={`modal-overlay p-4 ${overlayClassName}`}
+        onClick={(e) => { if (e.target === overlayRef.current) onClose() }}
+      >
+        <div className={`modal-box w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col`}>
+          <ModalHeader />
+          <div className="flex-1 overflow-y-auto">{children}</div>
+        </div>
       </div>
-    </div>
+    </Portal>
   )
 }

@@ -40,14 +40,16 @@ export function useEstatisticas() {
   const primeiraCarrega = useRef(true)
 
   // ── Busca meses disponíveis + stats iniciais ──────────────
+  // Sempre reseta para o mês mais recente ao montar (ao entrar na rota)
   const carregarMeses = useCallback(async () => {
     try {
       setError(null)
       const data = await api.get('/estatisticas/inicio')
       setMeses(data.meses)
       if (data.meses.length > 0) {
-        const mes = mesAtivo || data.meses[0].mes
-        if (!mesAtivo) setMesAtivo(mes)
+        // Sempre usa o mês mais recente ao carregar — ignora mesAtivo anterior
+        const mesMaisRecente = data.meses[0].mes
+        setMesAtivo(mesMaisRecente)
         if (data.stats) setStats(data.stats)
       }
     } catch (err) {
@@ -56,7 +58,7 @@ export function useEstatisticas() {
       setLoading(false)
       primeiraCarrega.current = false
     }
-  }, [mesAtivo])
+  }, []) // sem dependências — sempre reseta ao montar
 
   // ── Busca estatísticas do mês ativo ───────────────────────
   const carregarStats = useCallback(async (mes) => {

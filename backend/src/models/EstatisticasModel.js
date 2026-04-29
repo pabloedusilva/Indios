@@ -176,15 +176,22 @@ const EstatisticasModel = {
   // ── Relatórios mensais (relatorios_mensais) ───────────────
 
   // Salva o relatório de um mês no banco (idempotente — não sobrescreve se já existir)
+  // gerado_em é gravado explicitamente em horário de Brasília (UTC-3) no momento da inserção
   async salvarRelatorio(mes, stats) {
     const { resumo, topProdutos, pagamentos, porDia, melhorDia } = stats
+
+    // Calcula o horário atual em BRT (UTC-3) para gravar como gerado_em
+    const agora = new Date()
+    const brt = new Date(agora.getTime() - 3 * 60 * 60 * 1000)
+    const geradoEmBRT = brt.toISOString().slice(0, 19).replace('T', ' ')
+
     await db.execute(
       `INSERT IGNORE INTO relatorios_mensais
          (mes, faturamento, total_pedidos, finalizados, cancelados,
           ticket_medio, taxa_cancelamento,
           melhor_dia, melhor_dia_faturamento, melhor_dia_pedidos,
-          top_produtos, pagamentos, por_dia)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          top_produtos, pagamentos, por_dia, gerado_em)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         mes,
         resumo.faturamento,
@@ -199,6 +206,7 @@ const EstatisticasModel = {
         JSON.stringify(topProdutos),
         JSON.stringify(pagamentos),
         JSON.stringify(porDia),
+        geradoEmBRT,
       ]
     )
   },

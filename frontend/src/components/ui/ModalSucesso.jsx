@@ -9,6 +9,7 @@
 // =============================================================
 
 import { useEffect, useRef } from 'react'
+import Portal from './Portal'
 
 const AUTO_CLOSE_MS  = 5000
 const CIRCUMFERENCE  = 2 * Math.PI * 44  // 276.46
@@ -27,12 +28,13 @@ export default function ModalSucesso({ isOpen, onClose }) {
   if (!isOpen) return null
 
   return (
-    <div
-      className="modal-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Pagamento confirmado"
-    >
+    <Portal>
+      <div
+        className="modal-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Pagamento confirmado"
+      >
       <div
         className="modal-box flex flex-col items-center gap-5 py-10 px-8 max-w-xs text-center"
         style={{ animation: 'ms-popIn .4s cubic-bezier(.34,1.56,.64,1) both' }}
@@ -117,5 +119,6 @@ export default function ModalSucesso({ isOpen, onClose }) {
         }
       `}</style>
     </div>
+    </Portal>
   )
 }

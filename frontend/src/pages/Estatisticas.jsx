@@ -144,7 +144,11 @@ function BarChart({ data }) {
 }
 
 // ── Card de resumo ────────────────────────────────────────────
-function KpiCard({ label, value, sub, icon: Icon, color }) {
+
+// Classes de somente leitura (amarelo sutil) reutilizadas em todos os cards
+const READ_ONLY_CARD = 'bg-yellow-50/60 dark:bg-yellow-950/10 border-yellow-200/70 dark:border-yellow-800/30'
+
+function KpiCard({ label, value, sub, icon: Icon, color, readOnly = false }) {
   const map = {
     orange: {
       icon: 'text-brand-orange',
@@ -180,7 +184,7 @@ function KpiCard({ label, value, sub, icon: Icon, color }) {
   const c = map[color] || map.orange
 
   return (
-    <div className="card flex flex-col gap-3">
+    <div className={`card flex flex-col gap-3 ${readOnly ? READ_ONLY_CARD : ''}`}>
       <div className="flex items-start justify-between">
         <p className="text-[11px] font-semibold text-brand-text-3 uppercase tracking-wider leading-tight">
           {label}
@@ -384,6 +388,9 @@ export default function Estatisticas() {
   const { resumo, topProdutos, pagamentos, porDia, melhorDia } = stats
   const totalPag = pagamentos.reduce((s, p) => s + p.qtd, 0)
 
+  // Somente leitura: mês ativo é anterior ao mês mais recente disponível
+  const somenteLeitura = meses.length > 0 && mesAtivo !== meses[0].mes
+
   // Data formatada do melhor dia
   const melhorDiaFmt = melhorDia
     ? new Date(melhorDia.dia + 'T12:00:00').toLocaleDateString('pt-BR', {
@@ -400,7 +407,7 @@ export default function Estatisticas() {
           <h1 className="text-2xl font-bold text-brand-text font-heading">Estatísticas</h1>
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-sm text-brand-text-3">
-              Análise detalhada dos últimos {meses.length} {meses.length === 1 ? 'mês' : 'meses'}
+              Análise detalhada de {nomeMes(mesAtivo)}
             </p>
             {stats.atualizadoEm && (
               <>
@@ -414,6 +421,17 @@ export default function Estatisticas() {
               </>
             )}
           </div>
+          {/* Badge de visualização histórica */}
+          {mesAtivo && meses.length > 0 && mesAtivo !== meses[0].mes && (
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold
+                               bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400
+                               border border-amber-200 dark:border-amber-800/40">
+                <MdCalendarMonth size={11} />
+                Visualização histórica — somente leitura
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -454,6 +472,7 @@ export default function Estatisticas() {
             sub={`${resumo.finalizados} pedidos finalizados`}
             icon={MdAttachMoney}
             color="orange"
+            readOnly={somenteLeitura}
           />
           <KpiCard
             label="Total de Pedidos"
@@ -461,6 +480,7 @@ export default function Estatisticas() {
             sub={`Período: ${nomeMes(mesAtivo)}`}
             icon={MdRestaurantMenu}
             color="blue"
+            readOnly={somenteLeitura}
           />
           <KpiCard
             label="Ticket Médio"
@@ -468,6 +488,7 @@ export default function Estatisticas() {
             sub="por pedido finalizado"
             icon={MdTrendingUp}
             color="gold"
+            readOnly={somenteLeitura}
           />
           <KpiCard
             label="Finalizados"
@@ -475,6 +496,7 @@ export default function Estatisticas() {
             sub={`${resumo.totalPedidos > 0 ? (100 - resumo.taxaCancelamento).toFixed(1) : 0}% do total`}
             icon={MdCheckCircle}
             color="green"
+            readOnly={somenteLeitura}
           />
           <KpiCard
             label="Cancelados"
@@ -482,6 +504,7 @@ export default function Estatisticas() {
             sub={`${resumo.taxaCancelamento}% do total`}
             icon={MdCancel}
             color="red"
+            readOnly={somenteLeitura}
           />
           <KpiCard
             label="Taxa de Conclusão"
@@ -489,6 +512,7 @@ export default function Estatisticas() {
             sub="pedidos finalizados com sucesso"
             icon={MdAutoGraph}
             color="violet"
+            readOnly={somenteLeitura}
           />
         </div>
 
@@ -496,7 +520,7 @@ export default function Estatisticas() {
         <div className="grid lg:grid-cols-2 gap-4 mb-5">
 
           {/* Melhor dia */}
-          <div className="card flex flex-col gap-4">
+          <div className={`card flex flex-col gap-4 ${somenteLeitura ? READ_ONLY_CARD : ''}`}>
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 flex items-center justify-center">
                 <MdStar className="text-brand-gold" size={17} />
@@ -536,7 +560,7 @@ export default function Estatisticas() {
           </div>
 
           {/* Formas de pagamento */}
-          <div className="card flex flex-col gap-4">
+          <div className={`card flex flex-col gap-4 ${somenteLeitura ? READ_ONLY_CARD : ''}`}>
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center">
                 <MdPayment className="text-blue-600 dark:text-blue-400" size={17} />
@@ -587,7 +611,7 @@ export default function Estatisticas() {
         </div>
 
         {/* ── Top Produtos ──────────────────────────────────── */}
-        <div className="card mb-5">
+        <div className={`card mb-5 ${somenteLeitura ? READ_ONLY_CARD : ''}`}>
           <div className="flex items-center gap-2.5 mb-4">
             <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-100 dark:border-orange-900/40 flex items-center justify-center">
               <MdLeaderboard className="text-brand-orange" size={17} />
@@ -646,7 +670,7 @@ export default function Estatisticas() {
         </div>
 
         {/* ── Gráfico de faturamento por dia ────────────────── */}
-        <div className="card mb-5">
+        <div className={`card mb-5 ${somenteLeitura ? READ_ONLY_CARD : ''}`}>
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-100 dark:border-orange-900/40 flex items-center justify-center">
@@ -707,7 +731,7 @@ export default function Estatisticas() {
         </div>
 
         {/* ── Relatório PDF ─────────────────────────────────── */}
-        <div className="card">
+        <div className={`card ${somenteLeitura ? READ_ONLY_CARD : ''}`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 flex items-center justify-center">
@@ -786,7 +810,7 @@ export default function Estatisticas() {
                     <p className="text-xs text-brand-text-3 mt-0.5">
                       {jaDeveriaTerSido
                         ? 'O relatório é gerado automaticamente no dia 1 de cada mês.'
-                        : `O relatório de ${nomeMes(mesAtivo)} será gerado automaticamente no dia 1 do mês seguinte.`}
+                        : `O relatório de ${nomeMes(mesAtivo)} será gerado automaticamente em ${dataDisp.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}.`}
                     </p>
                   </div>
                 </div>
