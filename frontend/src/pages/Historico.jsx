@@ -3,23 +3,24 @@ import { useApp } from '../contexts/AppContext'
 import PageLoader from '../components/ui/PageLoader'
 import StatusBadge from '../components/ui/StatusBadge'
 import ModalPedido from '../components/pedidos/ModalPedido'
-import ConfirmDialog from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
 import { formatarMoeda, formatarHora, agruparPorData } from '../utils/formatters'
 import {
   MdHistory, MdSearch, MdFilterList, MdCalendarToday,
-  MdDelete, MdPrint, MdAttachMoney, MdRestaurantMenu,
+  MdPrint, MdAttachMoney, MdRestaurantMenu,
   MdCheckCircle, MdCancel, MdExpandMore, MdExpandLess, MdClear,
   MdChevronLeft, MdChevronRight, MdRefresh, MdWarning,
 } from 'react-icons/md'
 import { Skeleton, SkeletonGroup } from '../components/ui/Skeleton'
 
+// ── Constantes ────────────────────────────────────────────────
+
 const FILTROS_STATUS = [
-  { id: 'todos',     label: 'Todos' },
+  { id: 'todos',      label: 'Todos' },
   { id: 'finalizado', label: 'Finalizados' },
   { id: 'preparando', label: 'Preparando' },
-  { id: 'pronto',    label: 'Prontos' },
-  { id: 'cancelado', label: 'Cancelados' },
+  { id: 'pronto',     label: 'Prontos' },
+  { id: 'cancelado',  label: 'Cancelados' },
 ]
 
 const PERIODOS = [
@@ -29,8 +30,11 @@ const PERIODOS = [
   { id: 'todos', label: 'Tudo' },
 ]
 
-// FIX: comparar datas no timezone de São Paulo evita erro na virada do dia
-// (ex: pedido feito à 23h SP que cai no dia seguinte em UTC).
+const POR_PAGINA = 50
+
+// ── Helpers ───────────────────────────────────────────────────
+
+// Compara datas no timezone de São Paulo para evitar erro na virada do dia
 const TZ_SP = 'America/Sao_Paulo'
 
 function isNoPeriodo(dataISO, periodo) {
@@ -38,7 +42,6 @@ function isNoPeriodo(dataISO, periodo) {
   const data = new Date(dataISO)
   const agora = new Date()
   if (periodo === 'hoje') {
-    // FIX: usa toLocaleDateString com timezone explícito em vez de getDate()
     const opts = { timeZone: TZ_SP, year: 'numeric', month: '2-digit', day: '2-digit' }
     return data.toLocaleDateString('pt-BR', opts) === agora.toLocaleDateString('pt-BR', opts)
   }
@@ -48,13 +51,17 @@ function isNoPeriodo(dataISO, periodo) {
   return data >= limite
 }
 
-function LinhaPedido({ pedido, onVerCupom, onExcluir }) {
+// ── Subcomponentes ────────────────────────────────────────────
+
+function LinhaPedido({ pedido, onVerCupom }) {
   const [expandido, setExpandido] = useState(false)
 
   return (
     <div className={`rounded-xl border bg-brand-surface overflow-hidden
       hover:border-brand-orange/30 transition-all duration-200
-      ${expandido ? 'border-brand-orange/30 shadow-sm' : 'border-brand-border'}`}>
+      ${expandido ? 'border-brand-orange/30 shadow-sm' : 'border-brand-border'}`}
+    >
+      {/* ── Cabeçalho colapsável ── */}
       <button
         className="w-full flex items-center gap-4 px-4 py-3.5 text-left"
         onClick={() => setExpandido(!expandido)}
@@ -79,18 +86,24 @@ function LinhaPedido({ pedido, onVerCupom, onExcluir }) {
         </span>
       </button>
 
+      {/* ── Detalhes expandidos ── */}
       {expandido && (
         <div className="border-t border-brand-border px-4 pb-4 pt-3 space-y-3 bg-brand-bg">
-          <div className="sm:hidden mb-1"><StatusBadge status={pedido.status} /></div>
+          <div className="sm:hidden mb-1">
+            <StatusBadge status={pedido.status} />
+          </div>
 
-          {/* Itens */}
+          {/* Itens do pedido */}
           <div className="space-y-1">
             {pedido.itens.map((item, idx) => (
               <div key={idx} className="flex items-center justify-between text-xs">
                 <span className="text-brand-text-2">
-                  <span className="font-semibold text-brand-text">{item.quantidade}x</span>{' '}{item.nomeProduto}
+                  <span className="font-semibold text-brand-text">{item.quantidade}x</span>{' '}
+                  {item.nomeProduto}
                 </span>
-                <span className="text-brand-text-3 font-mono tabular-nums">{formatarMoeda(item.quantidade * item.precoUnitario)}</span>
+                <span className="text-brand-text-3 font-mono tabular-nums">
+                  {formatarMoeda(item.quantidade * item.precoUnitario)}
+                </span>
               </div>
             ))}
           </div>
@@ -106,13 +119,15 @@ function LinhaPedido({ pedido, onVerCupom, onExcluir }) {
           <div className="flex items-end justify-between border-t border-brand-border pt-2.5">
             <div className="text-xs text-brand-text-3 space-y-0.5">
               <p>Criado: {formatarHora(pedido.criadoEm)}</p>
-              {pedido.prontoEm    && <p>Pronto: {formatarHora(pedido.prontoEm)}</p>}
-              {pedido.entregueEm  && <p>Finalizado: {formatarHora(pedido.entregueEm)}</p>}
+              {pedido.prontoEm   && <p>Pronto: {formatarHora(pedido.prontoEm)}</p>}
+              {pedido.entregueEm && <p>Finalizado: {formatarHora(pedido.entregueEm)}</p>}
               {pedido.formaPagamento && (
                 <p className="font-medium text-brand-text-2">
                   Pago via {{
-                    pix: 'PIX', credito: 'Cartão Crédito',
-                    debito: 'Cartão Débito', dinheiro: 'Dinheiro',
+                    pix:      'PIX',
+                    credito:  'Cartão Crédito',
+                    debito:   'Cartão Débito',
+                    dinheiro: 'Dinheiro',
                   }[pedido.formaPagamento] ?? pedido.formaPagamento}
                   {pedido.formaPagamento === 'dinheiro' && pedido.troco > 0 && (
                     <span className="text-brand-text-3"> · Troco: {formatarMoeda(pedido.troco)}</span>
@@ -123,27 +138,17 @@ function LinhaPedido({ pedido, onVerCupom, onExcluir }) {
             <p className="font-bold text-brand-orange tabular-nums">{formatarMoeda(pedido.total)}</p>
           </div>
 
-          {/* Ações */}
-          <div className="flex items-center gap-2 pt-1 border-t border-brand-border">
+          {/* Ação: Ver Pedido centralizado */}
+          <div className="pt-1 border-t border-brand-border">
             <button
               onClick={() => onVerCupom(pedido)}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg
                          text-xs font-semibold text-brand-text-2 bg-brand-surface border border-brand-border
                          hover:border-brand-orange/40 hover:text-brand-text
                          transition-all duration-200 active:scale-[0.98]"
             >
               <MdPrint size={13} />
               Ver Pedido
-            </button>
-            <button
-              onClick={() => onExcluir(pedido)}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg
-                         text-xs font-semibold text-red-500/80 bg-brand-surface border border-brand-border
-                         hover:border-red-500/40 hover:text-red-500 hover:bg-red-500/5
-                         transition-all duration-200 active:scale-[0.98]"
-            >
-              <MdDelete size={13} />
-              Excluir
             </button>
           </div>
         </div>
@@ -152,7 +157,7 @@ function LinhaPedido({ pedido, onVerCupom, onExcluir }) {
   )
 }
 
-function GrupoData({ data, pedidos, onVerCupom, onExcluir }) {
+function GrupoData({ data, pedidos, onVerCupom }) {
   const totalGrupo = pedidos
     .filter((p) => p.status !== 'cancelado')
     .reduce((acc, p) => acc + p.total, 0)
@@ -169,25 +174,24 @@ function GrupoData({ data, pedidos, onVerCupom, onExcluir }) {
       </div>
       <div className="space-y-2">
         {pedidos.map((pedido) => (
-          <LinhaPedido key={pedido.id} pedido={pedido} onVerCupom={onVerCupom} onExcluir={onExcluir} />
+          <LinhaPedido key={pedido.id} pedido={pedido} onVerCupom={onVerCupom} />
         ))}
       </div>
     </div>
   )
 }
 
-const POR_PAGINA = 50
+// ── Página principal ──────────────────────────────────────────
 
 export default function Historico() {
-  const { pedidos, excluirPedido, loading, errorPedidos, refetchPedidos } = useApp()
+  const { pedidos, loading, errorPedidos, refetchPedidos } = useApp()
 
-  const [busca, setBusca]                 = useState('')
-  const [filtroStatus, setFiltroStatus]   = useState('todos')
-  const [periodo, setPeriodo]             = useState('todos')
-  const [pagina, setPagina]               = useState(1)
+  const [busca,             setBusca]             = useState('')
+  const [filtroStatus,      setFiltroStatus]      = useState('todos')
+  const [periodo,           setPeriodo]           = useState('todos')
+  const [pagina,            setPagina]            = useState(1)
   const [pedidoSelecionado, setPedidoSelecionado] = useState(null)
-  const [pedidoExcluir, setPedidoExcluir] = useState(null)
-  const [refreshing, setRefreshing]       = useState(false)
+  const [refreshing,        setRefreshing]        = useState(false)
 
   const handleRefresh = async () => {
     if (refreshing) return
@@ -199,16 +203,16 @@ export default function Historico() {
   const pedidosFiltrados = useMemo(() => {
     return pedidos
       .filter((p) => {
-        const matchBusca = p.nomeCliente.toLowerCase().includes(busca.toLowerCase()) ||
-                           String(p.numero).includes(busca)
-        const matchStatus = filtroStatus === 'todos' || p.status === filtroStatus
+        const matchBusca   = p.nomeCliente.toLowerCase().includes(busca.toLowerCase()) ||
+                             String(p.numero).includes(busca)
+        const matchStatus  = filtroStatus === 'todos' || p.status === filtroStatus
         const matchPeriodo = isNoPeriodo(p.criadoEm, periodo)
         return matchBusca && matchStatus && matchPeriodo
       })
       .sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm))
   }, [pedidos, busca, filtroStatus, periodo])
 
-  const pedidosPagina = useMemo(() =>
+  const pedidosPagina   = useMemo(() =>
     pedidosFiltrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA),
   [pedidosFiltrados, pagina])
 
@@ -232,9 +236,10 @@ export default function Historico() {
   const filtrosAtivos = busca !== '' || filtroStatus !== 'todos' || periodo !== 'todos'
   const limparFiltros = () => { setBusca(''); setFiltroStatus('todos'); setPeriodo('todos') }
 
+  // ── Loading ───────────────────────────────────────────────
+
   if (loading) return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
       <SkeletonGroup className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-2">
           <Skeleton className="h-7 w-56 rounded-xl" />
@@ -242,8 +247,6 @@ export default function Historico() {
         </div>
         <Skeleton className="h-10 w-10 rounded-xl self-start sm:self-auto" />
       </SkeletonGroup>
-
-      {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <SkeletonGroup key={i} className="card flex flex-col gap-2">
@@ -253,8 +256,6 @@ export default function Historico() {
           </SkeletonGroup>
         ))}
       </div>
-
-      {/* Filtros */}
       <SkeletonGroup className="card space-y-4">
         <div className="flex items-center gap-2">
           <Skeleton className="h-4 w-4 rounded" />
@@ -280,8 +281,6 @@ export default function Historico() {
           </div>
         </div>
       </SkeletonGroup>
-
-      {/* Linhas de pedidos */}
       <div className="space-y-2">
         {Array.from({ length: 8 }).map((_, i) => (
           <SkeletonGroup key={i} className="rounded-xl border border-brand-border bg-brand-surface px-4 py-3.5">
@@ -301,6 +300,8 @@ export default function Historico() {
     </div>
   )
 
+  // ── Erro ──────────────────────────────────────────────────
+
   if (errorPedidos) {
     return (
       <div className="-m-5 lg:-m-7 flex items-center justify-center min-h-[calc(100vh-4rem)]">
@@ -317,65 +318,73 @@ export default function Historico() {
     )
   }
 
+  // ── Render ────────────────────────────────────────────────
+
   return (
     <>
       <div className="space-y-6 animate-fade-in">
 
+        {/* ── Cabeçalho ─────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="font-heading text-2xl font-bold text-brand-text flex items-center gap-2">
               <MdHistory className="text-brand-orange" size={26} />
               Historico de Pedidos
             </h1>
-            <p className="text-brand-text-3 text-sm mt-0.5">Consulte e gerencie todos os pedidos</p>
+            <p className="text-brand-text-3 text-sm mt-0.5">Consulte todos os pedidos registrados</p>
           </div>
           <button
             onClick={handleRefresh}
             title="Atualizar histórico"
-            className="p-2 rounded-xl text-brand-text-3 hover:text-brand-text hover:bg-brand-surface border border-brand-border transition-all active:scale-95 self-start sm:self-auto"
+            className="p-2 rounded-xl text-brand-text-3 hover:text-brand-text hover:bg-brand-surface
+                       border border-brand-border transition-all active:scale-95 self-start sm:self-auto"
           >
             <MdRefresh size={16} className={refreshing ? 'animate-spin' : ''} />
           </button>
         </div>
 
+        {/* ── Cards de estatísticas ──────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="card flex flex-col gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-brand-text-3 flex items-center gap-1.5">
-              <MdRestaurantMenu size={13}/> Pedidos
+              <MdRestaurantMenu size={13} /> Pedidos
             </span>
             <p className="text-2xl font-bold text-brand-text font-heading">{stats.total}</p>
-            <p className="text-xs text-brand-text-3">no periodo</p>
+            <p className="text-xs text-brand-text-3">no período</p>
           </div>
           <div className="card flex flex-col gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-brand-text-3 flex items-center gap-1.5">
-              <MdAttachMoney size={13}/> Faturamento
+              <MdAttachMoney size={13} /> Faturamento
             </span>
             <p className="text-2xl font-bold text-brand-text font-heading">{formatarMoeda(stats.faturamento)}</p>
             <p className="text-xs text-brand-text-3">excl. cancelados</p>
           </div>
           <div className="card flex flex-col gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-brand-text-3 flex items-center gap-1.5">
-              <MdCheckCircle size={13}/> Finalizados
+              <MdCheckCircle size={13} /> Finalizados
             </span>
             <p className="text-2xl font-bold text-brand-text font-heading">{stats.entregues}</p>
             <p className="text-xs text-brand-text-3">finalizados</p>
           </div>
           <div className="card flex flex-col gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-brand-text-3 flex items-center gap-1.5">
-              <MdCancel size={13}/> Cancelados
+              <MdCancel size={13} /> Cancelados
             </span>
             <p className="text-2xl font-bold text-brand-text font-heading">{stats.cancelados}</p>
             <p className="text-xs text-brand-text-3">pedidos cancelados</p>
           </div>
         </div>
 
+        {/* ── Filtros ────────────────────────────────────── */}
         <div className="card space-y-4">
           <div className="flex items-center gap-2">
             <MdFilterList className="text-brand-orange" size={17} />
             <h2 className="font-semibold text-brand-text text-sm">Filtros</h2>
             {filtrosAtivos && (
-              <button onClick={limparFiltros}
-                className="ml-auto flex items-center gap-1 text-xs text-brand-text-3 hover:text-brand-orange transition-colors">
+              <button
+                onClick={limparFiltros}
+                className="ml-auto flex items-center gap-1 text-xs text-brand-text-3 hover:text-brand-orange transition-colors"
+              >
                 <MdClear size={13} /> Limpar
               </button>
             )}
@@ -387,21 +396,25 @@ export default function Historico() {
               type="text"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar por cliente ou numero do pedido..."
+              placeholder="Buscar por cliente ou número do pedido..."
               className="input-field pl-10"
             />
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="space-y-2 flex-1">
-              <p className="text-[10px] text-brand-text-3 uppercase tracking-wider font-bold">Periodo</p>
+              <p className="text-[10px] text-brand-text-3 uppercase tracking-wider font-bold">Período</p>
               <div className="flex gap-2 flex-wrap">
                 {PERIODOS.map(({ id, label }) => (
-                  <button key={id} onClick={() => setPeriodo(id)}
+                  <button
+                    key={id}
+                    onClick={() => setPeriodo(id)}
                     className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all
                       ${periodo === id
                         ? 'bg-gradient-brand text-white shadow-brand'
-                        : 'bg-brand-bg text-brand-text-2 border border-brand-border hover:border-brand-orange/40'}`}>
+                        : 'bg-brand-bg text-brand-text-2 border border-brand-border hover:border-brand-orange/40'
+                      }`}
+                  >
                     {label}
                   </button>
                 ))}
@@ -411,11 +424,15 @@ export default function Historico() {
               <p className="text-[10px] text-brand-text-3 uppercase tracking-wider font-bold">Status</p>
               <div className="flex gap-2 flex-wrap">
                 {FILTROS_STATUS.map(({ id, label }) => (
-                  <button key={id} onClick={() => setFiltroStatus(id)}
+                  <button
+                    key={id}
+                    onClick={() => setFiltroStatus(id)}
                     className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all
                       ${filtroStatus === id
                         ? 'bg-gradient-brand text-white shadow-brand'
-                        : 'bg-brand-bg text-brand-text-2 border border-brand-border hover:border-brand-orange/40'}`}>
+                        : 'bg-brand-bg text-brand-text-2 border border-brand-border hover:border-brand-orange/40'
+                      }`}
+                  >
                     {label}
                   </button>
                 ))}
@@ -424,11 +441,14 @@ export default function Historico() {
           </div>
         </div>
 
+        {/* ── Lista de pedidos ───────────────────────────── */}
         {pedidosFiltrados.length === 0 ? (
           <EmptyState
             icon={MdHistory}
             title="Nenhum pedido encontrado"
-            description={filtrosAtivos ? 'Ajuste os filtros para ver mais resultados.' : 'Nenhum pedido registrado ainda.'}
+            description={filtrosAtivos
+              ? 'Ajuste os filtros para ver mais resultados.'
+              : 'Nenhum pedido registrado ainda.'}
             action={filtrosAtivos && (
               <button onClick={limparFiltros} className="btn-secondary">
                 <MdClear size={15} /> Limpar Filtros
@@ -438,11 +458,15 @@ export default function Historico() {
         ) : (
           <div className="space-y-8">
             {Object.entries(pedidosAgrupados).map(([data, pedidosDoDia]) => (
-              <GrupoData key={data} data={data} pedidos={pedidosDoDia}
-                onVerCupom={setPedidoSelecionado} onExcluir={setPedidoExcluir} />
+              <GrupoData
+                key={data}
+                data={data}
+                pedidos={pedidosDoDia}
+                onVerCupom={setPedidoSelecionado}
+              />
             ))}
 
-            {/* ─── Paginação ─── */}
+            {/* ── Paginação ─────────────────────────────── */}
             {totalPaginas > 1 && (
               <div className="flex items-center justify-center gap-1.5 pt-2">
                 <button
@@ -470,7 +494,7 @@ export default function Historico() {
                         key={item}
                         onClick={() => setPagina(item)}
                         className={`w-8 h-8 rounded-xl text-xs font-bold transition-all
-                          ${ pagina === item
+                          ${pagina === item
                             ? 'bg-gradient-brand text-white shadow-brand'
                             : 'border border-brand-border text-brand-text-2 hover:border-brand-orange/40 hover:text-brand-text'
                           }`}
@@ -496,17 +520,11 @@ export default function Historico() {
         )}
       </div>
 
-      <ModalPedido isOpen={!!pedidoSelecionado} onClose={() => setPedidoSelecionado(null)} pedido={pedidoSelecionado} />
-      <ConfirmDialog
-        isOpen={!!pedidoExcluir}
-        title="Excluir do Historico"
-        message={pedidoExcluir
-          ? `Excluir pedido #${String(pedidoExcluir.numero).padStart(4,'0')} de "${pedidoExcluir.nomeCliente}"?`
-          : ''}
-        confirmLabel="Excluir"
-        danger
-        onConfirm={() => { excluirPedido(pedidoExcluir.id); setPedidoExcluir(null) }}
-        onCancel={() => setPedidoExcluir(null)}
+      {/* ── Modal de detalhes do pedido ─────────────────── */}
+      <ModalPedido
+        isOpen={!!pedidoSelecionado}
+        onClose={() => setPedidoSelecionado(null)}
+        pedido={pedidoSelecionado}
       />
     </>
   )
