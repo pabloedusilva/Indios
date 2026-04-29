@@ -20,7 +20,7 @@ function diaBRT() {
   return brt.getUTCDate()
 }
 
-const DIA_INICIO = 23
+const DIA_INICIO = 25
 const DIAS_AVISO = 5
 
 export default function BannerPixPayment() {
