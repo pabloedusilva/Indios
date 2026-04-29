@@ -195,6 +195,31 @@ class PagamentoModel {
     return rows[0].total > 0
   }
 
+  // ── Listar pagamentos aprovados de um usuário ───────────────
+  static async listarAprovadosPorUsuario(usuarioId) {
+    const [rows] = await db.execute(
+      `SELECT id, valor, mes_referencia, mercado_pago_id,
+              dados_mercado_pago, created_at, updated_at
+       FROM pagamentos
+       WHERE usuario_id = ? AND status = 'approved'
+       ORDER BY mes_referencia DESC`,
+      [usuarioId],
+    )
+    return rows
+  }
+
+  // ── Buscar pagamento aprovado por ID (para comprovante) ─────
+  static async buscarAprovadoPorId(id, usuarioId) {
+    const [rows] = await db.execute(
+      `SELECT id, valor, mes_referencia, mercado_pago_id,
+              dados_mercado_pago, created_at, updated_at
+       FROM pagamentos
+       WHERE id = ? AND usuario_id = ? AND status = 'approved'`,
+      [id, usuarioId],
+    )
+    return rows[0] || null
+  }
+
   // ── Listar pagamentos de um usuário ─────────────────────────
   static async listarPorUsuario(usuarioId, limit = 10) {
     const [rows] = await db.execute(
