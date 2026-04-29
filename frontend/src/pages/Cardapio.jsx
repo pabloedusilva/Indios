@@ -4,8 +4,8 @@
 //  · Rota pública: /cardapio — acessível sem autenticação
 //  · Dados em tempo real via /api/cardapio (auto-refresh 60s)
 //  · Sem botão fechar — página independente
-//  · Desktop: 3 vídeos lado a lado com troca aleatória
-//  · Mobile: 1 vídeo em tela cheia
+//  · Desktop: 3 slots com double-buffer + crossfade suave
+//  · Mobile: 1 slot com double-buffer + crossfade suave
 // =============================================================
 
 import { useEffect, useRef, useState, useCallback } from 'react'
@@ -24,7 +24,8 @@ const VIDEOS = [
   '/cardapio/6.mp4',
 ]
 
-// Escolhe índice aleatório excluindo os proibidos
+const FADE_MS = 800 // duração do crossfade em ms
+
 function escolherAleatorio(excluir = []) {
   const disponiveis = VIDEOS.map((_, i) => i).filter((i) => !excluir.includes(i))
   if (disponiveis.length === 0) {
@@ -35,82 +36,121 @@ function escolherAleatorio(excluir = []) {
   return disponiveis[Math.floor(Math.random() * disponiveis.length)]
 }
 
-// Pré-carrega um vídeo em background sem reproduzir
-function preloadVideo(src) {
-  const link = document.createElement('link')
-  link.rel = 'preload'
-  link.as = 'video'
-  link.href = src
-  document.head.appendChild(link)
-}
+// ── Double-buffer video slot ──────────────────────────────────
+// Dois elementos <video> sobrepostos. O "ativo" toca em frente,
+// o "buffer" carrega o próximo em background. Na troca, faz
+// crossfade via opacity e inverte os papéis.
+function VideoSlot({ initialIndex, excluirGlobal = [] }) {
+  const refA = useRef(null)
+  const refB = useRef(null)
+  // active: qual buffer está na frente (0 = A, 1 = B)
+  const activeRef = useRef(0)
+  const [activeLayer, setActiveLayer] = useState(0)
+  const currentIndexRef = useRef(initialIndex)
+  const excluirRef = useRef(excluirGlobal)
+  const fadingRef = useRef(false)
 
-// ── Slot de vídeo individual (desktop) ───────────────────────
-// O elemento <video> permanece estável no DOM — apenas o src muda via ref,
-// evitando desmontagem/remontagem e re-download desnecessário.
-function VideoSlot({ indice, onEnded }) {
-  const videoRef = useRef(null)
-  const indiceRef = useRef(indice)
+  // Mantém excluirGlobal atualizado sem re-render
+  useEffect(() => { excluirRef.current = excluirGlobal }, [excluirGlobal])
 
-  useEffect(() => {
-    const el = videoRef.current
-    if (!el) return
+  // Inicia o próximo vídeo no buffer inativo e faz crossfade
+  const trocar = useCallback(() => {
+    if (fadingRef.current) return
+    fadingRef.current = true
 
-    const src = VIDEOS[indice]
+    const nextActive = activeRef.current === 0 ? 1 : 0
+    const nextRef = nextActive === 0 ? refA : refB
+    const el = nextRef.current
+    if (!el) { fadingRef.current = false; return }
 
-    // Só recarrega se o src realmente mudou
-    if (indiceRef.current !== indice) {
-      indiceRef.current = indice
-      el.src = src
-      el.load()
+    // Escolhe próximo vídeo evitando o atual e os outros slots
+    const excluir = [...excluirRef.current, currentIndexRef.current]
+    const nextIndex = escolherAleatorio(excluir)
+    currentIndexRef.current = nextIndex
+
+    el.src = VIDEOS[nextIndex]
+    el.load()
+
+    const onCanPlay = () => {
+      el.removeEventListener('canplay', onCanPlay)
+      el.play().catch(() => {})
+      // Crossfade: traz o buffer para frente
+      activeRef.current = nextActive
+      setActiveLayer(nextActive)
+      setTimeout(() => { fadingRef.current = false }, FADE_MS)
     }
 
-    el.play().catch(() => {})
+    el.addEventListener('canplay', onCanPlay)
 
-    // Pré-carrega o próximo vídeo aleatório enquanto este toca
-    const proximo = escolherAleatorio([indice])
-    preloadVideo(VIDEOS[proximo])
-  }, [indice])
+    // Fallback: se demorar mais de 3s, troca mesmo assim
+    setTimeout(() => {
+      el.removeEventListener('canplay', onCanPlay)
+      if (fadingRef.current) {
+        el.play().catch(() => {})
+        activeRef.current = nextActive
+        setActiveLayer(nextActive)
+        setTimeout(() => { fadingRef.current = false }, FADE_MS)
+      }
+    }, 3000)
+  }, [])
+
+  // Inicialização: carrega e toca o vídeo inicial no layer A
+  useEffect(() => {
+    const elA = refA.current
+    const elB = refB.current
+    if (!elA || !elB) return
+
+    elA.src = VIDEOS[initialIndex]
+    elA.load()
+    elA.play().catch(() => {})
+
+    // Pré-carrega o próximo no buffer B silenciosamente
+    const nextIndex = escolherAleatorio([initialIndex, ...excluirRef.current])
+    elB.src = VIDEOS[nextIndex]
+    elB.load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const styleA = {
+    opacity: activeLayer === 0 ? 1 : 0,
+    transition: `opacity ${FADE_MS}ms ease-in-out`,
+    position: 'absolute', inset: 0,
+    width: '100%', height: '100%',
+    objectFit: 'cover',
+  }
+  const styleB = {
+    opacity: activeLayer === 1 ? 1 : 0,
+    transition: `opacity ${FADE_MS}ms ease-in-out`,
+    position: 'absolute', inset: 0,
+    width: '100%', height: '100%',
+    objectFit: 'cover',
+  }
 
   return (
-    <video
-      ref={videoRef}
-      onEnded={onEnded}
-      muted
-      playsInline
-      autoPlay
-      preload="auto"
-      src={VIDEOS[indice]}
-      className="w-full h-full object-cover"
-    />
+    <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+      <video ref={refA} style={styleA} muted playsInline preload="auto" onEnded={trocar} />
+      <video ref={refB} style={styleB} muted playsInline preload="auto" onEnded={trocar} />
+    </div>
   )
 }
 
-// ── Fundo desktop: 3 vídeos lado a lado ──────────────────────
+// ── Fundo desktop: 3 slots lado a lado ───────────────────────
 function VideoBackgroundDesktop() {
-  const [slots, setSlots] = useState(() => {
+  // Distribui vídeos iniciais sem repetição entre os 3 slots — calculado uma vez
+  const initialSlots = useRef(null)
+  if (!initialSlots.current) {
     const shuffled = [...VIDEOS.keys()].sort(() => Math.random() - 0.5)
-    return [shuffled[0], shuffled[1], shuffled[2]]
-  })
-  const lastUsed = useRef([null, null, null])
-
-  const handleEnded = useCallback((slotIdx) => {
-    setSlots((prev) => {
-      const outros = prev.filter((_, i) => i !== slotIdx)
-      const excluir = [...outros, lastUsed.current[slotIdx]].filter((v) => v !== null)
-      const novo = escolherAleatorio(excluir)
-      lastUsed.current[slotIdx] = prev[slotIdx]
-      const next = [...prev]
-      next[slotIdx] = novo
-      return next
-    })
-  }, [])
+    initialSlots.current = [shuffled[0], shuffled[1], shuffled[2]]
+  }
 
   return (
     <div className="absolute inset-0 flex overflow-hidden">
-      {slots.map((videoIdx, slotIdx) => (
-        // key={slotIdx} fixo — mantém o elemento no DOM, só muda o src
-        <div key={slotIdx} className="flex-1 h-full overflow-hidden">
-          <VideoSlot indice={videoIdx} onEnded={() => handleEnded(slotIdx)} />
+      {[0, 1, 2].map((slotIdx) => (
+        <div key={slotIdx} className="flex-1 h-full overflow-hidden relative">
+          <VideoSlot
+            initialIndex={initialSlots.current[slotIdx]}
+            excluirGlobal={[]}
+          />
         </div>
       ))}
       <div className="absolute inset-0 bg-black/85" />
@@ -118,42 +158,13 @@ function VideoBackgroundDesktop() {
   )
 }
 
-// ── Fundo mobile: 1 vídeo em loop sequencial ─────────────────
-// Elemento <video> estável — src trocado via ref sem remontar.
+// ── Fundo mobile: 1 slot ─────────────────────────────────────
 function VideoBackgroundMobile() {
-  const [indice, setIndice] = useState(0)
-  const videoRef = useRef(null)
-  const indiceRef = useRef(0)
-
-  useEffect(() => {
-    const el = videoRef.current
-    if (!el) return
-
-    if (indiceRef.current !== indice) {
-      indiceRef.current = indice
-      el.src = VIDEOS[indice]
-      el.load()
-    }
-
-    el.play().catch(() => {})
-
-    // Pré-carrega o próximo
-    const proximo = (indice + 1) % VIDEOS.length
-    preloadVideo(VIDEOS[proximo])
-  }, [indice])
+  const initialIndex = useRef(Math.floor(Math.random() * VIDEOS.length)).current
 
   return (
     <div className="absolute inset-0 overflow-hidden">
-      <video
-        ref={videoRef}
-        onEnded={() => setIndice((i) => (i + 1) % VIDEOS.length)}
-        muted
-        playsInline
-        autoPlay
-        preload="auto"
-        src={VIDEOS[0]}
-        className="absolute inset-0 w-full h-full object-cover"
-      />
+      <VideoSlot initialIndex={initialIndex} excluirGlobal={[]} />
       <div className="absolute inset-0 bg-black/85" />
     </div>
   )
