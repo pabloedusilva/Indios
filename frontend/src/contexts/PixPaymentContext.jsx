@@ -17,13 +17,19 @@
 //    · Janela de cobrança: dia 20 ao dia 24 (5 dias)
 //    · Após o dia 24 sem pagamento → `bloqueado = true`
 //    · Bloqueio some automaticamente ao confirmar pagamento
+//
+//  Otimização de flash:
+//    · sessionStorage guarda o resultado da última verificação
+//    · Se já pago na sessão, `mesPago` começa true e `verificando`
+//      começa false — zero flash na tela
 // =============================================================
 
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '../services/api'
 
-const POLL_INTERVAL_MS = 1500   // polling rápido para resposta quase instantânea
-const MAX_POLLS        = 200
+const POLL_INTERVAL_MS  = 1500   // polling rápido para resposta quase instantânea
+const MAX_POLLS         = 200
+const SESSION_KEY       = 'pix_mes_pago'
 
 // Após o dia 29 sem pagamento, o acesso é bloqueado
 const DIA_VENCIMENTO = 29
@@ -41,10 +47,30 @@ function calcularBloqueado(mesPago) {
   return diaBRT() > DIA_VENCIMENTO
 }
 
+// Lê o cache da sessão — retorna true se o mês já foi pago nesta sessão
+function lerCacheSession() {
+  try {
+    return sessionStorage.getItem(SESSION_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function gravarCacheSession(pago) {
+  try {
+    if (pago) sessionStorage.setItem(SESSION_KEY, 'true')
+    else sessionStorage.removeItem(SESSION_KEY)
+  } catch { /* sem suporte a sessionStorage */ }
+}
+
 // ── Provider ──────────────────────────────────────────────────
 export function PixPaymentProvider({ children }) {
-  const [mesPago,     setMesPago]     = useState(false)
-  const [verificando, setVerificando] = useState(true)
+  // Se já temos cache de "pago" nesta sessão, começamos com mesPago=true
+  // e verificando=false — sem flash algum
+  const cachePago = lerCacheSession()
+
+  const [mesPago,     setMesPago]     = useState(cachePago)
+  const [verificando, setVerificando] = useState(!cachePago)
   const [criandoPix,  setCriandoPix]  = useState(false)
   const [pixData,     setPixData]     = useState(null)
   const [erro,        setErro]        = useState(null)
@@ -55,10 +81,11 @@ export function PixPaymentProvider({ children }) {
   const pollCountRef = useRef(0)
   const pixIdRef     = useRef(null)
 
-  // ── Verificar status ao montar ────────────────────────────
+  // ── Verificar status ao montar (só se não temos cache) ───────
   useEffect(() => {
+    if (cachePago) return   // já sabemos que está pago — não precisa verificar
     verificarStatus()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Recalcular bloqueio quando mesPago ou verificando mudam ──
   useEffect(() => {
@@ -73,6 +100,7 @@ export function PixPaymentProvider({ children }) {
       const data = await api.get('/pagamentos/status')
       if (data.mesPago) {
         setMesPago(true)
+        gravarCacheSession(true)
         setPixData(null)
       }
     } catch {
@@ -101,6 +129,7 @@ export function PixPaymentProvider({ children }) {
         if (data.mesPago) {
           pararPolling()
           setMesPago(true)
+          gravarCacheSession(true)
           setPixData(null)
           setBloqueado(false)
           setTimeout(() => setSucesso(true), 100)
@@ -133,6 +162,7 @@ export function PixPaymentProvider({ children }) {
       const statusAtual = await api.get('/pagamentos/status')
       if (statusAtual.mesPago) {
         setMesPago(true)
+        gravarCacheSession(true)
         setBloqueado(false)
         setTimeout(() => setSucesso(true), 100)
         return
@@ -143,6 +173,7 @@ export function PixPaymentProvider({ children }) {
 
       if (data.status === 'already_paid') {
         setMesPago(true)
+        gravarCacheSession(true)
         setBloqueado(false)
         setTimeout(() => setSucesso(true), 100)
         return

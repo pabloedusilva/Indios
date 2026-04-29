@@ -20,8 +20,12 @@ function diaBRT() {
   return brt.getUTCDate()
 }
 
-const DIA_INICIO = 25
-const DIAS_AVISO = 5
+const DIA_INICIO   = 25
+const DIAS_AVISO   = 5
+// Tempo mínimo que aguardamos após a verificação antes de exibir o banner.
+// Garante que, mesmo se a API responder "não pago", o banner só aparece
+// depois que temos certeza — eliminando qualquer flash para usuários pagos.
+const DELAY_EXIBIR = 600  // ms
 
 export default function BannerPixPayment() {
   const {
@@ -40,6 +44,18 @@ export default function BannerPixPayment() {
   const [saindo,          setSaindo]          = useState(false)
   const [oculto,          setOculto]          = useState(false)
   const [mostrarModalPix, setMostrarModalPix] = useState(false)
+  // Controla se o delay de segurança já passou
+  const [pronto,          setPronto]          = useState(false)
+
+  // Só libera o banner após a verificação terminar + delay de segurança
+  useEffect(() => {
+    if (verificando) {
+      setPronto(false)
+      return
+    }
+    const t = setTimeout(() => setPronto(true), DELAY_EXIBIR)
+    return () => clearTimeout(t)
+  }, [verificando])
 
   // Iniciar animação de saída do banner quando pago
   useEffect(() => {
@@ -56,8 +72,8 @@ export default function BannerPixPayment() {
     if (pixData) setMostrarModalPix(true)
   }, [pixData])
 
-  // Não renderizar fora da janela de cobrança ou após ocultar
-  if (verificando || !dentroJanela || oculto) return null
+  // Não renderizar enquanto verificando, delay não passou, fora da janela ou já oculto
+  if (!pronto || !dentroJanela || oculto) return null
   if (mesPago && !saindo) return null
 
   const diasRestantes = diaFim - dia + 1
