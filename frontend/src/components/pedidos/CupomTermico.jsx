@@ -56,9 +56,6 @@ const CupomTermico = forwardRef(({ pedido }, ref) => {
             />
           )}
         </div>
-        <div style={{ fontSize: '15px', fontWeight: 'bold', letterSpacing: '1px' }}>
-          ÍNDIOS CHURRASCO GOURMET
-        </div>
         <div style={{ fontSize: '10px', marginTop: '2px' }}>
           Aqui o Churrasco tem mais sabor
         </div>
