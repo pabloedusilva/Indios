@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useEstatisticas } from '../hooks/useEstatisticas'
 import { formatarMoeda } from '../utils/formatters'
 import { Skeleton, SkeletonGroup } from '../components/ui/Skeleton'
+import ModalRelatorios from '../components/ui/ModalRelatorios'
 import {
   MdAttachMoney, MdRestaurantMenu, MdCheckCircle, MdCancel,
   MdTrendingUp, MdWarning, MdFileDownload, MdPictureAsPdf,
@@ -205,6 +206,7 @@ export default function Estatisticas() {
     mesAtivo,
     setMesAtivo,
     stats,
+    relatorios,
     relatorioDoMesAtivo,
     loading,
     sincronizando,
@@ -212,7 +214,10 @@ export default function Estatisticas() {
     sincronizar,
     baixarRelatorio,
     refetch,
+    recarregarRelatorios,
   } = useEstatisticas()
+
+  const [modalRelatoriosAberto, setModalRelatoriosAberto] = useState(false)
 
   if (loading) return (
     <div className="space-y-5 animate-fade-in">
@@ -703,18 +708,32 @@ export default function Estatisticas() {
 
         {/* ── Relatório PDF ─────────────────────────────────── */}
         <div className="card">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 flex items-center justify-center">
-              <MdPictureAsPdf className="text-brand-red" size={17} />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 flex items-center justify-center">
+                <MdPictureAsPdf className="text-brand-red" size={17} />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-brand-text-3 uppercase tracking-wider">
+                  Relatório PDF
+                </p>
+                <p className="text-xs text-brand-text-3 mt-0.5">
+                  {nomeMes(mesAtivo)}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-[11px] font-semibold text-brand-text-3 uppercase tracking-wider">
-                Relatório PDF
-              </p>
-              <p className="text-xs text-brand-text-3 mt-0.5">
-                {nomeMes(mesAtivo)}
-              </p>
-            </div>
+
+            {/* Botão Ver todos */}
+            <button
+              onClick={() => setModalRelatoriosAberto(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold
+                         text-brand-text-2 border border-brand-border bg-brand-surface
+                         hover:border-brand-orange/50 hover:text-brand-orange hover:bg-orange-50
+                         dark:hover:bg-orange-950/20 transition-all duration-200 active:scale-95"
+            >
+              <MdPictureAsPdf size={13} />
+              Ver todos
+            </button>
           </div>
 
           {relatorioDoMesAtivo ? (
@@ -737,7 +756,7 @@ export default function Estatisticas() {
                 </div>
               </div>
               <button
-                onClick={() => baixarRelatorio(relatorioDoMesAtivo.arquivo)}
+                onClick={() => baixarRelatorio(relatorioDoMesAtivo.mes)}
                 className="btn-success px-4 py-2 text-sm gap-1.5 shrink-0"
               >
                 <MdFileDownload size={16} />
@@ -745,9 +764,8 @@ export default function Estatisticas() {
               </button>
             </div>
           ) : (() => {
-            /* Calcula a data em que o relatório do mesAtivo estará disponível */
             const [ano, mes] = (mesAtivo || '2000-01').split('-').map(Number)
-            const dataDisp = new Date(ano, mes, 1) // dia 1 do mês seguinte
+            const dataDisp = new Date(ano, mes, 1)
             const hoje = new Date()
             hoje.setHours(0, 0, 0, 0)
             const jaDeveriaTerSido = hoje >= dataDisp
@@ -776,12 +794,21 @@ export default function Estatisticas() {
             )
           })()}
 
-          {/* Dica sobre limite de 3 arquivos */}
+          {/* Nota sobre retenção */}
           <p className="text-[11px] text-brand-text-3 mt-3 flex items-center gap-1.5">
             <MdCalendarMonth size={13} className="text-brand-text-3" />
-            Apenas os relatórios dos últimos 3 meses são mantidos no servidor.
+            Relatórios de todos os meses são mantidos. O painel exibe os últimos 3 meses.
           </p>
         </div>
+
+        {/* ── Modal de todos os relatórios ──────────────────── */}
+        <ModalRelatorios
+          isOpen={modalRelatoriosAberto}
+          onClose={() => setModalRelatoriosAberto(false)}
+          relatorios={relatorios}
+          onBaixar={baixarRelatorio}
+          onRecarregar={recarregarRelatorios}
+        />
     </div>
   )
 }

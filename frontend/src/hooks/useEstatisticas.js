@@ -1,5 +1,10 @@
 // =============================================================
 //  hooks/useEstatisticas.js — Dados de Estatísticas Mensais
+//
+//  Relatórios:
+//    · Lista vem do banco (todos os meses, sem limite)
+//    · Download chama GET /relatorio/:mes/download que gera
+//      o PDF em memória no servidor e envia direto
 // =============================================================
 
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -9,36 +14,35 @@ import toast from 'react-hot-toast'
 const STATS_VAZIA = {
   mes: '',
   resumo: {
-    totalPedidos: 0,
-    finalizados: 0,
-    cancelados: 0,
-    faturamento: 0,
-    ticketMedio: 0,
+    totalPedidos:     0,
+    finalizados:      0,
+    cancelados:       0,
+    faturamento:      0,
+    ticketMedio:      0,
     taxaCancelamento: 0,
   },
   topProdutos: [],
-  pagamentos: [],
-  porDia: [],
-  melhorDia: null,
+  pagamentos:  [],
+  porDia:      [],
+  melhorDia:   null,
 }
 
 export function useEstatisticas() {
-  const [meses, setMeses]           = useState([])
-  const [mesAtivo, setMesAtivo]     = useState(null)
-  const [stats, setStats]           = useState(STATS_VAZIA)
-  const [relatorios, setRelatorios] = useState([])
-  const [loading, setLoading]       = useState(true)
+  const [meses,        setMeses]        = useState([])
+  const [mesAtivo,     setMesAtivo]     = useState(null)
+  const [stats,        setStats]        = useState(STATS_VAZIA)
+  const [relatorios,   setRelatorios]   = useState([])
+  const [loading,      setLoading]      = useState(true)
   const [sincronizando, setSincronizando] = useState(false)
-  const [error, setError]           = useState(null)
+  const [error,        setError]        = useState(null)
 
   // Impede que o efeito de mesAtivo dispare carregarStats na carga inicial
   const primeiraCarrega = useRef(true)
 
-  // ── Busca os meses disponíveis + stats iniciais ───────────
+  // ── Busca meses disponíveis + stats iniciais ──────────────
   const carregarMeses = useCallback(async () => {
     try {
       setError(null)
-      // Endpoint único: retorna meses + stats do mês mais recente
       const data = await api.get('/estatisticas/inicio')
       setMeses(data.meses)
       if (data.meses.length > 0) {
@@ -60,17 +64,16 @@ export function useEstatisticas() {
     try {
       const data = await api.get(`/estatisticas/mensal?mes=${mes}`)
       setStats(data)
-    } catch (err) {
+    } catch {
       toast.error('Erro ao carregar estatísticas do mês')
     }
   }, [])
 
-  // ── Sincroniza todos os meses no banco ───────────────────
+  // ── Sincroniza todos os meses no banco ────────────────────
   const sincronizar = useCallback(async () => {
     setSincronizando(true)
     try {
       await api.post('/estatisticas/sincronizar', {})
-      // Recarrega o mês ativo para pegar o atualizadoEm novo
       if (mesAtivo) await carregarStats(mesAtivo)
     } catch (err) {
       toast.error(err.message || 'Erro ao sincronizar')
@@ -79,45 +82,41 @@ export function useEstatisticas() {
     }
   }, [mesAtivo, carregarStats])
 
-  // ── Busca lista de relatórios gerados ─────────────────────
+  // ── Busca lista de relatórios disponíveis no banco ────────
   const carregarRelatorios = useCallback(async () => {
     try {
       const data = await api.get('/estatisticas/relatorios')
       setRelatorios(data)
-    } catch (_) {
+    } catch {
       // silencioso — relatórios são secundários
     }
   }, [])
 
-  // ── Gera um novo relatório PDF ─────────────────────────────
-  const gerarRelatorio = useCallback(async (mes) => {
-    setGerandoPDF(true)
+  // ── Baixa o PDF de um relatório (gerado em memória no servidor) ──
+  const baixarRelatorio = useCallback(async (mes) => {
     try {
-      const data = await api.post('/estatisticas/relatorio', { mes })
-      toast.success('Relatório gerado com sucesso!')
-      await carregarRelatorios()
-      return data
-    } catch (err) {
-      const msg = err.message || 'Erro ao gerar relatório'
-      if (msg.includes('já gerado')) {
-        toast.error('Relatório já gerado para este período.')
-      } else {
-        toast.error(msg)
-      }
-      throw err
-    } finally {
-      setGerandoPDF(false)
-    }
-  }, [carregarRelatorios])
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333'
+      const response = await fetch(`${API_URL}/api/estatisticas/relatorio/${mes}/download`, {
+        method:      'GET',
+        credentials: 'include',
+      })
 
-  // ── Baixa um relatório existente ──────────────────────────
-  const baixarRelatorio = useCallback((arquivo) => {
-    const link = document.createElement('a')
-    link.href = `/api/estatisticas/relatorio/${arquivo}`
-    link.download = arquivo
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+      if (!response.ok) {
+        throw new Error('Erro ao gerar PDF do relatório')
+      }
+
+      const blob = await response.blob()
+      const url  = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href     = url
+      link.download = `relatorio-${mes}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      toast.error(err.message || 'Erro ao baixar relatório')
+    }
   }, [])
 
   // ── Efeitos ───────────────────────────────────────────────
@@ -127,12 +126,11 @@ export function useEstatisticas() {
   }, []) // eslint-disable-line
 
   useEffect(() => {
-    // Pula a primeira carga — já tratada dentro de carregarMeses
     if (primeiraCarrega.current) return
     if (mesAtivo) carregarStats(mesAtivo)
   }, [mesAtivo, carregarStats])
 
-  // Verifica se o mês ativo já tem relatório gerado
+  // Verifica se o mês ativo já tem relatório salvo no banco
   const relatorioDoMesAtivo = relatorios.find((r) => r.mes === mesAtivo) || null
 
   return {
@@ -147,6 +145,7 @@ export function useEstatisticas() {
     error,
     sincronizar,
     baixarRelatorio,
+    recarregarRelatorios: carregarRelatorios,
     refetch: carregarMeses,
   }
 }
