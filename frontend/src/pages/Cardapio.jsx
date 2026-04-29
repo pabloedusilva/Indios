@@ -24,7 +24,7 @@ const VIDEOS = [
   '/cardapio/6.mp4',
 ]
 
-const FADE_MS = 800 // duração do crossfade em ms
+const FADE_MS = 600 // duração do fade-in do novo vídeo em ms
 
 function escolherAleatorio(excluir = []) {
   const disponiveis = VIDEOS.map((_, i) => i).filter((i) => !excluir.includes(i))
@@ -37,106 +37,115 @@ function escolherAleatorio(excluir = []) {
 }
 
 // ── Double-buffer video slot ──────────────────────────────────
-// Dois elementos <video> sobrepostos. O "ativo" toca em frente,
-// o "buffer" carrega o próximo em background. Na troca, faz
-// crossfade via opacity e inverte os papéis.
-function VideoSlot({ initialIndex, excluirGlobal = [] }) {
+// Estratégia: o layer de SAÍDA fica sempre em opacity:1 (sem transição).
+// Só o layer de ENTRADA faz fade-in (0 → 1).
+// Quando o fade termina, o layer de saída some instantaneamente (opacity:0, sem transition).
+// Isso evita o efeito cinza que ocorre quando os dois layers ficam semi-transparentes ao mesmo tempo.
+function VideoSlot({ initialIndex }) {
   const refA = useRef(null)
   const refB = useRef(null)
-  // active: qual buffer está na frente (0 = A, 1 = B)
-  const activeRef = useRef(0)
-  const [activeLayer, setActiveLayer] = useState(0)
+
+  // layerFront: qual layer está na frente visível (0=A, 1=B)
+  const layerFrontRef = useRef(0)
+  const busyRef = useRef(false)
   const currentIndexRef = useRef(initialIndex)
-  const excluirRef = useRef(excluirGlobal)
-  const fadingRef = useRef(false)
 
-  // Mantém excluirGlobal atualizado sem re-render
-  useEffect(() => { excluirRef.current = excluirGlobal }, [excluirGlobal])
+  const getRef = (layer) => layer === 0 ? refA : refB
 
-  // Inicia o próximo vídeo no buffer inativo e faz crossfade
+  // Troca: carrega próximo no layer de trás, faz fade-in, depois esconde o de frente
   const trocar = useCallback(() => {
-    if (fadingRef.current) return
-    fadingRef.current = true
+    if (busyRef.current) return
+    busyRef.current = true
 
-    const nextActive = activeRef.current === 0 ? 1 : 0
-    const nextRef = nextActive === 0 ? refA : refB
-    const el = nextRef.current
-    if (!el) { fadingRef.current = false; return }
+    const backLayer = layerFrontRef.current === 0 ? 1 : 0
+    const elBack = getRef(backLayer).current
+    if (!elBack) { busyRef.current = false; return }
 
-    // Escolhe próximo vídeo evitando o atual e os outros slots
-    const excluir = [...excluirRef.current, currentIndexRef.current]
-    const nextIndex = escolherAleatorio(excluir)
+    const nextIndex = escolherAleatorio([currentIndexRef.current])
     currentIndexRef.current = nextIndex
 
-    el.src = VIDEOS[nextIndex]
-    el.load()
+    // Prepara o layer de trás: invisível, sem transição, carrega o vídeo
+    elBack.style.transition = 'none'
+    elBack.style.opacity = '0'
+    elBack.src = VIDEOS[nextIndex]
+    elBack.load()
 
-    const onCanPlay = () => {
-      el.removeEventListener('canplay', onCanPlay)
-      el.play().catch(() => {})
-      // Crossfade: traz o buffer para frente
-      activeRef.current = nextActive
-      setActiveLayer(nextActive)
-      setTimeout(() => { fadingRef.current = false }, FADE_MS)
+    const doFade = () => {
+      elBack.play().catch(() => {})
+      // Força reflow para garantir que opacity:0 foi aplicado antes da transição
+      void elBack.offsetWidth
+      elBack.style.transition = `opacity ${FADE_MS}ms ease-in-out`
+      elBack.style.opacity = '1'
+
+      setTimeout(() => {
+        // Layer de frente some instantaneamente (já está coberto)
+        const frontEl = getRef(layerFrontRef.current).current
+        if (frontEl) {
+          frontEl.style.transition = 'none'
+          frontEl.style.opacity = '0'
+          // Pausa o vídeo antigo para liberar recursos
+          frontEl.pause()
+        }
+        layerFrontRef.current = backLayer
+        busyRef.current = false
+      }, FADE_MS)
     }
 
-    el.addEventListener('canplay', onCanPlay)
-
-    // Fallback: se demorar mais de 3s, troca mesmo assim
-    setTimeout(() => {
-      el.removeEventListener('canplay', onCanPlay)
-      if (fadingRef.current) {
-        el.play().catch(() => {})
-        activeRef.current = nextActive
-        setActiveLayer(nextActive)
-        setTimeout(() => { fadingRef.current = false }, FADE_MS)
+    // Aguarda dados suficientes para tocar sem travar
+    if (elBack.readyState >= 3) {
+      doFade()
+    } else {
+      const onReady = () => {
+        elBack.removeEventListener('canplaythrough', onReady)
+        clearTimeout(fallback)
+        doFade()
       }
-    }, 3000)
+      const fallback = setTimeout(() => {
+        elBack.removeEventListener('canplaythrough', onReady)
+        doFade()
+      }, 2500)
+      elBack.addEventListener('canplaythrough', onReady)
+    }
   }, [])
 
-  // Inicialização: carrega e toca o vídeo inicial no layer A
+  // Inicialização
   useEffect(() => {
     const elA = refA.current
     const elB = refB.current
     if (!elA || !elB) return
 
+    // Layer A: visível, tocando
+    elA.style.opacity = '1'
+    elA.style.transition = 'none'
     elA.src = VIDEOS[initialIndex]
     elA.load()
     elA.play().catch(() => {})
 
-    // Pré-carrega o próximo no buffer B silenciosamente
-    const nextIndex = escolherAleatorio([initialIndex, ...excluirRef.current])
+    // Layer B: invisível, pré-carregando o próximo
+    elB.style.opacity = '0'
+    elB.style.transition = 'none'
+    const nextIndex = escolherAleatorio([initialIndex])
     elB.src = VIDEOS[nextIndex]
     elB.load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const styleA = {
-    opacity: activeLayer === 0 ? 1 : 0,
-    transition: `opacity ${FADE_MS}ms ease-in-out`,
-    position: 'absolute', inset: 0,
-    width: '100%', height: '100%',
-    objectFit: 'cover',
-  }
-  const styleB = {
-    opacity: activeLayer === 1 ? 1 : 0,
-    transition: `opacity ${FADE_MS}ms ease-in-out`,
+  const baseStyle = {
     position: 'absolute', inset: 0,
     width: '100%', height: '100%',
     objectFit: 'cover',
   }
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
-      <video ref={refA} style={styleA} muted playsInline preload="auto" onEnded={trocar} />
-      <video ref={refB} style={styleB} muted playsInline preload="auto" onEnded={trocar} />
+    <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000' }}>
+      <video ref={refA} style={{ ...baseStyle, opacity: 0 }} muted playsInline preload="auto" onEnded={trocar} />
+      <video ref={refB} style={{ ...baseStyle, opacity: 0 }} muted playsInline preload="auto" onEnded={trocar} />
     </div>
   )
 }
 
 // ── Fundo desktop: 3 slots lado a lado ───────────────────────
 function VideoBackgroundDesktop() {
-  // Distribui vídeos iniciais sem repetição entre os 3 slots — calculado uma vez
   const initialSlots = useRef(null)
   if (!initialSlots.current) {
     const shuffled = [...VIDEOS.keys()].sort(() => Math.random() - 0.5)
@@ -147,10 +156,7 @@ function VideoBackgroundDesktop() {
     <div className="absolute inset-0 flex overflow-hidden">
       {[0, 1, 2].map((slotIdx) => (
         <div key={slotIdx} className="flex-1 h-full overflow-hidden relative">
-          <VideoSlot
-            initialIndex={initialSlots.current[slotIdx]}
-            excluirGlobal={[]}
-          />
+          <VideoSlot initialIndex={initialSlots.current[slotIdx]} />
         </div>
       ))}
       <div className="absolute inset-0 bg-black/85" />
@@ -164,7 +170,7 @@ function VideoBackgroundMobile() {
 
   return (
     <div className="absolute inset-0 overflow-hidden">
-      <VideoSlot initialIndex={initialIndex} excluirGlobal={[]} />
+      <VideoSlot initialIndex={initialIndex} />
       <div className="absolute inset-0 bg-black/85" />
     </div>
   )
