@@ -25,7 +25,7 @@ const app = express()
 //  Também permite requisições do Mercado Pago para webhooks
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
   .split(',')
-  .map((o) => o.trim())
+  .map((o) => o.trim().replace(/\/$/, ''))
 
 // Adiciona domínios do Mercado Pago para webhooks
 const mercadoPagoOrigins = [

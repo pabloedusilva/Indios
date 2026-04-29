@@ -17,7 +17,7 @@ import {
   MdInfo
 } from 'react-icons/md'
 
-export default function ModalPixPayment({ isOpen, onClose, pixData }) {
+export default function ModalPixPayment({ isOpen, onClose, pixData, overlayClassName = '' }) {
   const { copiarCodigoPix, cancelarPix } = usePixPayment()
   const [copiado, setCopiado] = useState(false)
   const [tempoRestante, setTempoRestante] = useState(null)
@@ -63,7 +63,7 @@ export default function ModalPixPayment({ isOpen, onClose, pixData }) {
   if (!pixData) return null
 
   return (
-    <Modal isOpen={isOpen} onClose={handleFechar} title="Pagamento PIX" size="lg">
+    <Modal isOpen={isOpen} onClose={handleFechar} title="Pagamento PIX" size="lg" overlayClassName={overlayClassName}>
       <div className="p-6 flex flex-col gap-6">
 
         {/* Header com informações do pagamento */}

@@ -16,9 +16,6 @@ const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET
 const VALOR_MENSALIDADE = parseFloat(process.env.VALOR_MENSALIDADE || '99.90')
 const APP_URL           = (process.env.APP_URL || '').replace(/\/$/, '')
 
-if (!MP_ACCESS_TOKEN)   console.error('[PixService] AVISO: MP_ACCESS_TOKEN não configurado')
-if (!MP_WEBHOOK_SECRET) console.error('[PixService] AVISO: MP_WEBHOOK_SECRET não configurado')
-
 // ── Cliente base do SDK ───────────────────────────────────────
 const mpClient = new MercadoPagoConfig({
   accessToken: MP_ACCESS_TOKEN,
@@ -69,15 +66,11 @@ class PixPaymentService {
       throw new Error('MP_ACCESS_TOKEN não configurado nas variáveis de ambiente')
     }
     if (env.credentialType === 'unknown') {
-      throw new Error(`MP_ACCESS_TOKEN com formato inválido (deve começar com APP_USR- ou TEST-)`)
+      throw new Error('MP_ACCESS_TOKEN com formato inválido (deve começar com APP_USR- ou TEST-)')
     }
 
     const notificationUrl = `${APP_URL}/api/pagamentos/webhook`
-    if (APP_URL.includes('localhost') || APP_URL.includes('127.0.0.1')) {
-      console.warn('[PixService] APP_URL é localhost — webhook não funcionará em desenvolvimento')
-    }
-
-    const idempotencyKey = gerarIdempotencyKey(usuarioId, mes, forcarNovo)
+    const idempotencyKey  = gerarIdempotencyKey(usuarioId, mes, forcarNovo)
 
     const paymentClient = new Payment(new MercadoPagoConfig({
       accessToken: MP_ACCESS_TOKEN,
@@ -105,10 +98,6 @@ class PixPaymentService {
       },
     }
 
-    console.log(`[PixService] Criando PIX — usuário: ${usuarioId}, mês: ${mes}, valor: R$${VALOR_MENSALIDADE}, forcarNovo: ${forcarNovo}`)
-    console.log(`[PixService] notification_url: ${notificationUrl}`)
-    console.log(`[PixService] idempotencyKey: ${idempotencyKey}`)
-
     try {
       const payment = await paymentClient.create({ body })
       const txData  = payment.point_of_interaction?.transaction_data
@@ -116,8 +105,6 @@ class PixPaymentService {
       if (!txData?.qr_code) {
         throw new Error('QR Code não retornado pela API do Mercado Pago')
       }
-
-      console.log(`[PixService] PIX criado — id: ${payment.id}, status: ${payment.status}`)
 
       return {
         id:            String(payment.id),
@@ -130,10 +117,6 @@ class PixPaymentService {
       }
 
     } catch (err) {
-      console.error('[PixService] Erro ao criar PIX:', err.message)
-      if (err.cause)  console.error('[PixService] Causa:', JSON.stringify(err.cause))
-      if (err.status) console.error('[PixService] HTTP Status:', err.status)
-
       if (err.status === 400) throw new Error(`Dados inválidos para criação do PIX: ${err.cause ? JSON.stringify(err.cause) : err.message}`)
       if (err.status === 401) throw new Error('Credenciais do Mercado Pago inválidas ou expiradas (401)')
       if (err.status === 403) throw new Error('Sem permissão para criar pagamentos PIX (403) — verifique as permissões da aplicação')
@@ -149,15 +132,10 @@ class PixPaymentService {
 
     for (let i = 1; i <= maxTentativas; i++) {
       try {
-        console.log(`[PixService] Consultando pagamento ${paymentId} (tentativa ${i}/${maxTentativas})`)
-        const t0 = Date.now()
-
         const payment = await Promise.race([
           client.get({ id: String(paymentId) }),
           new Promise((_, rej) => setTimeout(() => rej(new Error(`Timeout ${timeoutMs}ms`)), timeoutMs)),
         ])
-
-        console.log(`[PixService] Consulta OK em ${Date.now() - t0}ms — status: ${payment.status}`)
 
         if (!payment?.id) throw new Error('Resposta inválida da API')
         if (String(payment.id) !== String(paymentId)) throw new Error(`ID divergente: esperado ${paymentId}, recebido ${payment.id}`)
@@ -166,7 +144,6 @@ class PixPaymentService {
 
       } catch (err) {
         ultimoErro = err
-        console.error(`[PixService] Erro tentativa ${i}:`, err.message)
 
         const retry = err.message.includes('timeout') ||
                       err.message.includes('ECONNRESET') ||
@@ -177,7 +154,6 @@ class PixPaymentService {
         if (!retry) throw err
         if (i < maxTentativas) {
           const delay = Math.min(Math.pow(2, i - 1) * 1000, 8000)
-          console.log(`[PixService] Aguardando ${delay}ms antes de tentar novamente`)
           await new Promise(r => setTimeout(r, delay))
         }
       }
@@ -188,41 +164,25 @@ class PixPaymentService {
 
   // Verifica a assinatura HMAC do webhook do Mercado Pago
   verificarAssinaturaWebhook(xSignature, xRequestId, dataId) {
-    if (!MP_WEBHOOK_SECRET) {
-      console.error('[PixService] MP_WEBHOOK_SECRET não configurado')
-      return false
-    }
-    if (!xSignature || !xRequestId) {
-      console.error('[PixService] Headers x-signature ou x-request-id ausentes')
-      return false
-    }
+    if (!MP_WEBHOOK_SECRET || !xSignature || !xRequestId) return false
 
     try {
       const parts = Object.fromEntries(
         xSignature.split(',').map(p => p.trim().split('=')).filter(([k, v]) => k && v)
       )
 
-      if (!parts.ts || !parts.v1) {
-        console.error('[PixService] Formato de x-signature inválido:', xSignature)
-        return false
-      }
+      if (!parts.ts || !parts.v1) return false
 
-      const manifest   = `id:${dataId};request-id:${xRequestId};ts:${parts.ts};`
-      const esperada   = crypto.createHmac('sha256', MP_WEBHOOK_SECRET).update(manifest).digest('hex')
+      const manifest    = `id:${dataId};request-id:${xRequestId};ts:${parts.ts};`
+      const esperada    = crypto.createHmac('sha256', MP_WEBHOOK_SECRET).update(manifest).digest('hex')
       const bufEsperada = Buffer.from(esperada, 'hex')
       const bufRecebida = Buffer.from(parts.v1, 'hex')
 
-      if (bufEsperada.length !== bufRecebida.length) {
-        console.error('[PixService] Tamanho da assinatura diverge')
-        return false
-      }
+      if (bufEsperada.length !== bufRecebida.length) return false
 
-      const valida = crypto.timingSafeEqual(bufEsperada, bufRecebida)
-      console.log(`[PixService] Assinatura HMAC: ${valida ? 'VÁLIDA' : 'INVÁLIDA'}`)
-      return valida
+      return crypto.timingSafeEqual(bufEsperada, bufRecebida)
 
-    } catch (err) {
-      console.error('[PixService] Erro ao verificar assinatura:', err.message)
+    } catch {
       return false
     }
   }

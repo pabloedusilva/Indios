@@ -5,16 +5,43 @@
 //  Garante que Layout, BannerPixPayment e ModalPixPayment
 //  compartilhem o mesmo estado — evitando instâncias duplicadas
 //  do hook que causariam timers e estados dessincronizados.
+//
+//  Fluxo ao clicar em "Pagar com PIX":
+//    1. Verifica status imediatamente no banco
+//    2. Se já pago → exibe sucesso sem chamar API
+//    3. Se não pago → chama POST /pagamentos/pix
+//       · Backend decide: reutiliza pending válido ou cria novo
+//    4. Polling a cada 1,5s até confirmação (máx. 200 tentativas)
+//
+//  Lógica de bloqueio:
+//    · Janela de cobrança: dia 20 ao dia 24 (5 dias)
+//    · Após o dia 24 sem pagamento → `bloqueado = true`
+//    · Bloqueio some automaticamente ao confirmar pagamento
 // =============================================================
 
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '../services/api'
 
-const POLL_INTERVAL_MS = 3000
+const POLL_INTERVAL_MS = 1500   // polling rápido para resposta quase instantânea
 const MAX_POLLS        = 200
+
+// Após o dia 29 sem pagamento, o acesso é bloqueado
+const DIA_VENCIMENTO = 29
 
 const PixPaymentContext = createContext(null)
 
+// ── Helpers ───────────────────────────────────────────────────
+function diaBRT() {
+  const brt = new Date(Date.now() - 3 * 60 * 60 * 1000)
+  return brt.getUTCDate()
+}
+
+function calcularBloqueado(mesPago) {
+  if (mesPago) return false
+  return diaBRT() > DIA_VENCIMENTO
+}
+
+// ── Provider ──────────────────────────────────────────────────
 export function PixPaymentProvider({ children }) {
   const [mesPago,     setMesPago]     = useState(false)
   const [verificando, setVerificando] = useState(true)
@@ -22,6 +49,7 @@ export function PixPaymentProvider({ children }) {
   const [pixData,     setPixData]     = useState(null)
   const [erro,        setErro]        = useState(null)
   const [sucesso,     setSucesso]     = useState(false)
+  const [bloqueado,   setBloqueado]   = useState(false)
 
   const pollingRef   = useRef(null)
   const pollCountRef = useRef(0)
@@ -32,6 +60,13 @@ export function PixPaymentProvider({ children }) {
     verificarStatus()
   }, [])
 
+  // ── Recalcular bloqueio quando mesPago ou verificando mudam ──
+  useEffect(() => {
+    if (!verificando) {
+      setBloqueado(calcularBloqueado(mesPago))
+    }
+  }, [mesPago, verificando])
+
   async function verificarStatus() {
     try {
       setVerificando(true)
@@ -40,8 +75,8 @@ export function PixPaymentProvider({ children }) {
         setMesPago(true)
         setPixData(null)
       }
-    } catch (err) {
-      console.error('[PIX] Erro ao verificar status:', err.message)
+    } catch {
+      // falha silenciosa — não derruba o app
     } finally {
       setVerificando(false)
     }
@@ -53,13 +88,10 @@ export function PixPaymentProvider({ children }) {
     pollCountRef.current = 0
     pixIdRef.current     = paymentId
 
-    console.log(`[PIX] Iniciando polling para pagamento ${paymentId}`)
-
     pollingRef.current = setInterval(async () => {
       pollCountRef.current += 1
 
       if (pollCountRef.current > MAX_POLLS) {
-        console.warn('[PIX] Polling expirou após 10 minutos')
         pararPolling()
         return
       }
@@ -67,15 +99,14 @@ export function PixPaymentProvider({ children }) {
       try {
         const data = await api.get('/pagamentos/status')
         if (data.mesPago) {
-          console.log('[PIX] ✅ Pagamento confirmado via polling!')
           pararPolling()
           setMesPago(true)
           setPixData(null)
-          // Pequeno delay para garantir que o modal PIX feche antes do sucesso abrir
+          setBloqueado(false)
           setTimeout(() => setSucesso(true), 100)
         }
-      } catch (err) {
-        console.warn('[PIX] Erro no polling (tentando novamente):', err.message)
+      } catch {
+        // erro transitório — tenta novamente no próximo tick
       }
     }, POLL_INTERVAL_MS)
   }
@@ -96,17 +127,26 @@ export function PixPaymentProvider({ children }) {
 
     try {
       setCriandoPix(true)
-      console.log('[PIX] Criando pagamento...')
 
-      const data = await api.post('/pagamentos/pix')
-
-      if (data.status === 'already_paid') {
+      // Verificar status imediatamente antes de criar — resposta instantânea
+      // se o pagamento já foi confirmado (ex: webhook chegou enquanto o modal estava aberto)
+      const statusAtual = await api.get('/pagamentos/status')
+      if (statusAtual.mesPago) {
         setMesPago(true)
+        setBloqueado(false)
         setTimeout(() => setSucesso(true), 100)
         return
       }
 
-      console.log('[PIX] PIX criado:', { id: data.id, valor: data.valor, reutilizado: data.reutilizado })
+      // Solicitar criação/reutilização do PIX
+      const data = await api.post('/pagamentos/pix')
+
+      if (data.status === 'already_paid') {
+        setMesPago(true)
+        setBloqueado(false)
+        setTimeout(() => setSucesso(true), 100)
+        return
+      }
 
       setPixData({
         id:            data.id,
@@ -115,13 +155,11 @@ export function PixPaymentProvider({ children }) {
         valor:         data.valor,
         mesReferencia: data.mesReferencia,
         expiresAt:     data.expiresAt,
-        reutilizado:   data.reutilizado,
       })
 
       iniciarPolling(data.id)
 
     } catch (err) {
-      console.error('[PIX] Erro ao criar PIX:', err.message)
       if (err.message?.includes('409') || err.status === 409)
         setErro('Já existe um pagamento aprovado para este mês.')
       else if (err.status === 429)
@@ -161,13 +199,13 @@ export function PixPaymentProvider({ children }) {
       pixData,
       erro,
       sucesso,
+      bloqueado,
       criarPagamentoPix,
       cancelarPix,
       copiarCodigoPix,
       fecharSucesso,
       verificarStatus,
-      isPolling:  !!pollingRef.current,
-      pollCount:  pollCountRef.current,
+      isPolling: !!pollingRef.current,
     }}>
       {children}
     </PixPaymentContext.Provider>

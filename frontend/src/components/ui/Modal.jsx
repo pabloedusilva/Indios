@@ -2,7 +2,7 @@
 import { MdClose } from 'react-icons/md'
 
 export default function Modal({
-  isOpen, onClose, title, children, size = 'lg', fullscreen = false,
+  isOpen, onClose, title, children, size = 'lg', fullscreen = false, overlayClassName = '',
 }) {
   const overlayRef = useRef(null)
 
@@ -51,7 +51,7 @@ export default function Modal({
   return (
     <div
       ref={overlayRef}
-      className="modal-overlay p-4"
+      className={`modal-overlay p-4 ${overlayClassName}`}
       onClick={(e) => { if (e.target === overlayRef.current) onClose() }}
     >
       <div className={`modal-box w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col`}>

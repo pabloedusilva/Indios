@@ -3,10 +3,11 @@
 //
 //  Dois jobs agendados via node-cron:
 //
-//  1. expirarPendentes  — a cada 5 minutos
+//  1. expirarPendentes  — todo dia às 01:00 (BRT)
 //     Marca como 'expired' todos os pagamentos com status 'pending'
-//     cujo expires_at já passou. Garante que o banco reflita a
-//     realidade: um QR Code vencido nunca será reutilizado.
+//     cujo expires_at já passou (> 24h desde a criação).
+//     Roda uma vez por dia — suficiente pois o expires_at é sempre
+//     NOW() + 24h, então só expira no dia seguinte à criação.
 //
 //  2. limparExpirados   — todo dia 24 de cada mês às 03:00 (BRT)
 //     Deleta permanentemente os registros com status 'expired'
@@ -16,6 +17,7 @@
 //  Segurança:
 //    · Cada job tem lock interno para não rodar em paralelo
 //    · Erros são capturados silenciosamente sem derrubar o servidor
+//    · O modelo usa FOR UPDATE no banco para evitar race conditions
 // =============================================================
 
 const cron           = require('node-cron')
@@ -25,7 +27,7 @@ const PagamentoModel = require('../models/PagamentoModel')
 let expirandoEmAndamento = false
 let limpandoEmAndamento  = false
 
-// ── Job 1: Expirar pendentes vencidos ─────────────────────────
+// ── Job 1: Expirar pendentes vencidos (> 24h) ─────────────────
 async function expirarPendentes() {
   if (expirandoEmAndamento) return
 
@@ -55,8 +57,9 @@ async function limparExpirados() {
 
 // ── Inicialização ─────────────────────────────────────────────
 function iniciarPixCleanup() {
-  // Job 1: a cada 5 minutos — expira QR Codes vencidos
-  cron.schedule('*/5 * * * *', expirarPendentes, {
+  // Job 1: todo dia às 01:00 BRT — expira pendentes com > 24h
+  // PIX expira em 24h desde a criação, então rodar uma vez por dia é suficiente
+  cron.schedule('0 1 * * *', expirarPendentes, {
     timezone: 'America/Sao_Paulo',
   })
 
@@ -64,9 +67,6 @@ function iniciarPixCleanup() {
   cron.schedule('0 3 24 * *', limparExpirados, {
     timezone: 'America/Sao_Paulo',
   })
-
-  // Corrige estado do banco imediatamente ao iniciar
-  expirarPendentes()
 }
 
 module.exports = { iniciarPixCleanup, expirarPendentes, limparExpirados }
