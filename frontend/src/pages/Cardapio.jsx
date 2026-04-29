@@ -35,29 +35,53 @@ function escolherAleatorio(excluir = []) {
   return disponiveis[Math.floor(Math.random() * disponiveis.length)]
 }
 
+// Pré-carrega um vídeo em background sem reproduzir
+function preloadVideo(src) {
+  const link = document.createElement('link')
+  link.rel = 'preload'
+  link.as = 'video'
+  link.href = src
+  document.head.appendChild(link)
+}
+
 // ── Slot de vídeo individual (desktop) ───────────────────────
+// O elemento <video> permanece estável no DOM — apenas o src muda via ref,
+// evitando desmontagem/remontagem e re-download desnecessário.
 function VideoSlot({ indice, onEnded }) {
   const videoRef = useRef(null)
+  const indiceRef = useRef(indice)
 
   useEffect(() => {
     const el = videoRef.current
     if (!el) return
-    el.load()
+
+    const src = VIDEOS[indice]
+
+    // Só recarrega se o src realmente mudou
+    if (indiceRef.current !== indice) {
+      indiceRef.current = indice
+      el.src = src
+      el.load()
+    }
+
     el.play().catch(() => {})
+
+    // Pré-carrega o próximo vídeo aleatório enquanto este toca
+    const proximo = escolherAleatorio([indice])
+    preloadVideo(VIDEOS[proximo])
   }, [indice])
 
   return (
     <video
       ref={videoRef}
-      key={indice}
       onEnded={onEnded}
       muted
       playsInline
       autoPlay
-      className="w-full h-full object-cover scale-[1.002]"
-    >
-      <source src={VIDEOS[indice]} type="video/mp4" />
-    </video>
+      preload="auto"
+      src={VIDEOS[indice]}
+      className="w-full h-full object-cover"
+    />
   )
 }
 
@@ -84,6 +108,7 @@ function VideoBackgroundDesktop() {
   return (
     <div className="absolute inset-0 flex overflow-hidden">
       {slots.map((videoIdx, slotIdx) => (
+        // key={slotIdx} fixo — mantém o elemento no DOM, só muda o src
         <div key={slotIdx} className="flex-1 h-full overflow-hidden">
           <VideoSlot indice={videoIdx} onEnded={() => handleEnded(slotIdx)} />
         </div>
@@ -94,30 +119,41 @@ function VideoBackgroundDesktop() {
 }
 
 // ── Fundo mobile: 1 vídeo em loop sequencial ─────────────────
+// Elemento <video> estável — src trocado via ref sem remontar.
 function VideoBackgroundMobile() {
   const [indice, setIndice] = useState(0)
   const videoRef = useRef(null)
+  const indiceRef = useRef(0)
 
   useEffect(() => {
     const el = videoRef.current
     if (!el) return
-    el.load()
+
+    if (indiceRef.current !== indice) {
+      indiceRef.current = indice
+      el.src = VIDEOS[indice]
+      el.load()
+    }
+
     el.play().catch(() => {})
+
+    // Pré-carrega o próximo
+    const proximo = (indice + 1) % VIDEOS.length
+    preloadVideo(VIDEOS[proximo])
   }, [indice])
 
   return (
     <div className="absolute inset-0 overflow-hidden">
       <video
         ref={videoRef}
-        key={indice}
         onEnded={() => setIndice((i) => (i + 1) % VIDEOS.length)}
         muted
         playsInline
         autoPlay
+        preload="auto"
+        src={VIDEOS[0]}
         className="absolute inset-0 w-full h-full object-cover"
-      >
-        <source src={VIDEOS[indice]} type="video/mp4" />
-      </video>
+      />
       <div className="absolute inset-0 bg-black/85" />
     </div>
   )
