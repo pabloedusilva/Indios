@@ -280,7 +280,13 @@ const inicio = async (req, res, next) => {
   try {
     const meses = await EstatisticasModel.mesesDisponiveis()
     if (meses.length === 0) {
-      return res.json({ success: true, data: { meses: [], stats: null } })
+      return res.json({
+        success: true,
+        data: {
+          meses: [],
+          stats: null,
+        },
+      })
     }
 
     const mesMaisRecente = meses[0].mes

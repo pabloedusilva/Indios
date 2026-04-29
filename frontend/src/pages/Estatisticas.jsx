@@ -344,12 +344,30 @@ export default function Estatisticas() {
   if (meses.length === 0) {
     return (
       <div className="space-y-6 animate-fade-in">
-        <PageHeader meses={[]} mesAtivo={null} setMesAtivo={() => {}} />
+        {/* Cabeçalho */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-brand-text font-heading">Estatísticas</h1>
+            <p className="text-sm text-brand-text-3 mt-0.5">Nenhum dado disponível ainda</p>
+          </div>
+        </div>
+
+        {/* KPIs zerados */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          <KpiCard label="Faturamento Total"  value={formatarMoeda(0)} sub="0 pedidos finalizados"          icon={MdAttachMoney}    color="orange" />
+          <KpiCard label="Total de Pedidos"   value="0"                sub="Nenhum pedido registrado"       icon={MdRestaurantMenu} color="blue"   />
+          <KpiCard label="Ticket Médio"       value={formatarMoeda(0)} sub="por pedido finalizado"          icon={MdTrendingUp}     color="gold"   />
+          <KpiCard label="Finalizados"        value="0"                sub="0% do total"                    icon={MdCheckCircle}    color="green"  />
+          <KpiCard label="Cancelados"         value="0"                sub="0% do total"                    icon={MdCancel}         color="red"    />
+          <KpiCard label="Taxa de Conclusão"  value="0%"               sub="pedidos finalizados com sucesso" icon={MdAutoGraph}      color="violet" />
+        </div>
+
+        {/* Estado vazio */}
         <div className="card flex flex-col items-center gap-3 py-14 text-center">
           <div className="w-14 h-14 rounded-2xl bg-orange-50 dark:bg-orange-950/30 flex items-center justify-center">
             <MdAutoGraph className="text-brand-orange" size={28} />
           </div>
-          <p className="font-semibold text-brand-text">Nenhum dado disponível</p>
+          <p className="font-semibold text-brand-text">Nenhum pedido registrado</p>
           <p className="text-sm text-brand-text-3 max-w-xs">
             As estatísticas aparecerão aqui após os primeiros pedidos serem registrados.
           </p>
