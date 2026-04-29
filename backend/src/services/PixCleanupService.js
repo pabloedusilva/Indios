@@ -8,42 +8,32 @@
 //     cujo expires_at já passou. Garante que o banco reflita a
 //     realidade: um QR Code vencido nunca será reutilizado.
 //
-//  2. limparExpirados   — todo dia às 03:00 (BRT)
+//  2. limparExpirados   — todo dia 24 de cada mês às 03:00 (BRT)
 //     Deleta permanentemente os registros com status 'expired'
 //     que foram criados há mais de 30 dias. Mantém o banco limpo
 //     sem remover dados recentes que ainda possam ser auditados.
 //
 //  Segurança:
 //    · Cada job tem lock interno para não rodar em paralelo
-//    · Erros são capturados e logados sem derrubar o servidor
-//    · Logs estruturados com timestamp e contagem de registros
+//    · Erros são capturados silenciosamente sem derrubar o servidor
 // =============================================================
 
-const cron         = require('node-cron')
+const cron           = require('node-cron')
 const PagamentoModel = require('../models/PagamentoModel')
 
-// ── Estado interno dos locks ──────────────────────────────────
+// ── Locks internos ────────────────────────────────────────────
 let expirandoEmAndamento = false
 let limpandoEmAndamento  = false
 
 // ── Job 1: Expirar pendentes vencidos ─────────────────────────
 async function expirarPendentes() {
-  if (expirandoEmAndamento) {
-    console.log('[PixCleanup] Job de expiração já em andamento — pulando')
-    return
-  }
+  if (expirandoEmAndamento) return
 
   expirandoEmAndamento = true
-  const t0 = Date.now()
-
   try {
-    const total = await PagamentoModel.expirarPendentesVencidos()
-
-    if (total > 0) {
-      console.log(`[PixCleanup] ${total} pagamento(s) expirado(s) em ${Date.now() - t0}ms`)
-    }
-  } catch (err) {
-    console.error('[PixCleanup] Erro ao expirar pendentes:', err.message)
+    await PagamentoModel.expirarPendentesVencidos()
+  } catch {
+    // erro silencioso — não derruba o servidor
   } finally {
     expirandoEmAndamento = false
   }
@@ -51,22 +41,13 @@ async function expirarPendentes() {
 
 // ── Job 2: Deletar expirados antigos (> 30 dias) ──────────────
 async function limparExpirados() {
-  if (limpandoEmAndamento) {
-    console.log('[PixCleanup] Job de limpeza já em andamento — pulando')
-    return
-  }
+  if (limpandoEmAndamento) return
 
   limpandoEmAndamento = true
-  const t0 = Date.now()
-
   try {
-    const total = await PagamentoModel.deletarExpiradosAntigos()
-
-    if (total > 0) {
-      console.log(`[PixCleanup] ${total} registro(s) expirado(s) deletado(s) em ${Date.now() - t0}ms`)
-    }
-  } catch (err) {
-    console.error('[PixCleanup] Erro ao limpar expirados:', err.message)
+    await PagamentoModel.deletarExpiradosAntigos()
+  } catch {
+    // erro silencioso — não derruba o servidor
   } finally {
     limpandoEmAndamento = false
   }
@@ -79,16 +60,12 @@ function iniciarPixCleanup() {
     timezone: 'America/Sao_Paulo',
   })
 
-  // Job 2: todo dia às 03:00 BRT — deleta expirados com > 30 dias
-  cron.schedule('0 3 * * *', limparExpirados, {
+  // Job 2: todo dia 24 de cada mês às 03:00 BRT — deleta expirados com > 30 dias
+  cron.schedule('0 3 24 * *', limparExpirados, {
     timezone: 'America/Sao_Paulo',
   })
 
-  console.log('[PixCleanup] Microserviço iniciado')
-  console.log('[PixCleanup]   · Expiração de pendentes: a cada 5 minutos')
-  console.log('[PixCleanup]   · Limpeza de expirados:   todo dia às 03:00 BRT')
-
-  // Rodar expiração imediatamente ao iniciar (para corrigir estado do banco)
+  // Corrige estado do banco imediatamente ao iniciar
   expirarPendentes()
 }
 
