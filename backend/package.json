@@ -7,6 +7,7 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "migrate": "node scripts/migrate.js",
+    "migrate:db": "node scripts/migrate-database.js",
     "seed": "node scripts/seedUsuario.js",
     "test": "vitest",
     "test:run": "vitest run"
