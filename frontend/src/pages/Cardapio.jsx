@@ -4,205 +4,25 @@
 //  · Rota pública: /cardapio — acessível sem autenticação
 //  · Dados em tempo real via /api/cardapio (auto-refresh 60s)
 //  · Sem botão fechar — página independente
-//  · Desktop: 3 slots com double-buffer + crossfade suave
-//  · Mobile: 1 slot com double-buffer + crossfade suave
+//  · Fundo: cardapio-bg.png com overlay sutil
 // =============================================================
 
-import { useEffect, useRef, useState, useCallback } from 'react'
 import { useCardapio } from '../hooks/useCardapio'
 import { formatarMoeda } from '../utils/formatters'
 import { Skeleton, SkeletonGroup } from '../components/ui/Skeleton'
 import { MdInventory2 } from 'react-icons/md'
 
-// ── Lista de vídeos de fundo ──────────────────────────────────
-const VIDEOS = [
-  '/cardapio/1.mp4',
-  '/cardapio/2.mp4',
-  '/cardapio/3.mp4',
-  '/cardapio/4.mp4',
-  '/cardapio/5.mp4',
-  '/cardapio/6.mp4',
-]
-
-const FADE_MS = 600 // duração do fade-in do novo vídeo em ms
-
-function escolherAleatorio(excluir = []) {
-  const disponiveis = VIDEOS.map((_, i) => i).filter((i) => !excluir.includes(i))
-  if (disponiveis.length === 0) {
-    const ultimo = excluir[excluir.length - 1] ?? -1
-    const fb = VIDEOS.map((_, i) => i).filter((i) => i !== ultimo)
-    return fb[Math.floor(Math.random() * fb.length)]
-  }
-  return disponiveis[Math.floor(Math.random() * disponiveis.length)]
-}
-
-// ── Double-buffer video slot ──────────────────────────────────
-// Estratégia: o layer de SAÍDA fica sempre em opacity:1 (sem transição).
-// Só o layer de ENTRADA faz fade-in (0 → 1).
-// Quando o fade termina, o layer de saída some instantaneamente (opacity:0, sem transition).
-// Isso evita o efeito cinza que ocorre quando os dois layers ficam semi-transparentes ao mesmo tempo.
-function VideoSlot({ initialIndex }) {
-  const refA = useRef(null)
-  const refB = useRef(null)
-
-  // layerFront: qual layer está na frente visível (0=A, 1=B)
-  const layerFrontRef = useRef(0)
-  const busyRef = useRef(false)
-  const currentIndexRef = useRef(initialIndex)
-
-  const getRef = (layer) => layer === 0 ? refA : refB
-
-  // Troca: carrega próximo no layer de trás, faz fade-in, depois esconde o de frente
-  const trocar = useCallback(() => {
-    if (busyRef.current) return
-    busyRef.current = true
-
-    const backLayer = layerFrontRef.current === 0 ? 1 : 0
-    const elBack = getRef(backLayer).current
-    if (!elBack) { busyRef.current = false; return }
-
-    const nextIndex = escolherAleatorio([currentIndexRef.current])
-    currentIndexRef.current = nextIndex
-
-    // Prepara o layer de trás: invisível, sem transição, carrega o vídeo
-    elBack.style.transition = 'none'
-    elBack.style.opacity = '0'
-    elBack.src = VIDEOS[nextIndex]
-    elBack.load()
-
-    const doFade = () => {
-      elBack.play().catch(() => {})
-      // Força reflow para garantir que opacity:0 foi aplicado antes da transição
-      void elBack.offsetWidth
-      elBack.style.transition = `opacity ${FADE_MS}ms ease-in-out`
-      elBack.style.opacity = '1'
-
-      setTimeout(() => {
-        // Layer de frente some instantaneamente (já está coberto)
-        const frontEl = getRef(layerFrontRef.current).current
-        if (frontEl) {
-          frontEl.style.transition = 'none'
-          frontEl.style.opacity = '0'
-          // Pausa o vídeo antigo para liberar recursos
-          frontEl.pause()
-        }
-        layerFrontRef.current = backLayer
-        busyRef.current = false
-      }, FADE_MS)
-    }
-
-    // Aguarda dados suficientes para tocar sem travar
-    if (elBack.readyState >= 3) {
-      doFade()
-    } else {
-      const onReady = () => {
-        elBack.removeEventListener('canplaythrough', onReady)
-        clearTimeout(fallback)
-        doFade()
-      }
-      const fallback = setTimeout(() => {
-        elBack.removeEventListener('canplaythrough', onReady)
-        doFade()
-      }, 2500)
-      elBack.addEventListener('canplaythrough', onReady)
-    }
-  }, [])
-
-  // Inicialização
-  useEffect(() => {
-    const elA = refA.current
-    const elB = refB.current
-    if (!elA || !elB) return
-
-    // Layer A: visível, tocando
-    elA.style.opacity = '1'
-    elA.style.transition = 'none'
-    elA.src = VIDEOS[initialIndex]
-    elA.load()
-    elA.play().catch(() => {})
-
-    // Layer B: invisível, pré-carregando o próximo
-    elB.style.opacity = '0'
-    elB.style.transition = 'none'
-    const nextIndex = escolherAleatorio([initialIndex])
-    elB.src = VIDEOS[nextIndex]
-    elB.load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const baseStyle = {
-    position: 'absolute', inset: 0,
-    width: '100%', height: '100%',
-    objectFit: 'cover',
-  }
-
-  return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000' }}>
-      <video ref={refA} style={{ ...baseStyle, opacity: 0 }} muted playsInline preload="auto" onEnded={trocar} />
-      <video ref={refB} style={{ ...baseStyle, opacity: 0 }} muted playsInline preload="auto" onEnded={trocar} />
-    </div>
-  )
-}
-
-// ── Fundo desktop: 3 slots lado a lado ───────────────────────
-function VideoBackgroundDesktop() {
-  const initialSlots = useRef(null)
-  if (!initialSlots.current) {
-    const shuffled = [...VIDEOS.keys()].sort(() => Math.random() - 0.5)
-    initialSlots.current = [shuffled[0], shuffled[1], shuffled[2]]
-  }
-
-  return (
-    <div className="absolute inset-0 flex overflow-hidden">
-      {[0, 1, 2].map((slotIdx) => (
-        <div key={slotIdx} className="flex-1 h-full overflow-hidden relative">
-          <VideoSlot initialIndex={initialSlots.current[slotIdx]} />
-        </div>
-      ))}
-      <div className="absolute inset-0 bg-black/85" />
-    </div>
-  )
-}
-
-// ── Fundo mobile: 1 slot ─────────────────────────────────────
-function VideoBackgroundMobile() {
-  const initialIndex = useRef(Math.floor(Math.random() * VIDEOS.length)).current
-
-  return (
-    <div className="absolute inset-0 overflow-hidden">
-      <VideoSlot initialIndex={initialIndex} />
-      <div className="absolute inset-0 bg-black/85" />
-    </div>
-  )
-}
-
-// ── Fundo responsivo ─────────────────────────────────────────
-function VideoBackground() {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
-
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 768px)')
-    const handler = (e) => setIsMobile(!e.matches)
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
-  }, [])
-
-  return isMobile ? <VideoBackgroundMobile /> : <VideoBackgroundDesktop />
-}
-
 // ── Skeleton de loading ───────────────────────────────────────
 function CardapioSkeleton() {
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col animate-fade-in">
-      {/* Header skeleton */}
       <div className="border-b border-white/10 bg-black/40 backdrop-blur-md flex-shrink-0">
-        <div className="flex items-center gap-2.5 px-6 py-4">
+        <div className="flex items-center gap-2.5 px-4 sm:px-6 py-4">
           <Skeleton className="h-7 w-7 rounded-lg bg-white/10" />
           <Skeleton className="h-5 w-48 rounded-lg bg-white/10" />
         </div>
       </div>
-      {/* Conteúdo skeleton */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         {Array.from({ length: 3 }).map((_, gi) => (
           <SkeletonGroup key={gi}>
             <Skeleton className="h-3 w-24 mb-4 bg-white/10" />
@@ -225,7 +45,6 @@ function CardapioSkeleton() {
 export default function Cardapio() {
   const { produtos, loading, error } = useCardapio()
 
-  // A API já retorna apenas disponíveis, mas garantimos no cliente também
   const produtosDisponiveis = produtos.filter((p) => p.disponivel !== false)
   const categorias = [...new Set(produtosDisponiveis.map((p) => p.categoria))].sort()
 
@@ -234,13 +53,17 @@ export default function Cardapio() {
   return (
     <div className="fixed inset-0 flex flex-col animate-fade-in">
 
-      {/* ── Fundo de vídeo ──────────────────────────────── */}
-      <VideoBackground />
+      {/* ── Fundo ───────────────────────────────────────── */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/cardapio/cardapio-bg.png')" }}
+      />
+      {/* Película sutil para melhorar legibilidade sem esconder o fundo */}
+      <div className="absolute inset-0 bg-black/40" />
 
       {/* ── Header ──────────────────────────────────────── */}
-      <header className="relative z-10 flex-shrink-0 border-b border-white/10 bg-black/40 backdrop-blur-md">
-        <div className="flex items-center justify-between px-6 py-3">
-          {/* Esquerda — ícone + título */}
+      <header className="relative z-10 flex-shrink-0 border-b border-white/10 bg-black/30 backdrop-blur-md">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-7 h-7 rounded-lg bg-brand-orange/20 flex items-center justify-center flex-shrink-0">
               <MdInventory2 className="text-brand-orange" size={15} />
@@ -254,8 +77,6 @@ export default function Cardapio() {
               )}
             </h1>
           </div>
-
-          {/* Direita — logo */}
           <img
             src="/logo.png"
             alt="Logo"
@@ -266,17 +87,18 @@ export default function Cardapio() {
 
       {/* ── Conteúdo scrollável ──────────────────────────── */}
       <main className="relative z-10 flex-1 overflow-y-auto">
-        {/* ── Slogan — centralizado, logo abaixo do header ─ */}
-        <div className="flex justify-center px-6 pt-2 pb-0">
+
+        {/* ── Slogan ───────────────────────────────────── */}
+        <div className="flex justify-center px-4 sm:px-6 pt-3 pb-0">
           <img
             src="/cardapio/slogan.png"
             alt="Slogan Índios Churrasco Gourmet"
-            className="w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] -mb-4"
+            className="w-full max-w-[200px] sm:max-w-sm md:max-w-md lg:max-w-lg object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] -mb-2"
             draggable={false}
           />
         </div>
 
-        <div className="px-6 pt-0 pb-6 space-y-6">
+        <div className="px-4 sm:px-6 pt-2 pb-6 space-y-6">
 
           {/* Estado de erro */}
           {error && (
@@ -293,15 +115,12 @@ export default function Cardapio() {
             if (itens.length === 0) return null
             return (
               <section key={categoria}>
-                {/* Rótulo da categoria */}
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-3">
                   <div className="w-0.5 h-4 rounded-full bg-brand-orange flex-shrink-0" />
-                  <p className="font-heading text-sm font-bold text-white uppercase tracking-[0.15em]">
+                  <p className="font-heading text-xs sm:text-sm font-bold text-white uppercase tracking-[0.15em]">
                     {categoria}
                   </p>
                 </div>
-
-                {/* Grid de produtos */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
                   {itens.map((produto) => (
                     <div
@@ -310,10 +129,10 @@ export default function Cardapio() {
                                  bg-white/10 border border-white/15 backdrop-blur-sm
                                  hover:bg-white/15 hover:border-brand-orange/50 transition-all"
                     >
-                      <p className="text-sm font-semibold text-white leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
+                      <p className="text-xs sm:text-sm font-semibold text-white leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
                         {produto.nome}
                       </p>
-                      <p className="text-sm font-bold text-brand-orange drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
+                      <p className="text-xs sm:text-sm font-bold text-brand-orange drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
                         {formatarMoeda(produto.preco)}
                       </p>
                     </div>
@@ -333,7 +152,7 @@ export default function Cardapio() {
 
         </div>
 
-        {/* ── Footer — sempre no final do conteúdo ─────── */}
+        {/* ── Footer ───────────────────────────────────── */}
         <footer className="border-t border-white/10 mt-2">
           <p className="text-center text-xs text-white/40 py-3">
             Índios Churrasco Gourmet
