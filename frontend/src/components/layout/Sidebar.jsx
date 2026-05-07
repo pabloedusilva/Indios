@@ -8,6 +8,7 @@ import { useApp } from '../../contexts/AppContext'
 import { useAuth } from '../../contexts/AuthContext'
 import ModalConfiguracoes from '../ui/ModalConfiguracoes'
 import ModalPagamentos from '../ui/ModalPagamentos'
+import { APP_VERSION } from '../../utils/version'
 
 const navItems = [
   { to: '/dashboard',    label: 'Dashboard',    icon: MdDashboard,      exact: true },
@@ -55,7 +56,7 @@ export default function Sidebar({ isOpen, onClose }) {
           <div className="relative z-10 flex items-center justify-center px-5 py-4 w-full">
             <img src="/logo.png" alt="Índios Churrasco Gourmet" className="h-24 w-24 object-contain [filter:drop-shadow(0_4px_16px_rgba(0,0,0,0.45))] dark:[filter:none]" />
             <span className="absolute bottom-2 left-3 text-[10px] font-medium text-black/40 dark:text-white/50 select-none">
-              v1.0.0
+              v{APP_VERSION}
             </span>
             {/* Botão de pagamentos */}
             <button

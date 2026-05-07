@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+# =============================================================
+# .husky/commit-msg — Hook de validação de mensagem de commit
+#
+# Executado automaticamente ANTES de cada commit ser finalizado.
+# Bloqueia o commit se a mensagem não seguir Conventional Commits.
+#
+# Para ignorar TEMPORARIAMENTE (emergências apenas):
+#   git commit --no-verify -m "..."
+#   ⚠️  Use com extrema cautela — commits inválidos não geram release
+# =============================================================
+
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Valida a mensagem de commit usando commitlint
+npx --no -- commitlint --edit "$1" --verbose
