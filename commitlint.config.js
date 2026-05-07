@@ -94,10 +94,10 @@ module.exports = {
       ['sentence-case', 'start-case', 'pascal-case', 'upper-case'],
     ],
     'subject-min-length': [2, 'always', 10],
-    'subject-max-length': [2, 'always', 100],
+    'subject-max-length': [2, 'always', 150],
 
     // ---- HEADER ----
-    'header-max-length': [2, 'always', 120],
+    'header-max-length': [2, 'always', 160],
     'header-trim': [2, 'always'],
 
     // ---- BODY ----
