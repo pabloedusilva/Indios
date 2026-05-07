@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   MdDashboard, MdRestaurantMenu, MdInventory2,
-  MdHistory, MdClose, MdLogout, MdBarChart, MdSettings,
+  MdHistory, MdClose, MdLogout, MdBarChart, MdSettings, MdPayment,
 } from 'react-icons/md'
 import { useApp } from '../../contexts/AppContext'
 import { useAuth } from '../../contexts/AuthContext'
 import ModalConfiguracoes from '../ui/ModalConfiguracoes'
+import ModalPagamentos from '../ui/ModalPagamentos'
+import { APP_VERSION } from '../../utils/version'
 
 const navItems = [
   { to: '/dashboard',    label: 'Dashboard',    icon: MdDashboard,      exact: true },
@@ -21,7 +23,8 @@ export default function Sidebar({ isOpen, onClose }) {
   const { logoutFn } = useAuth()
   const navigate = useNavigate()
   const pendentes = pedidosAtivos.filter((p) => p.status === 'preparando').length
-  const [modalConfigOpen, setModalConfigOpen] = useState(false)
+  const [modalConfigOpen,    setModalConfigOpen]    = useState(false)
+  const [modalPagamentosOpen, setModalPagamentosOpen] = useState(false)
 
   async function handleLogout() {
     await logoutFn()
@@ -53,8 +56,16 @@ export default function Sidebar({ isOpen, onClose }) {
           <div className="relative z-10 flex items-center justify-center px-5 py-4 w-full">
             <img src="/logo.png" alt="Índios Churrasco Gourmet" className="h-24 w-24 object-contain [filter:drop-shadow(0_4px_16px_rgba(0,0,0,0.45))] dark:[filter:none]" />
             <span className="absolute bottom-2 left-3 text-[10px] font-medium text-black/40 dark:text-white/50 select-none">
-              v1.0.0
+              v{APP_VERSION}
             </span>
+            {/* Botão de pagamentos */}
+            <button
+              onClick={() => setModalPagamentosOpen(true)}
+              title="Pagamentos"
+              className="absolute bottom-2 right-9 text-black/40 dark:text-white/50 hover:text-brand-orange dark:hover:text-brand-orange transition-colors p-0.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10"
+            >
+              <MdPayment size={15} />
+            </button>
             {/* Engrenagem de configurações */}
             <button
               onClick={() => setModalConfigOpen(true)}
@@ -111,6 +122,10 @@ export default function Sidebar({ isOpen, onClose }) {
       <ModalConfiguracoes
         isOpen={modalConfigOpen}
         onClose={() => setModalConfigOpen(false)}
+      />
+      <ModalPagamentos
+        isOpen={modalPagamentosOpen}
+        onClose={() => setModalPagamentosOpen(false)}
       />
     </>
   )

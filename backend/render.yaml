@@ -1,0 +1,31 @@
+# =============================================================
+#  render.yaml — Configuração do Render para o backend
+#
+#  · Define como o Render deve fazer o build e deploy
+#  · Web Service com Node.js + Express
+# =============================================================
+
+services:
+  - type: web
+    name: indios-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3333
+      - key: CLIENT_URL
+        value: https://indios.onrender.com
+      - key: APP_URL
+        value: https://api.indios.onrender.com
+      # Adicione as outras variáveis de ambiente manualmente no dashboard do Render:
+      # - DATABASE_URL
+      # - MP_ACCESS_TOKEN
+      # - MP_PUBLIC_KEY
+      # - MP_WEBHOOK_SECRET
+      # - VALOR_MENSALIDADE
+    healthCheckPath: /api/health

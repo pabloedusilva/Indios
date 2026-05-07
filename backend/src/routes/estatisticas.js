@@ -4,9 +4,9 @@
 
 const express = require('express')
 const {
+  inicio,
   listarMeses,
   estatisticasMensal,
-  inicio,
   sincronizar,
   listarSnapshots,
   listarRelatorios,
@@ -15,12 +15,12 @@ const {
 
 const router = express.Router()
 
-router.get('/inicio',             inicio)
-router.get('/meses',              listarMeses)
-router.get('/mensal',             estatisticasMensal)
-router.post('/sincronizar',       sincronizar)
-router.get('/snapshots',          listarSnapshots)
-router.get('/relatorios',         listarRelatorios)
-router.get('/relatorio/:arquivo', downloadRelatorio)
+router.get('/inicio',                    inicio)
+router.get('/meses',                     listarMeses)
+router.get('/mensal',                    estatisticasMensal)
+router.post('/sincronizar',              sincronizar)
+router.get('/snapshots',                 listarSnapshots)
+router.get('/relatorios',                listarRelatorios)
+router.get('/relatorio/:mes/download',   downloadRelatorio)
 
 module.exports = router

@@ -14,33 +14,59 @@ const dashboardRoutes   = require('./routes/dashboard')
 const categoriasRoutes  = require('./routes/categorias')
 const estatisticasRoutes = require('./routes/estatisticas')
 const pagamentosRoutes  = require('./routes/pagamentos')
+const cardapioRoutes    = require('./routes/cardapio')
 const errorHandler      = require('./middlewares/errorHandler')
 const { requireAuth }   = require('./middlewares/authMiddleware')
 
 const app = express()
 
 // ── CORS ──────────────────────────────────────────────────────
-//  Permite requisições do Vite dev server (porta 5173) e do
-//  build de produção servido por qualquer origem configurada
-//  em FRONTEND_URL (fallback: localhost:5173).
+//  Permite requisições do frontend hospedado no Render e localhost
+//  CLIENT_URL pode conter múltiplas origens separadas por vírgula
+//  Também permite requisições do Mercado Pago para webhooks
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
   .split(',')
-  .map((o) => o.trim())
+  .map((o) => o.trim().replace(/\/$/, ''))
+
+// Adiciona domínios do Mercado Pago para webhooks
+const mercadoPagoOrigins = [
+  'https://api.mercadopago.com',
+  'https://www.mercadopago.com',
+  'https://api.mercadolibre.com',
+  'https://www.mercadolibre.com',
+  'https://ipnpb.mercadopago.com',
+  'https://ipnpb.mercadolibre.com'
+]
+
+const allAllowedOrigins = [...allowedOrigins, ...mercadoPagoOrigins]
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Permite chamadas sem origin (ex.: curl, Postman)
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true)
+      // Permite chamadas sem origin (ex.: curl, Postman, webhooks)
+      if (!origin || allAllowedOrigins.includes(origin)) return callback(null, true)
+      
+      // Log para debug de CORS
+      console.log(`[CORS] Origem rejeitada: ${origin}`)
+      console.log(`[CORS] Origens permitidas:`, allAllowedOrigins)
+      
       callback(new Error(`Origem não permitida pelo CORS: ${origin}`))
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-signature', 'x-request-id'],
     credentials: true,
   }),
 )
 
 // ── Middlewares globais ───────────────────────────────────────
+// Log de todas as requisições para debug
+app.use((req, res, next) => {
+  if (req.path.includes('/webhook')) {
+    console.log(`[Request] ${req.method} ${req.path} - Origin: ${req.get('origin') || 'none'} - User-Agent: ${req.get('user-agent') || 'none'}`)
+  }
+  next()
+})
+
 // Captura rawBody para verificação de assinatura HMAC nos webhooks
 app.use((req, _res, next) => {
   let data = ''
@@ -55,6 +81,8 @@ app.use(cookieParser())
 app.use('/api/auth',       authRoutes)
 // Webhook do Mercado Pago é público (sem requireAuth) mas protegido por HMAC
 app.use('/api/pagamentos', pagamentosRoutes)
+// Cardápio público — sem autenticação, rate limited
+app.use('/api/cardapio',   cardapioRoutes)
 
 // ── Health check (público) ────────────────────────────────────
 app.get('/api/health', (_req, res) => {

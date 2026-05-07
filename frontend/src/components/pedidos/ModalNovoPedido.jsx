@@ -7,8 +7,56 @@ import CupomTermico from './CupomTermico'
 import ComandaCozinha from './ComandaCozinha'
 import {
   MdAdd, MdRemove, MdSearch, MdDelete, MdPerson,
-  MdRestaurantMenu, MdShoppingCart, MdCheck, MdPrint, MdRestaurant, MdReceipt,
+  MdRestaurantMenu, MdShoppingCart, MdCheck, MdRestaurant, MdReceipt,
 } from 'react-icons/md'
+
+// ── Constante do anel SVG ─────────────────────────────────────
+const RING_CIRCUMFERENCE = 2 * Math.PI * 44  // ≈ 276.46
+
+// ── Ícone animado — anel se desenha + checkmark encadeado ─────
+// O container inteiro entra invisível e o anel começa a se
+// desenhar imediatamente — sem anel de fundo que aparece antes.
+function CheckIcon() {
+  return (
+    <div className="relative w-24 h-24">
+
+      {/* Anel animado — começa invisível (dashoffset = circunferência)
+          e se desenha no sentido horário sem delay */}
+      <svg
+        className="absolute inset-0 w-full h-full"
+        viewBox="0 0 100 100"
+        fill="none"
+        style={{ transform: 'rotate(-90deg)' }}
+      >
+        <circle
+          cx="50" cy="50" r="44"
+          stroke="currentColor"
+          className="text-green-500"
+          strokeWidth="7"
+          strokeLinecap="round"
+          strokeDasharray={RING_CIRCUMFERENCE}
+          strokeDashoffset={RING_CIRCUMFERENCE}
+          style={{ animation: 'np-drawRing .65s cubic-bezier(.4,0,.2,1) forwards' }}
+        />
+      </svg>
+
+      {/* Checkmark — aparece logo após o anel completar */}
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" fill="none">
+        <polyline
+          points="27,52 43,68 73,34"
+          stroke="currentColor"
+          className="text-green-500"
+          strokeWidth="6.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray="68"
+          strokeDashoffset="68"
+          style={{ animation: 'np-drawCheck .4s .62s cubic-bezier(.25,.1,.25,1) forwards' }}
+        />
+      </svg>
+    </div>
+  )
+}
 
 export default function ModalNovoPedido({ isOpen, onClose }) {
   const { produtos, criarPedido } = useApp()
@@ -339,25 +387,48 @@ export default function ModalNovoPedido({ isOpen, onClose }) {
 
           {/* ——— STEP 3: Revisão ——— */}
           {pedidoCriado && (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 gap-6 animate-fade-in">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-lg">
-                <MdCheck className="text-white" size={32} />
+            <div className="flex-1 flex flex-col items-center justify-center p-8">
+              {/* Container inteiro entra com spring — ícone, texto e botões juntos */}
+              <div
+                className="flex flex-col items-center gap-5 text-center"
+                style={{ animation: 'np-popIn .45s cubic-bezier(.34,1.56,.64,1) both' }}
+              >
+                <CheckIcon />
+
+                <div>
+                  <p className="text-lg font-bold text-brand-text leading-tight">
+                    Pedido #{String(pedidoCriado.numero).padStart(4, '0')} criado!
+                  </p>
+                  <p className="text-sm text-brand-text-3 mt-1">
+                    Escolha o que deseja imprimir
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3 w-full max-w-xs">
+                  <button onClick={imprimirComanda} className="btn-primary w-full py-3">
+                    <MdRestaurant size={18} /> Imprimir Comanda do Vendedor
+                  </button>
+                  <button onClick={imprimirCupom} className="btn-primary w-full py-3">
+                    <MdReceipt size={18} /> Imprimir Cupom do Cliente
+                  </button>
+                  <button onClick={handleFechar} className="btn-secondary w-full py-3 mt-1">
+                    Fechar
+                  </button>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="text-lg font-bold text-brand-text">Pedido #{String(pedidoCriado.numero).padStart(4, '0')} criado!</p>
-                <p className="text-sm text-brand-text-3 mt-1">Escolha o que deseja imprimir</p>
-              </div>
-              <div className="flex flex-col gap-3 w-full max-w-xs">
-                <button onClick={imprimirComanda} className="btn-primary w-full py-3">
-                  <MdRestaurant size={18} /> Imprimir Comanda do Vendedor
-                </button>
-                <button onClick={imprimirCupom} className="btn-primary w-full py-3">
-                  <MdReceipt size={18} /> Imprimir Cupom do Cliente
-                </button>
-                <button onClick={handleFechar} className="btn-secondary w-full py-3 mt-2">
-                  Fechar
-                </button>
-              </div>
+
+              <style>{`
+                @keyframes np-popIn {
+                  0%   { transform: scale(.88) translateY(8px); opacity: 0; }
+                  100% { transform: scale(1)   translateY(0);   opacity: 1; }
+                }
+                @keyframes np-drawRing {
+                  to { stroke-dashoffset: 0; }
+                }
+                @keyframes np-drawCheck {
+                  to { stroke-dashoffset: 0; }
+                }
+              `}</style>
             </div>
           )}
 

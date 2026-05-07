@@ -1,0 +1,20 @@
+# =============================================================
+#  render.yaml — Configuração do Render para o frontend
+#
+#  · Define como o Render deve fazer o build e deploy
+#  · Static Site com React + Vite
+# =============================================================
+
+services:
+  - type: web
+    name: indios-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://api.indios.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

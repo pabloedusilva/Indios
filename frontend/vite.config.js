@@ -1,6 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
+
+// Lê a versão do package.json raiz do monorepo.
+// O semantic-release atualiza esse arquivo a cada release via @semantic-release/npm,
+// garantindo que a versão exibida na dashboard sempre reflita a release atual.
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const { version: APP_VERSION } = JSON.parse(
+  readFileSync(resolve(__dirname, '../package.json'), 'utf-8')
+)
 
 function cleanLogger() {
   return {
@@ -132,6 +143,18 @@ export default defineConfig({
     alias: {
       '@': '/src',
     },
+  },
+  // Injeta a versão em build-time como variável de ambiente imutável.
+  // Acesse via import.meta.env.VITE_APP_VERSION em qualquer arquivo do frontend.
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(APP_VERSION),
+  },
+  // ── Configuração de Build ───────────────────────────────────
+  publicDir: 'public',
+  build: {
+    outDir: 'dist',
+    // Garantir que arquivos da pasta public (incluindo _redirects) sejam copiados
+    copyPublicDir: true,
   },
   // ── Proxy de desenvolvimento ────────────────────────────────
   server: {

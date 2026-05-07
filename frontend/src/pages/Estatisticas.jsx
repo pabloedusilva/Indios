@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useEstatisticas } from '../hooks/useEstatisticas'
 import { formatarMoeda } from '../utils/formatters'
 import { Skeleton, SkeletonGroup } from '../components/ui/Skeleton'
+import ModalRelatorios from '../components/ui/ModalRelatorios'
 import {
   MdAttachMoney, MdRestaurantMenu, MdCheckCircle, MdCancel,
   MdTrendingUp, MdWarning, MdFileDownload, MdPictureAsPdf,
@@ -143,7 +144,11 @@ function BarChart({ data }) {
 }
 
 // ── Card de resumo ────────────────────────────────────────────
-function KpiCard({ label, value, sub, icon: Icon, color }) {
+
+// Classes de somente leitura (amarelo sutil) reutilizadas em todos os cards
+const READ_ONLY_CARD = 'bg-yellow-50/60 dark:bg-yellow-950/10 border-yellow-200/70 dark:border-yellow-800/30'
+
+function KpiCard({ label, value, sub, icon: Icon, color, readOnly = false }) {
   const map = {
     orange: {
       icon: 'text-brand-orange',
@@ -179,7 +184,7 @@ function KpiCard({ label, value, sub, icon: Icon, color }) {
   const c = map[color] || map.orange
 
   return (
-    <div className="card flex flex-col gap-3">
+    <div className={`card flex flex-col gap-3 ${readOnly ? READ_ONLY_CARD : ''}`}>
       <div className="flex items-start justify-between">
         <p className="text-[11px] font-semibold text-brand-text-3 uppercase tracking-wider leading-tight">
           {label}
@@ -205,6 +210,7 @@ export default function Estatisticas() {
     mesAtivo,
     setMesAtivo,
     stats,
+    relatorios,
     relatorioDoMesAtivo,
     loading,
     sincronizando,
@@ -212,7 +218,10 @@ export default function Estatisticas() {
     sincronizar,
     baixarRelatorio,
     refetch,
+    recarregarRelatorios,
   } = useEstatisticas()
+
+  const [modalRelatoriosAberto, setModalRelatoriosAberto] = useState(false)
 
   if (loading) return (
     <div className="space-y-5 animate-fade-in">
@@ -344,12 +353,30 @@ export default function Estatisticas() {
   if (meses.length === 0) {
     return (
       <div className="space-y-6 animate-fade-in">
-        <PageHeader meses={[]} mesAtivo={null} setMesAtivo={() => {}} />
+        {/* Cabeçalho */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-brand-text font-heading">Estatísticas</h1>
+            <p className="text-sm text-brand-text-3 mt-0.5">Nenhum dado disponível ainda</p>
+          </div>
+        </div>
+
+        {/* KPIs zerados */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          <KpiCard label="Faturamento Total"  value={formatarMoeda(0)} sub="0 pedidos finalizados"          icon={MdAttachMoney}    color="orange" />
+          <KpiCard label="Total de Pedidos"   value="0"                sub="Nenhum pedido registrado"       icon={MdRestaurantMenu} color="blue"   />
+          <KpiCard label="Ticket Médio"       value={formatarMoeda(0)} sub="por pedido finalizado"          icon={MdTrendingUp}     color="gold"   />
+          <KpiCard label="Finalizados"        value="0"                sub="0% do total"                    icon={MdCheckCircle}    color="green"  />
+          <KpiCard label="Cancelados"         value="0"                sub="0% do total"                    icon={MdCancel}         color="red"    />
+          <KpiCard label="Taxa de Conclusão"  value="0%"               sub="pedidos finalizados com sucesso" icon={MdAutoGraph}      color="violet" />
+        </div>
+
+        {/* Estado vazio */}
         <div className="card flex flex-col items-center gap-3 py-14 text-center">
           <div className="w-14 h-14 rounded-2xl bg-orange-50 dark:bg-orange-950/30 flex items-center justify-center">
             <MdAutoGraph className="text-brand-orange" size={28} />
           </div>
-          <p className="font-semibold text-brand-text">Nenhum dado disponível</p>
+          <p className="font-semibold text-brand-text">Nenhum pedido registrado</p>
           <p className="text-sm text-brand-text-3 max-w-xs">
             As estatísticas aparecerão aqui após os primeiros pedidos serem registrados.
           </p>
@@ -360,6 +387,9 @@ export default function Estatisticas() {
 
   const { resumo, topProdutos, pagamentos, porDia, melhorDia } = stats
   const totalPag = pagamentos.reduce((s, p) => s + p.qtd, 0)
+
+  // Somente leitura: mês ativo é anterior ao mês mais recente disponível
+  const somenteLeitura = meses.length > 0 && mesAtivo !== meses[0].mes
 
   // Data formatada do melhor dia
   const melhorDiaFmt = melhorDia
@@ -377,7 +407,7 @@ export default function Estatisticas() {
           <h1 className="text-2xl font-bold text-brand-text font-heading">Estatísticas</h1>
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-sm text-brand-text-3">
-              Análise detalhada dos últimos {meses.length} {meses.length === 1 ? 'mês' : 'meses'}
+              Análise detalhada de {nomeMes(mesAtivo)}
             </p>
             {stats.atualizadoEm && (
               <>
@@ -391,6 +421,17 @@ export default function Estatisticas() {
               </>
             )}
           </div>
+          {/* Badge de visualização histórica */}
+          {mesAtivo && meses.length > 0 && mesAtivo !== meses[0].mes && (
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold
+                               bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400
+                               border border-amber-200 dark:border-amber-800/40">
+                <MdCalendarMonth size={11} />
+                Visualização histórica — somente leitura
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -431,6 +472,7 @@ export default function Estatisticas() {
             sub={`${resumo.finalizados} pedidos finalizados`}
             icon={MdAttachMoney}
             color="orange"
+            readOnly={somenteLeitura}
           />
           <KpiCard
             label="Total de Pedidos"
@@ -438,6 +480,7 @@ export default function Estatisticas() {
             sub={`Período: ${nomeMes(mesAtivo)}`}
             icon={MdRestaurantMenu}
             color="blue"
+            readOnly={somenteLeitura}
           />
           <KpiCard
             label="Ticket Médio"
@@ -445,6 +488,7 @@ export default function Estatisticas() {
             sub="por pedido finalizado"
             icon={MdTrendingUp}
             color="gold"
+            readOnly={somenteLeitura}
           />
           <KpiCard
             label="Finalizados"
@@ -452,6 +496,7 @@ export default function Estatisticas() {
             sub={`${resumo.totalPedidos > 0 ? (100 - resumo.taxaCancelamento).toFixed(1) : 0}% do total`}
             icon={MdCheckCircle}
             color="green"
+            readOnly={somenteLeitura}
           />
           <KpiCard
             label="Cancelados"
@@ -459,6 +504,7 @@ export default function Estatisticas() {
             sub={`${resumo.taxaCancelamento}% do total`}
             icon={MdCancel}
             color="red"
+            readOnly={somenteLeitura}
           />
           <KpiCard
             label="Taxa de Conclusão"
@@ -466,6 +512,7 @@ export default function Estatisticas() {
             sub="pedidos finalizados com sucesso"
             icon={MdAutoGraph}
             color="violet"
+            readOnly={somenteLeitura}
           />
         </div>
 
@@ -473,7 +520,7 @@ export default function Estatisticas() {
         <div className="grid lg:grid-cols-2 gap-4 mb-5">
 
           {/* Melhor dia */}
-          <div className="card flex flex-col gap-4">
+          <div className={`card flex flex-col gap-4 ${somenteLeitura ? READ_ONLY_CARD : ''}`}>
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 flex items-center justify-center">
                 <MdStar className="text-brand-gold" size={17} />
@@ -513,7 +560,7 @@ export default function Estatisticas() {
           </div>
 
           {/* Formas de pagamento */}
-          <div className="card flex flex-col gap-4">
+          <div className={`card flex flex-col gap-4 ${somenteLeitura ? READ_ONLY_CARD : ''}`}>
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center">
                 <MdPayment className="text-blue-600 dark:text-blue-400" size={17} />
@@ -564,7 +611,7 @@ export default function Estatisticas() {
         </div>
 
         {/* ── Top Produtos ──────────────────────────────────── */}
-        <div className="card mb-5">
+        <div className={`card mb-5 ${somenteLeitura ? READ_ONLY_CARD : ''}`}>
           <div className="flex items-center gap-2.5 mb-4">
             <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-100 dark:border-orange-900/40 flex items-center justify-center">
               <MdLeaderboard className="text-brand-orange" size={17} />
@@ -623,7 +670,7 @@ export default function Estatisticas() {
         </div>
 
         {/* ── Gráfico de faturamento por dia ────────────────── */}
-        <div className="card mb-5">
+        <div className={`card mb-5 ${somenteLeitura ? READ_ONLY_CARD : ''}`}>
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-100 dark:border-orange-900/40 flex items-center justify-center">
@@ -684,19 +731,33 @@ export default function Estatisticas() {
         </div>
 
         {/* ── Relatório PDF ─────────────────────────────────── */}
-        <div className="card">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 flex items-center justify-center">
-              <MdPictureAsPdf className="text-brand-red" size={17} />
+        <div className={`card ${somenteLeitura ? READ_ONLY_CARD : ''}`}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 flex items-center justify-center">
+                <MdPictureAsPdf className="text-brand-red" size={17} />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-brand-text-3 uppercase tracking-wider">
+                  Relatório PDF
+                </p>
+                <p className="text-xs text-brand-text-3 mt-0.5">
+                  {nomeMes(mesAtivo)}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-[11px] font-semibold text-brand-text-3 uppercase tracking-wider">
-                Relatório PDF
-              </p>
-              <p className="text-xs text-brand-text-3 mt-0.5">
-                {nomeMes(mesAtivo)}
-              </p>
-            </div>
+
+            {/* Botão Ver todos */}
+            <button
+              onClick={() => setModalRelatoriosAberto(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold
+                         text-brand-text-2 border border-brand-border bg-brand-surface
+                         hover:border-brand-orange/50 hover:text-brand-orange hover:bg-orange-50
+                         dark:hover:bg-orange-950/20 transition-all duration-200 active:scale-95"
+            >
+              <MdPictureAsPdf size={13} />
+              Ver todos
+            </button>
           </div>
 
           {relatorioDoMesAtivo ? (
@@ -719,7 +780,7 @@ export default function Estatisticas() {
                 </div>
               </div>
               <button
-                onClick={() => baixarRelatorio(relatorioDoMesAtivo.arquivo)}
+                onClick={() => baixarRelatorio(relatorioDoMesAtivo.mes)}
                 className="btn-success px-4 py-2 text-sm gap-1.5 shrink-0"
               >
                 <MdFileDownload size={16} />
@@ -727,9 +788,8 @@ export default function Estatisticas() {
               </button>
             </div>
           ) : (() => {
-            /* Calcula a data em que o relatório do mesAtivo estará disponível */
             const [ano, mes] = (mesAtivo || '2000-01').split('-').map(Number)
-            const dataDisp = new Date(ano, mes, 1) // dia 1 do mês seguinte
+            const dataDisp = new Date(ano, mes, 1)
             const hoje = new Date()
             hoje.setHours(0, 0, 0, 0)
             const jaDeveriaTerSido = hoje >= dataDisp
@@ -750,7 +810,7 @@ export default function Estatisticas() {
                     <p className="text-xs text-brand-text-3 mt-0.5">
                       {jaDeveriaTerSido
                         ? 'O relatório é gerado automaticamente no dia 1 de cada mês.'
-                        : `O relatório de ${nomeMes(mesAtivo)} será gerado automaticamente no dia 1 do mês seguinte.`}
+                        : `O relatório de ${nomeMes(mesAtivo)} será gerado automaticamente em ${dataDisp.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}.`}
                     </p>
                   </div>
                 </div>
@@ -758,12 +818,21 @@ export default function Estatisticas() {
             )
           })()}
 
-          {/* Dica sobre limite de 3 arquivos */}
+          {/* Nota sobre retenção */}
           <p className="text-[11px] text-brand-text-3 mt-3 flex items-center gap-1.5">
             <MdCalendarMonth size={13} className="text-brand-text-3" />
-            Apenas os relatórios dos últimos 3 meses são mantidos no servidor.
+            Relatórios de todos os meses são mantidos. O painel exibe os últimos 3 meses.
           </p>
         </div>
+
+        {/* ── Modal de todos os relatórios ──────────────────── */}
+        <ModalRelatorios
+          isOpen={modalRelatoriosAberto}
+          onClose={() => setModalRelatoriosAberto(false)}
+          relatorios={relatorios}
+          onBaixar={baixarRelatorio}
+          onRecarregar={recarregarRelatorios}
+        />
     </div>
   )
 }

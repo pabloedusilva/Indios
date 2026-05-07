@@ -1,30 +1,28 @@
 // =============================================================
-//  routes/pagamentos.js
+//  routes/pagamentos.js — Rotas de Pagamentos PIX
 //
-//  POST  /api/pagamentos/checkout   → cria preference MP (autenticado)
-//  GET   /api/pagamentos/status-mes → status do mês atual (autenticado)
-//  GET   /api/pagamentos/poll       → polling pós-checkout (autenticado)
-//  POST  /api/pagamentos/webhook    → callback Mercado Pago (público, HMAC)
+//  POST  /api/pagamentos/pix              → cria pagamento PIX (autenticado)
+//  GET   /api/pagamentos/status           → status do mês atual (autenticado)
+//  GET   /api/pagamentos/historico        → histórico de pagamentos aprovados (autenticado)
+//  GET   /api/pagamentos/comprovante/:id  → gera PDF do comprovante (autenticado)
+//  POST  /api/pagamentos/webhook          → callback Mercado Pago (público, HMAC)
+//  GET   /api/pagamentos/webhook/health   → health check (público)
 // =============================================================
 
 const router = require('express').Router()
 const { requireAuth } = require('../middlewares/authMiddleware')
-const {
-  checkout,
-  statusMes,
-  poll,
-  webhook,
-} = require('../controllers/pagamentosController')
+const pixPaymentController = require('../controllers/pixPaymentController')
 
-// Rota pública — webhook do Mercado Pago (sem auth, mas com HMAC)
-// Deve ser declarada ANTES do middleware requireAuth
-router.post('/webhook', webhook)
+// ── Rotas públicas ────────────────────────────────────────────
+router.get('/webhook/health', pixPaymentController.healthCheck)
+router.post('/webhook',       pixPaymentController.processarWebhook)
 
-// Rotas protegidas
+// ── Rotas protegidas ──────────────────────────────────────────
 router.use(requireAuth)
 
-router.post('/checkout',  checkout)
-router.get('/status-mes', statusMes)
-router.get('/poll',       poll)
+router.post('/pix',                  pixPaymentController.criarPagamentoPix)
+router.get('/status',                pixPaymentController.consultarStatus)
+router.get('/historico',             pixPaymentController.listarHistorico)
+router.get('/comprovante/:id',       pixPaymentController.gerarComprovante)
 
 module.exports = router

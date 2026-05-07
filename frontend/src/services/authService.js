@@ -6,7 +6,9 @@
 //  · Sem armazenamento de token em localStorage/sessionStorage
 // =============================================================
 
-const BASE = '/api/auth'
+// URL base do backend (vem do .env)
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333'
+const BASE = `${API_URL}/api/auth`
 
 /**
  * Realiza o login enviando as credenciais ao servidor.
@@ -29,8 +31,12 @@ export async function login({ usuario, senha }) {
 
 /**
  * Encerra a sessão, invalidando o cookie de autenticação no servidor.
+ * Limpa também o cache de status de pagamento da sessão.
  */
 export async function logout() {
+  try {
+    sessionStorage.removeItem('pix_mes_pago')
+  } catch { /* sem suporte */ }
   await fetch(`${BASE}/logout`, {
     method: 'POST',
     credentials: 'include',

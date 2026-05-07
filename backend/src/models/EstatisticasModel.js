@@ -1,11 +1,13 @@
 // =============================================================
-//  models/EstatisticasModel.js — Estatísticas mensais
+//  models/EstatisticasModel.js — Estatísticas e Relatórios Mensais
 //  Todas as datas são convertidas para America/Sao_Paulo (UTC-3)
 // =============================================================
 
 const db = require('../config/database')
 
-// Helper: condição WHERE para um mês específico (YYYY-MM)
+// ── Helpers internos ──────────────────────────────────────────
+
+// Condição WHERE para um mês específico (YYYY-MM)
 function condMes(campo, ano, mes) {
   return `YEAR(CONVERT_TZ(${campo}, '+00:00', '-03:00')) = ${ano}
       AND MONTH(CONVERT_TZ(${campo}, '+00:00', '-03:00')) = ${mes}`
@@ -27,12 +29,12 @@ function mapSnapshot(row) {
       ? row.atualizado_em.toISOString()
       : row.atualizado_em,
     resumo: {
-      faturamento:       parseFloat(row.faturamento),
-      totalPedidos:      Number(row.total_pedidos),
-      finalizados:       Number(row.finalizados),
-      cancelados:        Number(row.cancelados),
-      ticketMedio:       parseFloat(row.ticket_medio),
-      taxaCancelamento:  parseFloat(row.taxa_cancelamento),
+      faturamento:      parseFloat(row.faturamento),
+      totalPedidos:     Number(row.total_pedidos),
+      finalizados:      Number(row.finalizados),
+      cancelados:       Number(row.cancelados),
+      ticketMedio:      parseFloat(row.ticket_medio),
+      taxaCancelamento: parseFloat(row.taxa_cancelamento),
     },
     melhorDia: row.melhor_dia
       ? {
@@ -47,8 +49,39 @@ function mapSnapshot(row) {
   }
 }
 
+// Mapeia uma linha da tabela relatorios_mensais
+function mapRelatorio(row) {
+  const parse = (v) => (typeof v === 'string' ? JSON.parse(v) : v)
+  return {
+    mes:      row.mes,
+    geradoEm: row.gerado_em instanceof Date
+      ? row.gerado_em.toISOString()
+      : row.gerado_em,
+    resumo: {
+      faturamento:      parseFloat(row.faturamento),
+      totalPedidos:     Number(row.total_pedidos),
+      finalizados:      Number(row.finalizados),
+      cancelados:       Number(row.cancelados),
+      ticketMedio:      parseFloat(row.ticket_medio),
+      taxaCancelamento: parseFloat(row.taxa_cancelamento),
+    },
+    melhorDia: row.melhor_dia
+      ? {
+          dia:         diaStr(row.melhor_dia),
+          faturamento: parseFloat(row.melhor_dia_faturamento),
+          pedidos:     Number(row.melhor_dia_pedidos),
+        }
+      : null,
+    topProdutos: parse(row.top_produtos) ?? [],
+    pagamentos:  parse(row.pagamentos)   ?? [],
+    porDia:      parse(row.por_dia)      ?? [],
+  }
+}
+
+// ── Model ─────────────────────────────────────────────────────
 const EstatisticasModel = {
-  // Lista os últimos 3 meses que possuem pedidos, do mais recente ao mais antigo
+
+  // ── Meses disponíveis (últimos 3 com pedidos) ─────────────
   async mesesDisponiveis() {
     const [rows] = await db.execute(`
       SELECT
@@ -68,9 +101,9 @@ const EstatisticasModel = {
     }))
   },
 
-  // ── Persistência ─────────────────────────────────────────────
+  // ── Snapshot (estatisticas_mensais) ──────────────────────
 
-  // Salva (INSERT ... ON DUPLICATE KEY UPDATE) as estatísticas de um mês
+  // Salva ou atualiza o snapshot de estatísticas de um mês
   async salvar(mes, stats) {
     const { resumo, topProdutos, pagamentos, porDia, melhorDia } = stats
     await db.execute(
@@ -102,7 +135,7 @@ const EstatisticasModel = {
         resumo.cancelados,
         resumo.ticketMedio,
         resumo.taxaCancelamento,
-        melhorDia?.dia   ?? null,
+        melhorDia?.dia         ?? null,
         melhorDia?.faturamento ?? null,
         melhorDia?.pedidos     ?? null,
         JSON.stringify(topProdutos),
@@ -112,21 +145,7 @@ const EstatisticasModel = {
     )
   },
 
-  // Remove registros de meses mais antigos que 3 meses (mantém exatamente 3)
-  async limparAntigos() {
-    await db.execute(`
-      DELETE FROM estatisticas_mensais
-      WHERE mes NOT IN (
-        SELECT mes FROM (
-          SELECT mes FROM estatisticas_mensais
-          ORDER BY mes DESC
-          LIMIT 3
-        ) AS recentes
-      )
-    `)
-  },
-
-  // Lista todos os snapshots salvos (do mais recente ao mais antigo)
+  // Lista todos os snapshots (do mais recente ao mais antigo)
   async listarSnapshots() {
     const [rows] = await db.execute(`
       SELECT
@@ -154,14 +173,81 @@ const EstatisticasModel = {
     return rows.length ? mapSnapshot(rows[0]) : null
   },
 
-  // Estatísticas completas de um mês (formato YYYY-MM)
+  // ── Relatórios mensais (relatorios_mensais) ───────────────
+
+  // Salva o relatório de um mês no banco (idempotente — não sobrescreve se já existir)
+  // gerado_em é gravado explicitamente em horário de Brasília (UTC-3) no momento da inserção
+  async salvarRelatorio(mes, stats) {
+    const { resumo, topProdutos, pagamentos, porDia, melhorDia } = stats
+
+    // Calcula o horário atual em BRT (UTC-3) para gravar como gerado_em
+    const agora = new Date()
+    const brt = new Date(agora.getTime() - 3 * 60 * 60 * 1000)
+    const geradoEmBRT = brt.toISOString().slice(0, 19).replace('T', ' ')
+
+    await db.execute(
+      `INSERT IGNORE INTO relatorios_mensais
+         (mes, faturamento, total_pedidos, finalizados, cancelados,
+          ticket_medio, taxa_cancelamento,
+          melhor_dia, melhor_dia_faturamento, melhor_dia_pedidos,
+          top_produtos, pagamentos, por_dia, gerado_em)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        mes,
+        resumo.faturamento,
+        resumo.totalPedidos,
+        resumo.finalizados,
+        resumo.cancelados,
+        resumo.ticketMedio,
+        resumo.taxaCancelamento,
+        melhorDia?.dia         ?? null,
+        melhorDia?.faturamento ?? null,
+        melhorDia?.pedidos     ?? null,
+        JSON.stringify(topProdutos),
+        JSON.stringify(pagamentos),
+        JSON.stringify(porDia),
+        geradoEmBRT,
+      ]
+    )
+  },
+
+  // Lista todos os relatórios salvos (do mais recente ao mais antigo)
+  async listarRelatorios() {
+    const [rows] = await db.execute(`
+      SELECT
+        mes, faturamento, total_pedidos, finalizados, cancelados,
+        ticket_medio, taxa_cancelamento,
+        melhor_dia, melhor_dia_faturamento, melhor_dia_pedidos,
+        top_produtos, pagamentos, por_dia, gerado_em
+      FROM relatorios_mensais
+      ORDER BY mes DESC
+    `)
+    return rows.map(mapRelatorio)
+  },
+
+  // Busca o relatório de um mês específico (ou null se não existir)
+  async buscarRelatorio(mes) {
+    const [rows] = await db.execute(
+      `SELECT
+        mes, faturamento, total_pedidos, finalizados, cancelados,
+        ticket_medio, taxa_cancelamento,
+        melhor_dia, melhor_dia_faturamento, melhor_dia_pedidos,
+        top_produtos, pagamentos, por_dia, gerado_em
+       FROM relatorios_mensais WHERE mes = ?`,
+      [mes]
+    )
+    return rows.length ? mapRelatorio(rows[0]) : null
+  },
+
+  // ── Cálculo ao vivo (a partir dos pedidos) ────────────────
+
   async estatisticasMes(mes) {
     const [anoStr, mesStr] = mes.split('-')
     const ano = parseInt(anoStr, 10)
     const num = parseInt(mesStr, 10)
 
-    const COND    = condMes('criado_em',   ano, num)
-    const COND_P  = condMes('p.criado_em', ano, num)
+    const COND   = condMes('criado_em',   ano, num)
+    const COND_P = condMes('p.criado_em', ano, num)
 
     const [
       [[resumo]],
@@ -170,7 +256,6 @@ const EstatisticasModel = {
       [porDia],
       [[melhorDia]],
     ] = await Promise.all([
-      // ── Resumo geral ──────────────────────────────────────
       db.execute(`
         SELECT
           COUNT(*)                                                              AS totalPedidos,
@@ -181,13 +266,11 @@ const EstatisticasModel = {
         FROM pedidos
         WHERE ${COND}
       `),
-
-      // ── Top 10 produtos ───────────────────────────────────
       db.execute(`
         SELECT
-          i.nome_produto       AS nome,
-          SUM(i.quantidade)    AS quantidade,
-          SUM(i.subtotal)      AS receita
+          i.nome_produto    AS nome,
+          SUM(i.quantidade) AS quantidade,
+          SUM(i.subtotal)   AS receita
         FROM itens_pedido i
         JOIN pedidos p ON p.id = i.pedido_id
         WHERE ${COND_P}
@@ -196,8 +279,6 @@ const EstatisticasModel = {
         ORDER BY quantidade DESC
         LIMIT 10
       `),
-
-      // ── Formas de pagamento ───────────────────────────────
       db.execute(`
         SELECT
           COALESCE(forma_pagamento, 'nao_informado') AS forma,
@@ -209,25 +290,21 @@ const EstatisticasModel = {
         GROUP BY forma_pagamento
         ORDER BY qtd DESC
       `),
-
-      // ── Faturamento por dia (para gráfico) ────────────────
       db.execute(`
         SELECT
-          DATE(CONVERT_TZ(criado_em, '+00:00', '-03:00'))                          AS dia,
-          COUNT(*)                                                                   AS pedidos,
-          COALESCE(SUM(CASE WHEN status != 'cancelado' THEN total ELSE 0 END), 0)  AS faturamento,
-          SUM(CASE WHEN status = 'cancelado' THEN 1 ELSE 0 END)                    AS cancelados
+          DATE(CONVERT_TZ(criado_em, '+00:00', '-03:00'))                         AS dia,
+          COUNT(*)                                                                  AS pedidos,
+          COALESCE(SUM(CASE WHEN status != 'cancelado' THEN total ELSE 0 END), 0) AS faturamento,
+          SUM(CASE WHEN status = 'cancelado' THEN 1 ELSE 0 END)                   AS cancelados
         FROM pedidos
         WHERE ${COND}
         GROUP BY DATE(CONVERT_TZ(criado_em, '+00:00', '-03:00'))
         ORDER BY dia ASC
       `),
-
-      // ── Melhor dia (maior faturamento) ───────────────────
       db.execute(`
         SELECT
-          DATE(CONVERT_TZ(criado_em, '+00:00', '-03:00'))  AS dia,
-          COUNT(CASE WHEN status != 'cancelado' THEN 1 END) AS pedidos,
+          DATE(CONVERT_TZ(criado_em, '+00:00', '-03:00'))   AS dia,
+          COUNT(CASE WHEN status != 'cancelado' THEN 1 END)  AS pedidos,
           COALESCE(SUM(CASE WHEN status != 'cancelado' THEN total ELSE 0 END), 0) AS faturamento
         FROM pedidos
         WHERE ${COND}
@@ -245,11 +322,11 @@ const EstatisticasModel = {
       mes,
       resumo: {
         totalPedidos,
-        finalizados:       Number(resumo.finalizados),
+        finalizados:      Number(resumo.finalizados),
         cancelados,
-        faturamento:       parseFloat(resumo.faturamento),
-        ticketMedio:       parseFloat(resumo.ticketMedio),
-        taxaCancelamento:  totalPedidos > 0
+        faturamento:      parseFloat(resumo.faturamento),
+        ticketMedio:      parseFloat(resumo.ticketMedio),
+        taxaCancelamento: totalPedidos > 0
           ? parseFloat(((cancelados / totalPedidos) * 100).toFixed(1))
           : 0,
       },
