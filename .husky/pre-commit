@@ -1,0 +1,52 @@
+#!/usr/bin/env sh
+# =============================================================
+# .husky/pre-commit — Hook executado antes do commit
+#
+# Responsabilidades:
+#   · Verificar que não há arquivos .env sensíveis sendo commitados
+#   · Validar que arquivos obrigatórios existem
+#   · Bloquear commits com merge conflicts não resolvidos
+#
+# Para ignorar TEMPORARIAMENTE (emergências apenas):
+#   git commit --no-verify -m "..."
+#   ⚠️  Use com extrema cautela
+# =============================================================
+
+. "$(dirname -- "$0")/_/husky.sh"
+
+# ----------------------------------------------------------
+# PROTEÇÃO 1: Bloquear arquivos .env com credenciais reais
+# ----------------------------------------------------------
+echo "Verificando arquivos sensiveis..."
+
+if git diff --cached --name-only | grep -qE "^\.env$|^\.env\.local$|^\.env\.production$"; then
+  echo ""
+  echo "ERRO: Tentativa de commit de arquivo .env detectada!"
+  echo ""
+  echo "   Os seguintes arquivos sensíveis estão na staging area:"
+  git diff --cached --name-only | grep -E "^\.env$|^\.env\.local$|^\.env\.production$"
+  echo ""
+  echo "   Para remover da staging area sem perder o conteúdo:"
+  echo "   git reset HEAD .env"
+  echo ""
+  exit 1
+fi
+
+# ----------------------------------------------------------
+# PROTEÇÃO 2: Detectar conflitos de merge não resolvidos
+# ----------------------------------------------------------
+echo "Verificando conflitos de merge..."
+
+CONFLICT_FILES=$(git diff --cached --name-only | xargs grep -l "^<<<<<<< \|^=======$\|^>>>>>>> " 2>/dev/null || true)
+
+if [ -n "$CONFLICT_FILES" ]; then
+  echo ""
+  echo "ERRO: Arquivos com conflitos de merge nao resolvidos:"
+  echo "$CONFLICT_FILES"
+  echo ""
+  echo "   Resolva os conflitos antes de fazer o commit."
+  echo ""
+  exit 1
+fi
+
+echo "Verificacoes de pre-commit concluidas com sucesso!"

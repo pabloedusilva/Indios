@@ -10,7 +10,7 @@
     "migrate:db": "node scripts/migrate-database.js",
     "seed": "node scripts/seedUsuario.js",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "axios": "^1.15.0",

@@ -130,6 +130,15 @@ vite.svg
 .vite/
 
 # =========================
+# Versionamento automático
+# =========================
+# O CHANGELOG.md É rastreado pelo Git (gerenciado pelo semantic-release)
+# O package-lock.json raiz É rastreado (garante reprodutibilidade)
+# Os hooks do Husky SÃO rastreados (.husky/)
+# semantic-release output temporário (nunca salvo em disco)
+.semantic_release_output
+
+# =========================
 # Tailwind / CSS
 # =========================
 *.css.map

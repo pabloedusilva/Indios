@@ -1,0 +1,221 @@
+# =============================================================
+# release.yml — Pipeline de Release Automático
+#
+# Responsabilidades:
+#   · Validar mensagens de commit (Conventional Commits)
+#   · Executar testes do backend e frontend
+#   · Gerar versão semântica automaticamente via semantic-release
+#   · Criar GitHub Release com tag e changelog
+#   · Atualizar CHANGELOG.md no repositório
+#
+# Gatilho: push na branch main (após merge de PR)
+# Proteção: apenas executa se os testes passarem
+# =============================================================
+
+name: Release Automatico
+
+on:
+  push:
+    branches:
+      - main
+
+  # Permite acionar manualmente para dry-run ou emergências
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Executar em modo dry-run (sem publicar release)'
+        required: false
+        default: 'false'
+        type: boolean
+
+# Garante que apenas um workflow de release rode por vez
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # -----------------------------------------------------------
+  # JOB 1: Validação de Commits
+  # Verifica se todos os commits do PR seguem Conventional Commits
+  # -----------------------------------------------------------
+  validate-commits:
+    name: Validar Commits
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necessário para analisar histórico completo
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias de tooling
+        run: npm ci --ignore-scripts
+
+      - name: Validar mensagens de commit
+        run: |
+          echo "Validando commits desde a ultima tag ou origin/main..."
+          # github.event.before pode ser o SHA zero (0000...0000) no primeiro push
+          # de uma branch ou em deploys forcados. Nesse caso, usamos HEAD~1 como fallback.
+          FROM_SHA="${{ github.event.before }}"
+          ZERO_SHA="0000000000000000000000000000000000000000"
+          if [ "$FROM_SHA" = "$ZERO_SHA" ] || [ -z "$FROM_SHA" ]; then
+            FROM_SHA="HEAD~1"
+          fi
+          npx commitlint \
+            --from "$FROM_SHA" \
+            --to ${{ github.sha }} \
+            --verbose
+        env:
+          FORCE_COLOR: '1'
+
+  # -----------------------------------------------------------
+  # JOB 2: Testes — Backend
+  # Executa suite de testes da API Node.js/Express
+  # -----------------------------------------------------------
+  test-backend:
+    name: Testes Backend
+    runs-on: ubuntu-latest
+    needs: validate-commits
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias do backend
+        run: npm ci
+
+      - name: Executar testes
+        run: npm run test:run
+        env:
+          NODE_ENV: test
+          CI: true
+
+  # -----------------------------------------------------------
+  # JOB 3: Testes — Frontend
+  # Executa suite de testes React/Vite
+  # -----------------------------------------------------------
+  test-frontend:
+    name: Testes Frontend
+    runs-on: ubuntu-latest
+    needs: validate-commits
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias do frontend
+        run: npm ci
+
+      - name: Executar testes
+        run: npm run test:run
+        env:
+          CI: true
+
+  # -----------------------------------------------------------
+  # JOB 4: Release Semântico
+  # Analisa commits, calcula próxima versão e cria a release
+  # -----------------------------------------------------------
+  release:
+    name: Gerar Release
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+
+    # Permissões mínimas necessárias (princípio do menor privilégio)
+    permissions:
+      contents: write       # Criar tags e commits de release
+      issues: write         # Comentar em issues fechadas pela release
+      pull-requests: write  # Comentar em PRs incluídos na release
+      id-token: write       # Para autenticação OIDC (segurança avançada)
+
+    outputs:
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
+      new_release_major_version: ${{ steps.semantic.outputs.new_release_major_version }}
+
+    steps:
+      - name: Checkout completo do repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0      # Histórico completo para detectar versões anteriores
+          persist-credentials: false  # semantic-release gerencia próprias credenciais
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias de tooling
+        run: npm ci --ignore-scripts
+
+      - name: Configurar identidade Git para commits de release
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Executar semantic-release
+        id: semantic
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "Executando em modo DRY-RUN..."
+            npx semantic-release --dry-run
+          else
+            npx semantic-release
+          fi
+        env:
+          # Token com permissão de criar releases, tags e commits
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GIT_AUTHOR_NAME e GIT_COMMITTER_NAME para commits de changelog
+          GIT_AUTHOR_NAME: "github-actions[bot]"
+          GIT_AUTHOR_EMAIL: "github-actions[bot]@users.noreply.github.com"
+          GIT_COMMITTER_NAME: "github-actions[bot]"
+          GIT_COMMITTER_EMAIL: "github-actions[bot]@users.noreply.github.com"
+
+      - name: Resumo da release
+        if: steps.semantic.outputs.new_release_published == 'true'
+        run: |
+          echo "## Nova Release Publicada!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Campo | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Versão** | v${{ steps.semantic.outputs.new_release_version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Workflow** | [Ver execução](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Nenhuma release necessaria
+        if: steps.semantic.outputs.new_release_published != 'true'
+        run: |
+          echo "## Nenhuma Nova Release" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Nenhum commit que justifique uma nova versão foi encontrado." >> $GITHUB_STEP_SUMMARY
+          echo "Commits do tipo \`chore\`, \`docs\` e \`style\` não geram release." >> $GITHUB_STEP_SUMMARY
