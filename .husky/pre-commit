@@ -1,4 +1,3 @@
-#!/usr/bin/env sh
 # =============================================================
 # .husky/pre-commit — Hook executado antes do commit
 #
@@ -11,8 +10,6 @@
 #   git commit --no-verify -m "..."
 #   ⚠️  Use com extrema cautela
 # =============================================================
-
-. "$(dirname -- "$0")/_/husky.sh"
 
 # ----------------------------------------------------------
 # PROTEÇÃO 1: Bloquear arquivos .env com credenciais reais
