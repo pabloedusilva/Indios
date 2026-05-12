@@ -6,10 +6,10 @@
 #   · Executar testes do backend e frontend
 #   · Gerar versão semântica automaticamente via semantic-release
 #   · Criar GitHub Release com tag e changelog
-#   · Atualizar CHANGELOG.md no repositório
 #
 # Gatilho: push na branch main (após merge de PR)
 # Proteção: apenas executa se os testes passarem
+# Nota: CHANGELOG.md e package.json são gerados mas não committados automaticamente
 # =============================================================
 
 name: Release Automatico
@@ -151,7 +151,7 @@ jobs:
 
     # Permissões mínimas necessárias (princípio do menor privilégio)
     permissions:
-      contents: write       # Criar tags e commits de release
+      contents: write       # Criar tags e GitHub Releases
       issues: write         # Comentar em issues fechadas pela release
       pull-requests: write  # Comentar em PRs incluídos na release
       id-token: write       # Para autenticação OIDC (segurança avançada)
@@ -177,11 +177,6 @@ jobs:
       - name: Instalar dependencias de tooling
         run: npm ci --ignore-scripts
 
-      - name: Configurar identidade Git para commits de release
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Executar semantic-release
         id: semantic
         run: |
@@ -192,12 +187,8 @@ jobs:
             npx semantic-release
           fi
         env:
-          # Token com permissão de criar releases, tags e commits
+          # Token com permissão de criar releases e tags
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # GIT_AUTHOR_NAME e GIT_COMMITTER_NAME para commits de changelog
-          GIT_AUTHOR_NAME: "github-actions[bot]"
-          GIT_AUTHOR_EMAIL: "github-actions[bot]@users.noreply.github.com"
-          GIT_COMMITTER_NAME: "github-actions[bot]"
           GIT_COMMITTER_EMAIL: "github-actions[bot]@users.noreply.github.com"
 
       - name: Resumo da release
