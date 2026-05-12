@@ -173,6 +173,17 @@ const PedidoModel = {
     return this.findById(id)
   },
 
+  // Finaliza em massa todos os pedidos ativos sem pagamento registrado
+  async finalizarTodosSemPagamento() {
+    const [result] = await db.execute(
+      `UPDATE pedidos
+         SET status = 'finalizado', entregue_em = NOW(), pagamento_em = NOW(),
+             forma_pagamento = NULL, valor_recebido = 0, troco = 0
+       WHERE status IN ('preparando', 'pronto')`
+    )
+    return result.affectedRows || 0
+  },
+
   // Muda status → 'cancelado'
   async cancelar(id) {
     await db.execute(`UPDATE pedidos SET status = 'cancelado' WHERE id = ?`, [id])
