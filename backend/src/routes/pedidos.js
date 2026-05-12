@@ -6,6 +6,7 @@
 //  GET    /api/pedidos/:id               → buscar um pedido
 //  POST   /api/pedidos                   → criar novo pedido
 //  PATCH  /api/pedidos/:id/pronto        → marcar como pronto (cozinha finalizou)
+//  PATCH  /api/pedidos/finalizar-sem-pagamento → finalizar todos os pedidos ativos sem pagamento
 //  PATCH  /api/pedidos/:id/finalizar     → finalizar — registra entrega + pagamento
 //  PATCH  /api/pedidos/:id/cancelar      → cancelar pedido
 //  DELETE /api/pedidos/:id               → excluir do histórico
@@ -20,6 +21,7 @@ router.get('/ativos',                                   pedidosController.listar
 router.get('/:id',                                      pedidosController.buscarPorId)
 router.post('/',            validarPedido,              pedidosController.criar)
 router.patch('/:id/pronto',                             pedidosController.marcarPronto)
+router.patch('/finalizar-sem-pagamento',                  pedidosController.finalizarTodosSemPagamento)
 router.patch('/:id/finalizar', validarPagamento,        pedidosController.finalizar)
 router.patch('/:id/cancelar',                           pedidosController.cancelar)
 router.delete('/:id',                                   pedidosController.excluir)

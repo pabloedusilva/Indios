@@ -43,10 +43,11 @@ function nomeMesPDF(mesStr) {
 
 function nomePagamento(forma) {
   const map = {
-    pix:      'PIX',
-    credito:  'Cartao Credito',
-    debito:   'Cartao Debito',
-    dinheiro: 'Dinheiro',
+    pix:          'PIX',
+    credito:      'Cartao Credito',
+    debito:       'Cartao Debito',
+    dinheiro:     'Dinheiro',
+    sem_pagamento:'Sem Pagamento',
   }
   return map[forma] || n(forma)
 }
