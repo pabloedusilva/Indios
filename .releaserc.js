@@ -121,18 +121,11 @@ module.exports = {
       },
     ],
 
-    // 5. FAZ O COMMIT do CHANGELOG.md e package.json atualizados de volta ao repositório
-    [
-      '@semantic-release/git',
-      {
-        assets: ['CHANGELOG.md', 'package.json'],
-        message:
-          'chore(release): ${nextRelease.version} [skip ci]\n\n' +
-          '${nextRelease.notes}',
-      },
-    ],
+    // REMOVIDO: @semantic-release/git — devido às regras de proteção da branch main
+    // que exigem pull requests. Os arquivos CHANGELOG.md e package.json devem ser
+    // atualizados manualmente ou através de um processo separado.
 
-    // 6. CRIA a GitHub Release com tag, notas e assets
+    // 5. CRIA a GitHub Release com tag, notas e assets
     [
       '@semantic-release/github',
       {
