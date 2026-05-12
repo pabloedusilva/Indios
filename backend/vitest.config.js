@@ -8,5 +8,9 @@ export default defineConfig({
   },
   esbuild: {
     target: 'node14'
-  }
+  },
+  // Forçar uso de esbuild ao invés de rolldown para evitar problemas de bindings nativos
+  optimizeDeps: {
+    disabled: true,
+  },
 })
