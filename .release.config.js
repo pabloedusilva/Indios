@@ -5,16 +5,13 @@
 //   1. @semantic-release/commit-analyzer        — calcula proxima versao
 //   2. @semantic-release/release-notes-generator — gera notas da release
 //   3. @semantic-release/npm                    — atualiza version no package.json
-//                                                  (sem publicar no npm registry)
+//                                                  localmente durante o workflow
 //   4. @semantic-release/changelog              — atualiza CHANGELOG.md
-//   5. @semantic-release/git                    — commita package.json + CHANGELOG.md
-//                                                  de volta na main (fonte da verdade)
-//   6. @semantic-release/github                 — cria GitHub Release com tag + notas
+//   5. @semantic-release/github                 — cria GitHub Release com tag + notas
 //
-// Por que o @semantic-release/git e critico:
-//   O Vite le a versao do package.json em build-time.
-//   Sem esse plugin, o package.json nunca e atualizado no repositorio,
-//   entao o Render sempre faz build com a versao antiga.
+// Nota: o commit do package.json de volta na main e feito pelo workflow
+// (release.yml) via git push explicito, nao pelo @semantic-release/git.
+// Isso garante compatibilidade com GITHUB_TOKEN sem necessidade de PAT.
 // =============================================================
 
 /** @type {import('semantic-release').GlobalConfig} */
@@ -75,9 +72,8 @@ export default {
     ],
 
     // ── 3. Atualiza version no package.json (sem publicar no npm) ──────────
-    // CRITICO: este plugin escreve a nova versao no package.json da raiz.
-    // O @semantic-release/git (passo 5) commita esse arquivo de volta,
-    // garantindo que o proximo build do Render leia a versao correta.
+    // O workflow (release.yml) commita este arquivo de volta na main
+    // via git push explicito apos o semantic-release concluir.
     [
       '@semantic-release/npm',
       {
@@ -95,18 +91,7 @@ export default {
       },
     ],
 
-    // ── 5. Commita package.json + CHANGELOG.md de volta na main ────────────
-    // CRITICO: sem este passo, o package.json nunca e atualizado no repo
-    // e o Render sempre faz build com a versao antiga.
-    [
-      '@semantic-release/git',
-      {
-        assets: ['package.json', 'CHANGELOG.md'],
-        message: 'chore(release): v${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',
-      },
-    ],
-
-    // ── 6. Cria a GitHub Release com tag e release notes ───────────────────
+    // ── 5. Cria a GitHub Release com tag e release notes ───────────────────
     [
       '@semantic-release/github',
       {
