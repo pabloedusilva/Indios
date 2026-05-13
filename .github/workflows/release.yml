@@ -165,12 +165,14 @@ jobs:
       - name: Checkout completo do repositório
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # Histórico completo para detectar versões anteriores
-          # NÃO usar persist-credentials: false aqui.
-          # O @semantic-release/git precisa fazer push do commit de release
-          # (package.json + CHANGELOG.md) de volta na main.
-          # O token padrão do actions/checkout é suficiente para isso,
-          # desde que as permissões do job incluam contents: write.
+          fetch-depth: 0
+          # Usa PAT em vez do GITHUB_TOKEN padrao.
+          # O GITHUB_TOKEN nao consegue fazer push em branches protegidas.
+          # O PAT (RELEASE_TOKEN) precisa ter escopo repo e estar configurado
+          # em: Settings > Secrets and variables > Actions > RELEASE_TOKEN.
+          # Se a branch main nao tiver protecao contra push direto,
+          # pode substituir RELEASE_TOKEN por github.token.
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -191,9 +193,10 @@ jobs:
             npx semantic-release
           fi
         env:
-          # GITHUB_TOKEN com contents: write permite criar tags, releases
-          # e fazer push do commit de release (package.json + CHANGELOG.md).
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # RELEASE_TOKEN: PAT com escopo repo, necessario para push em branch protegida.
+          # Fallback para GITHUB_TOKEN se o PAT nao estiver configurado
+          # (funciona apenas se a branch main nao tiver protecao de push direto).
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           GIT_AUTHOR_NAME: "github-actions[bot]"
           GIT_AUTHOR_EMAIL: "github-actions[bot]@users.noreply.github.com"
           GIT_COMMITTER_NAME: "github-actions[bot]"
