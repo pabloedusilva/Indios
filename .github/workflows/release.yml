@@ -238,18 +238,23 @@ jobs:
     name: Deploy Render
     runs-on: ubuntu-latest
     needs: release
-    # Executa apenas se uma nova release foi publicada
-    # e o webhook estiver configurado
+    # Executa apenas se uma nova release foi publicada.
+    # O webhook so e disparado se RENDER_DEPLOY_HOOK_URL estiver configurado
+    # como secret no repositorio (verificado dentro do step via shell).
     if: needs.release.outputs.new_release_published == 'true'
 
     steps:
       - name: Disparar deploy no Render via webhook
-        if: secrets.RENDER_DEPLOY_HOOK_URL != ''
         run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "RENDER_DEPLOY_HOOK_URL nao configurado — pulando deploy via webhook."
+            echo "Configure o secret em: Settings > Secrets and variables > Actions"
+            exit 0
+          fi
           echo "Disparando deploy no Render para v${{ needs.release.outputs.new_release_version }}..."
           curl -s --fail-with-body \
             -X POST \
-            "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" \
+            "$RENDER_DEPLOY_HOOK_URL" \
             -o /dev/null \
             -w "HTTP Status: %{http_code}\n"
           echo "Deploy disparado com sucesso."
@@ -257,7 +262,6 @@ jobs:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
 
       - name: Resumo do deploy
-        if: secrets.RENDER_DEPLOY_HOOK_URL != ''
         run: |
-          echo "## Deploy Disparado" >> $GITHUB_STEP_SUMMARY
-          echo "Render iniciou o build com package.json v${{ needs.release.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "## Deploy Render" >> $GITHUB_STEP_SUMMARY
+          echo "Versao: v${{ needs.release.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
