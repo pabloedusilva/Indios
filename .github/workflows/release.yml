@@ -181,10 +181,48 @@ jobs:
           GIT_COMMITTER_NAME: "github-actions[bot]"
           GIT_COMMITTER_EMAIL: "github-actions[bot]@users.noreply.github.com"
 
-      # Atualiza package.json com a nova versao e faz push direto na main.
-      # Este passo e necessario porque o @semantic-release/git pode falhar
-      # silenciosamente quando o GITHUB_TOKEN nao tem permissao de push
-      # apos um merge de PR. Este passo garante o push independentemente.
+      # Sincroniza o package.json com a versao da ultima tag git.
+      # Roda sempre — garante que o package.json nunca fique desatualizado
+      # mesmo que o semantic-release nao gere nova release neste push.
+      - name: Sincronizar package.json com ultima tag
+        run: |
+          # Pega a versao da ultima tag semantica (ex: v1.2.4 -> 1.2.4)
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            echo "Nenhuma tag encontrada, pulando sincronizacao."
+            exit 0
+          fi
+
+          # Remove o prefixo 'v'
+          LATEST_VERSION="${LATEST_TAG#v}"
+          CURRENT_VERSION=$(node -e "console.log(require('./package.json').version)")
+
+          echo "Versao atual no package.json: $CURRENT_VERSION"
+          echo "Ultima tag no repositorio:    $LATEST_VERSION"
+
+          if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
+            echo "package.json ja esta sincronizado. Nenhuma acao necessaria."
+            exit 0
+          fi
+
+          echo "Sincronizando package.json de $CURRENT_VERSION para $LATEST_VERSION..."
+
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$LATEST_VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            console.log('package.json atualizado para', pkg.version);
+          "
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore(release): sincroniza package.json com tag $LATEST_TAG [skip ci]"
+          git push origin main
+          echo "Sincronizacao concluida com sucesso."
+
+      # Atualiza package.json quando uma nova release e gerada neste run.
       - name: Atualizar package.json com nova versao
         if: steps.semantic.outputs.new_release_published == 'true'
         run: |
