@@ -1,28 +1,14 @@
 # =============================================================
 # release.yml — Pipeline de Release Automatico
 #
-# Responsabilidades:
-#   · Validar mensagens de commit (Conventional Commits)
-#   · Executar testes do backend e frontend
-#   · Gerar versao semantica automaticamente via semantic-release
-#   · Commitar package.json atualizado de volta na main
-#   · Disparar deploy no Render via webhook APOS o commit de release
-#
-# Gatilho: push na branch main
-#
-# Fluxo critico de versao:
-#   1. Push na main dispara este workflow
-#   2. semantic-release calcula nova versao e atualiza package.json
-#   3. @semantic-release/git commita package.json na main [skip ci]
-#   4. Job deploy-render dispara o webhook do Render
-#   5. Render faz build com o package.json ja atualizado
-#   6. Vite le a versao correta e embute no bundle
+# Fluxo:
+#   1. Push na main dispara o workflow
+#   2. Testes passam
+#   3. semantic-release calcula versao, cria tag e GitHub Release
+#   4. Workflow atualiza package.json com a nova versao via git push
+#   5. Webhook dispara o Render com o package.json ja atualizado
+#   6. Vite le a versao correta no build
 #   7. UI exibe a versao correta
-#
-# Por que usar webhook em vez de auto-deploy do Render:
-#   O Render detecta o push original (sem versao atualizada) e inicia
-#   o build antes do commit do semantic-release. Com o webhook,
-#   o deploy so ocorre apos o package.json estar correto na main.
 # =============================================================
 
 name: Release Automatico
@@ -40,7 +26,6 @@ on:
         default: 'false'
         type: boolean
 
-# Garante que apenas um workflow de release rode por vez
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -148,7 +133,6 @@ jobs:
 
   # -----------------------------------------------------------
   # JOB 4: Release Semantico
-  # Gera versao, commita package.json e cria GitHub Release
   # -----------------------------------------------------------
   release:
     name: Gerar Release
@@ -159,7 +143,6 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
-      id-token: write
 
     outputs:
       new_release_published: ${{ steps.semantic.outputs.new_release_published }}
@@ -170,9 +153,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # Sem branch protection, o GITHUB_TOKEN padrao e suficiente para push.
-          # Se reativar protecao no futuro, configure RELEASE_TOKEN (PAT com escopo repo)
-          # em Settings > Secrets and variables > Actions.
+          # Usa PAT se disponivel, senao usa GITHUB_TOKEN.
+          # Para push em main sem protecao, GITHUB_TOKEN e suficiente.
           token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Configurar Node.js
@@ -188,7 +170,6 @@ jobs:
         id: semantic
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            echo "Executando em modo DRY-RUN..."
             npx semantic-release --dry-run
           else
             npx semantic-release
@@ -200,6 +181,41 @@ jobs:
           GIT_COMMITTER_NAME: "github-actions[bot]"
           GIT_COMMITTER_EMAIL: "github-actions[bot]@users.noreply.github.com"
 
+      # Atualiza package.json com a nova versao e faz push direto na main.
+      # Este passo e necessario porque o @semantic-release/git pode falhar
+      # silenciosamente quando o GITHUB_TOKEN nao tem permissao de push
+      # apos um merge de PR. Este passo garante o push independentemente.
+      - name: Atualizar package.json com nova versao
+        if: steps.semantic.outputs.new_release_published == 'true'
+        run: |
+          NEW_VERSION="${{ steps.semantic.outputs.new_release_version }}"
+          echo "Atualizando package.json para versao $NEW_VERSION..."
+
+          # Atualiza o campo version no package.json
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$NEW_VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            console.log('package.json atualizado para', pkg.version);
+          "
+
+          # Configura git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Verifica se ha mudancas para commitar
+          if git diff --quiet package.json; then
+            echo "package.json ja esta na versao correta, nenhum commit necessario."
+            exit 0
+          fi
+
+          # Commita e faz push
+          git add package.json
+          git commit -m "chore(release): atualiza package.json para v$NEW_VERSION [skip ci]"
+          git push origin main
+          echo "package.json atualizado e enviado para main com sucesso."
+
       - name: Resumo da release
         if: steps.semantic.outputs.new_release_published == 'true'
         run: |
@@ -208,39 +224,26 @@ jobs:
           echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Versao | v${{ steps.semantic.outputs.new_release_version }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Branch | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Commit | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: Nenhuma release necessaria
         if: steps.semantic.outputs.new_release_published != 'true'
         run: |
           echo "## Nenhuma Nova Release" >> $GITHUB_STEP_SUMMARY
-          echo "Nenhum commit do tipo feat ou fix foi encontrado desde a ultima release." >> $GITHUB_STEP_SUMMARY
+          echo "Nenhum commit do tipo feat ou fix encontrado desde a ultima release." >> $GITHUB_STEP_SUMMARY
 
   # -----------------------------------------------------------
   # JOB 5: Deploy no Render
+  # Dispara APOS o package.json estar atualizado na main.
   #
-  # Dispara o deploy APOS o semantic-release commitar o package.json
-  # atualizado de volta na main. Isso garante que o Render sempre
-  # faz build com a versao correta no package.json.
-  #
-  # Configuracao necessaria:
-  #   1. No Render: desative o auto-deploy do servico frontend
-  #      (Settings > Build & Deploy > Auto-Deploy > Disable)
-  #   2. Copie o Deploy Hook URL do Render
-  #      (Settings > Build & Deploy > Deploy Hook)
-  #   3. No GitHub: adicione como secret RENDER_DEPLOY_HOOK_URL
-  #      (Settings > Secrets and variables > Actions > New secret)
-  #
-  # Se RENDER_DEPLOY_HOOK_URL nao estiver configurado, este job
-  # e ignorado e o Render continua com auto-deploy normal.
+  # Configuracao:
+  #   1. Render: desative auto-deploy em Settings > Build & Deploy
+  #   2. Render: copie o Deploy Hook URL em Settings > Build & Deploy
+  #   3. GitHub: adicione secret RENDER_DEPLOY_HOOK_URL
   # -----------------------------------------------------------
   deploy-render:
     name: Deploy Render
     runs-on: ubuntu-latest
     needs: release
-    # Executa apenas se uma nova release foi publicada.
-    # O webhook so e disparado se RENDER_DEPLOY_HOOK_URL estiver configurado
-    # como secret no repositorio (verificado dentro do step via shell).
     if: needs.release.outputs.new_release_published == 'true'
 
     steps:
@@ -248,7 +251,6 @@ jobs:
         run: |
           if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
             echo "RENDER_DEPLOY_HOOK_URL nao configurado — pulando deploy via webhook."
-            echo "Configure o secret em: Settings > Secrets and variables > Actions"
             exit 0
           fi
           echo "Disparando deploy no Render para v${{ needs.release.outputs.new_release_version }}..."
