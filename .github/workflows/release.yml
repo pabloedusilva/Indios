@@ -165,8 +165,12 @@ jobs:
       - name: Checkout completo do repositório
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0      # Histórico completo para detectar versões anteriores
-          persist-credentials: false  # semantic-release gerencia próprias credenciais
+          fetch-depth: 0   # Histórico completo para detectar versões anteriores
+          # NÃO usar persist-credentials: false aqui.
+          # O @semantic-release/git precisa fazer push do commit de release
+          # (package.json + CHANGELOG.md) de volta na main.
+          # O token padrão do actions/checkout é suficiente para isso,
+          # desde que as permissões do job incluam contents: write.
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -187,8 +191,12 @@ jobs:
             npx semantic-release
           fi
         env:
-          # Token com permissão de criar releases e tags
+          # GITHUB_TOKEN com contents: write permite criar tags, releases
+          # e fazer push do commit de release (package.json + CHANGELOG.md).
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_AUTHOR_NAME: "github-actions[bot]"
+          GIT_AUTHOR_EMAIL: "github-actions[bot]@users.noreply.github.com"
+          GIT_COMMITTER_NAME: "github-actions[bot]"
           GIT_COMMITTER_EMAIL: "github-actions[bot]@users.noreply.github.com"
 
       - name: Resumo da release
