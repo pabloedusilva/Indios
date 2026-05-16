@@ -4,12 +4,15 @@ import Header from './Header'
 import BannerPixPayment from '../ui/BannerPixPayment'
 import ModalSucesso from '../ui/ModalSucesso'
 import ModalBloqueio from '../ui/ModalBloqueio'
+import ModalUpdateNotes from '../ui/ModalUpdateNotes'
 import { usePixPayment } from '../../hooks/usePixPayment'
+import { useUpdateNotes } from '../../hooks/useUpdateNotes'
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const { sucesso, fecharSucesso, bloqueado } = usePixPayment()
+  const { nota, modalAberto, fechar: fecharUpdate } = useUpdateNotes()
 
   return (
     <div className="flex h-screen bg-brand-bg overflow-hidden">
@@ -36,6 +39,9 @@ export default function Layout({ children }) {
 
       {/* Modal de bloqueio — sobrepõe tudo quando prazo expirou sem pagamento */}
       <ModalBloqueio visivel={bloqueado} />
+
+      {/* Modal de novidades — exibido automaticamente em releases MINOR/MAJOR */}
+      <ModalUpdateNotes isOpen={modalAberto} onClose={fecharUpdate} nota={nota} />
     </div>
   )
 }

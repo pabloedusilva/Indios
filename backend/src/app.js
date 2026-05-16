@@ -15,6 +15,7 @@ const categoriasRoutes  = require('./routes/categorias')
 const estatisticasRoutes = require('./routes/estatisticas')
 const pagamentosRoutes  = require('./routes/pagamentos')
 const cardapioRoutes    = require('./routes/cardapio')
+const updateNotesRoutes = require('./routes/updateNotes')
 const errorHandler      = require('./middlewares/errorHandler')
 const { requireAuth }   = require('./middlewares/authMiddleware')
 
@@ -95,6 +96,7 @@ app.use('/api/pedidos',       requireAuth, pedidosRoutes)
 app.use('/api/dashboard',     requireAuth, dashboardRoutes)
 app.use('/api/categorias',    requireAuth, categoriasRoutes)
 app.use('/api/estatisticas',  requireAuth, estatisticasRoutes)
+app.use('/api/update-notes',  requireAuth, updateNotesRoutes)
 
 // ── Rota não encontrada ───────────────────────────────────────
 app.use((req, res) => {
