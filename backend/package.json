@@ -8,7 +8,9 @@
     "start": "node src/server.js",
     "migrate": "node scripts/migrate.js",
     "migrate:db": "node scripts/migrate-database.js",
+    "migrate:run": "node scripts/run-migrations.js",
     "seed": "node scripts/seedUsuario.js",
+    "seed:update-note": "node scripts/seed-update-note.js",
     "test": "vitest",
     "test:run": "vitest run --passWithNoTests"
   },
