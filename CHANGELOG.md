@@ -25,7 +25,7 @@ Histórico completo de releases do projeto.
 
 * **changelog:** atualiza CHANGELOG com novas releases e melhorias ([4d92497](https://github.com/pabloedusilva/Indios/commit/4d92497dca48addf2c4d1c9537a4e2c0cd41f8d9))
 
-## v1.4.0 (15/05/2026)
+## v1.4.0 (16/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.4.0)
 
@@ -38,7 +38,7 @@ Histórico completo de releases do projeto.
 
 * implementar sistema completo de release automático com modal de update notes ([80d5124](https://github.com/pabloedusilva/Indios/commit/80d512476bd0b5528eab390f56809f0a3b586848))
 
-## v1.3.0 (15/05/2026)
+## v1.3.0 (16/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.3.0)
 
@@ -51,7 +51,7 @@ Histórico completo de releases do projeto.
 
 * implementar sistema de update notes com modal automático ([b62e680](https://github.com/pabloedusilva/Indios/commit/b62e680ea0bab6c605e6a7a6414453559b9d788d))
 
-## v1.2.5 (12/05/2026)
+## v1.2.5 (13/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.5)
 
@@ -64,7 +64,7 @@ Histórico completo de releases do projeto.
 
 * sincroniza package.json com versao da ultima tag ([7cf10f3](https://github.com/pabloedusilva/Indios/commit/7cf10f34b23d9707b753f8599fd0edbfb2667abb))
 
-## v1.2.4 (12/05/2026)
+## v1.2.4 (13/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.4)
 
@@ -77,7 +77,7 @@ Histórico completo de releases do projeto.
 
 * **ci:** elimina conflitos do semantic-release utilizando atualização manual do package.json no workflow ([e757e64](https://github.com/pabloedusilva/Indios/commit/e757e647ab623279edab40a138e39f4c5b666015))
 
-## v1.2.3 (12/05/2026)
+## v1.2.3 (13/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.3)
 
@@ -90,7 +90,7 @@ Histórico completo de releases do projeto.
 
 * **ci:** ajusta condição de secrets para compatibilidade com GitHub Actions ([10633ff](https://github.com/pabloedusilva/Indios/commit/10633ffcb2f6fa395af5cc5304db3fcb0adfe6b7))
 
-## v1.2.2 (12/05/2026)
+## v1.2.2 (13/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.2)
 
@@ -103,7 +103,7 @@ Histórico completo de releases do projeto.
 
 * corrige versao no package.json ([dcb624f](https://github.com/pabloedusilva/Indios/commit/dcb624fd94b0f0d8f9f7e8f4910ddf96c8def485))
 
-## v1.2.1 (12/05/2026)
+## v1.2.1 (13/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.1)
 
@@ -116,7 +116,7 @@ Histórico completo de releases do projeto.
 
 * **release:** estabiliza pipeline de release automático com commit de versão e changelog ([5093166](https://github.com/pabloedusilva/Indios/commit/5093166af3b7f0427fd83975639dfefac2de8861))
 
-## v1.2.0 (12/05/2026)
+## v1.2.0 (13/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.0)
 
@@ -129,7 +129,7 @@ Histórico completo de releases do projeto.
 
 * implementa fluxo automático de versionamento no frontend integrado ao semantic-release ([4ff88b4](https://github.com/pabloedusilva/Indios/commit/4ff88b49049eb0cdff410ee6b5150e1b5b05e622))
 
-## v1.1.0 (11/05/2026)
+## v1.1.0 (12/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.1.0)
 
