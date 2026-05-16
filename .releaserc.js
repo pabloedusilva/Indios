@@ -111,5 +111,20 @@ module.exports = {
         releasedLabels: ['released@${nextRelease.channel}'],
       },
     ],
+
+    // 6. Commita arquivos atualizados (CHANGELOG, package.json) e faz push
+    [
+      '@semantic-release/git',
+      {
+        assets: [
+          'CHANGELOG.md',
+          'package.json',
+          'frontend/package.json',
+          'backend/package.json',
+        ],
+        message:
+          'chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',
+      },
+    ],
   ],
 };

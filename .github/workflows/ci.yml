@@ -2,9 +2,10 @@
 # ci.yml — Pipeline de Integração Contínua (CI)
 #
 # Responsabilidades:
+#   · Sincronizar versões dos package.json
+#   · Sincronizar CHANGELOG.md com releases do GitHub
 #   · Validar mensagens de commit do Pull Request
 #   · Executar testes do backend e frontend
-#   · Sincronizar versões dos package.json
 #   · Exibir informação de versão atual
 #   · Garantir que só código validado possa ser mergeado na main
 #
@@ -115,14 +116,90 @@ jobs:
           echo "- Disparar deploy no Render" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================
-  # JOB 2: Validação de Commits
+  # JOB 2: Sincronização do CHANGELOG
+  # Sincroniza CHANGELOG.md com releases reais do GitHub
+  # ============================================================
+  sync-changelog:
+    name: sync-changelog
+    runs-on: ubuntu-latest
+    needs: version-info
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependências de tooling
+        run: npm ci --ignore-scripts
+
+      - name: Sincronizar CHANGELOG com GitHub
+        id: sync
+        run: |
+          echo "[INFO] Sincronizando CHANGELOG.md com releases do GitHub..."
+          
+          # Executar script de sincronização
+          npm run sync:changelog
+          
+          # Verificar se há mudanças
+          if git diff --quiet CHANGELOG.md; then
+            echo "synced=true" >> $GITHUB_OUTPUT
+            echo "[OK] CHANGELOG.md já está sincronizado"
+          else
+            echo "synced=false" >> $GITHUB_OUTPUT
+            echo "[INFO] CHANGELOG.md foi atualizado com dados reais do GitHub"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      - name: Commit de sincronização (se necessário)
+        if: steps.sync.outputs.synced == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add CHANGELOG.md
+          git commit -m "docs: sincronizar CHANGELOG.md com releases do GitHub [skip ci]"
+          git push origin HEAD:${{ github.head_ref }}
+          
+          echo "[OK] CHANGELOG.md sincronizado e commitado no PR"
+
+      - name: Exibir resumo da sincronização
+        run: |
+          echo "## 📝 Sincronização do CHANGELOG" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.sync.outputs.synced }}" = "true" ]; then
+            echo "✅ **Status:** CHANGELOG.md já está sincronizado com o GitHub" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🔄 **Status:** CHANGELOG.md foi atualizado com dados reais do GitHub" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Um commit de sincronização foi adicionado ao PR." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Informações" >> $GITHUB_STEP_SUMMARY
+          echo "- O CHANGELOG é sincronizado automaticamente com as releases do GitHub" >> $GITHUB_STEP_SUMMARY
+          echo "- Todas as datas, títulos e notas são extraídos da API do GitHub" >> $GITHUB_STEP_SUMMARY
+          echo "- Garante que o CHANGELOG sempre reflete a realidade do repositório" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================
+  # JOB 3: Validação de Commits
   # Verifica se todos os commits do PR seguem Conventional Commits
   # Merge commits (ex: "Merge pull request #5") são ignorados automaticamente
   # ============================================================
   validate-commits:
     name: validate-commits
     runs-on: ubuntu-latest
-    needs: version-info
+    needs: [version-info, sync-changelog]
 
     steps:
       - name: Checkout do repositório
