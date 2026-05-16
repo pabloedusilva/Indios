@@ -1,17 +1,20 @@
 /// <reference types="vite/client" />
 
 /**
- * Declarações de tipo para variáveis de ambiente injetadas pelo Vite em build-time.
- *
- * VITE_APP_VERSION é lida do package.json raiz do monorepo via vite.config.js
- * e injetada como constante estática durante o build. Isso garante que a versão
- * exibida no frontend sempre corresponde exatamente ao build implantado.
- *
- * @see frontend/vite.config.js — seção `define`
- * @see frontend/src/utils/version.js — ponto de consumo
+ * Tipagem para variáveis de ambiente customizadas do Vite.
+ * 
+ * Estende a interface ImportMetaEnv para incluir variáveis
+ * injetadas via vite.config.js (define).
  */
 interface ImportMetaEnv {
-  /** Versão da aplicação lida do package.json raiz (ex.: "1.4.0"). Imutável após o build. */
+  /**
+   * Versão da aplicação injetada em build-time.
+   * 
+   * Lida do package.json raiz do monorepo e embutida
+   * estaticamente no bundle durante o build.
+   * 
+   * @example "1.3.0"
+   */
   readonly VITE_APP_VERSION: string
 }
 
