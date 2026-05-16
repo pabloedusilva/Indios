@@ -8,7 +8,7 @@
 #
 # Gatilho: abertura, atualização e reabertura de PRs para main
 #
-# Os nomes dos jobs (validate-commits, test-backend, test-frontend)
+# IMPORTANTE: Os nomes dos jobs (validate-commits, test-backend, test-frontend)
 # devem ser idênticos aos status checks configurados na branch ruleset.
 # =============================================================
 
@@ -26,20 +26,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # -----------------------------------------------------------
+  # ============================================================
   # JOB 1: Validação de Commits
-  # Verifica se todos os commits do PR seguem Conventional Commits.
-  # Merge commits (ex: "Merge pull request #5") são ignorados automaticamente.
-  # -----------------------------------------------------------
+  # Verifica se todos os commits do PR seguem Conventional Commits
+  # Merge commits (ex: "Merge pull request #5") são ignorados automaticamente
+  # ============================================================
   validate-commits:
     name: validate-commits
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout do repositorio
+      - name: Checkout do repositório
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Necessario para analisar todos os commits do PR
+          fetch-depth: 0  # Necessário para analisar todos os commits do PR
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -47,14 +47,14 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Instalar dependencias de tooling
+      - name: Instalar dependências de tooling
         run: npm ci --ignore-scripts
 
       - name: Validar mensagens de commit do PR
-        # Verifica apenas os commits que estao no PR e nao estao na main.
-        # O range ${{ github.event.pull_request.base.sha }}..HEAD cobre
-        # exatamente os commits adicionados por este PR.
         run: |
+          echo "🔍 Validando commits do PR..."
+          echo "Range: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          
           npx commitlint \
             --from ${{ github.event.pull_request.base.sha }} \
             --to ${{ github.event.pull_request.head.sha }} \
@@ -62,10 +62,51 @@ jobs:
         env:
           FORCE_COLOR: '1'
 
-  # -----------------------------------------------------------
-  # JOB 2: Testes — Backend
+      - name: Resumo da validação
+        if: success()
+        run: |
+          echo "## ✅ Commits Validados" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Todos os commits do PR seguem Conventional Commits." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commits analisados:** ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Erro na validação
+        if: failure()
+        run: |
+          echo "## ❌ Validação Falhou" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Um ou mais commits não seguem o formato Conventional Commits." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Formato Esperado" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "<tipo>(<escopo opcional>): <descrição>" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tipos Válidos" >> $GITHUB_STEP_SUMMARY
+          echo "- \`feat\` — Nova funcionalidade (gera MINOR release)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`fix\` — Correção de bug (gera PATCH release)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`perf\` — Melhoria de performance (gera PATCH release)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`revert\` — Reverter commit (gera PATCH release)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`refactor\` — Refatoração (sem release)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`docs\` — Documentação (sem release)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`test\` — Testes (sem release)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`build\` — Build (sem release)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ci\` — CI/CD (sem release)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`chore\` — Manutenção (sem release)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`style\` — Estilo (sem release)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Exemplos" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "feat(pedidos): adiciona filtro por status" >> $GITHUB_STEP_SUMMARY
+          echo "fix(api): corrige timeout na rota de pagamentos" >> $GITHUB_STEP_SUMMARY
+          echo "feat!: remove suporte ao método de pagamento legado" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================
+  # JOB 2: Testes Backend
   # Executa suite de testes da API Node.js/Express
-  # -----------------------------------------------------------
+  # ============================================================
   test-backend:
     name: test-backend
     runs-on: ubuntu-latest
@@ -76,7 +117,7 @@ jobs:
         working-directory: backend
 
     steps:
-      - name: Checkout do repositorio
+      - name: Checkout do repositório
         uses: actions/checkout@v4
 
       - name: Configurar Node.js
@@ -86,7 +127,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-      - name: Instalar dependencias do backend
+      - name: Instalar dependências do backend
         run: rm -rf node_modules package-lock.json && npm install --no-package-lock
 
       - name: Executar testes
@@ -95,10 +136,25 @@ jobs:
           NODE_ENV: test
           CI: true
 
-  # -----------------------------------------------------------
-  # JOB 3: Testes — Frontend
+      - name: Resumo dos testes
+        if: success()
+        run: |
+          echo "## ✅ Testes Backend Passaram" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Todos os testes do backend foram executados com sucesso." >> $GITHUB_STEP_SUMMARY
+
+      - name: Erro nos testes
+        if: failure()
+        run: |
+          echo "## ❌ Testes Backend Falharam" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Um ou mais testes do backend falharam." >> $GITHUB_STEP_SUMMARY
+          echo "Verifique os logs acima para detalhes sobre as falhas." >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================
+  # JOB 3: Testes Frontend
   # Executa suite de testes React/Vite
-  # -----------------------------------------------------------
+  # ============================================================
   test-frontend:
     name: test-frontend
     runs-on: ubuntu-latest
@@ -109,7 +165,7 @@ jobs:
         working-directory: frontend
 
     steps:
-      - name: Checkout do repositorio
+      - name: Checkout do repositório
         uses: actions/checkout@v4
 
       - name: Configurar Node.js
@@ -119,10 +175,25 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Instalar dependencias do frontend
+      - name: Instalar dependências do frontend
         run: rm -rf node_modules package-lock.json && npm install --no-package-lock
 
       - name: Executar testes
         run: npm run test:run
         env:
           CI: true
+
+      - name: Resumo dos testes
+        if: success()
+        run: |
+          echo "## ✅ Testes Frontend Passaram" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Todos os testes do frontend foram executados com sucesso." >> $GITHUB_STEP_SUMMARY
+
+      - name: Erro nos testes
+        if: failure()
+        run: |
+          echo "## ❌ Testes Frontend Falharam" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Um ou mais testes do frontend falharam." >> $GITHUB_STEP_SUMMARY
+          echo "Verifique os logs acima para detalhes sobre as falhas." >> $GITHUB_STEP_SUMMARY
