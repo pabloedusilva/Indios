@@ -15,6 +15,7 @@
     "lint:commits": "commitlint --from HEAD~1 --to HEAD --verbose",
     "lint:commits:ci": "commitlint --from origin/main --to HEAD --verbose",
     "sync:versions": "node scripts/sync-versions.js",
+    "sync:changelog": "node scripts/sync-changelog-from-github.js",
     "clean:cache": "node -e \"const fs=require('fs');const p='frontend/node_modules/.vite';if(fs.existsSync(p)){fs.rmSync(p,{recursive:true});console.log('[OK] Cache limpo com sucesso')}else{console.log('[INFO] Cache já estava limpo')}\""
   },
   "devDependencies": {
