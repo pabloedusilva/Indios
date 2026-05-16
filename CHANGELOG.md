@@ -5,6 +5,12 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.7.0](https://github.com/pabloedusilva/Indios/compare/v1.6.0...v1.7.0) (2026-05-16)
+
+### Novas Funcionalidades
+
+* **ci:** sincronizar package.json com última tag do GitHub em PRs ([14c8eaf](https://github.com/pabloedusilva/Indios/commit/14c8eafc2822506d0b09adc1e4b5f25911cb72f8))
+
 ## [1.6.0](https://github.com/pabloedusilva/Indios/compare/v1.5.0...v1.6.0) (2026-05-16)
 
 ### Novas Funcionalidades
