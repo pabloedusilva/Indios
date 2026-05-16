@@ -5,6 +5,12 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.8.0](https://github.com/pabloedusilva/Indios/compare/v1.7.0...v1.8.0) (2026-05-16)
+
+### Novas Funcionalidades
+
+* implementar sistema completo de automação (CHANGELOG, package.json, update notes) ([8da7130](https://github.com/pabloedusilva/Indios/commit/8da71301e3ebf983a0f6bf776d5b69442f1e11fe))
+
 ## [1.7.0](https://github.com/pabloedusilva/Indios/compare/v1.6.0...v1.7.0) (2026-05-16)
 
 ### Novas Funcionalidades
