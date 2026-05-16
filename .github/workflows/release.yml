@@ -295,13 +295,21 @@ jobs:
       - name: Sincronizar release com banco de dados
         if: steps.semantic.outputs.new_release_published == 'true' && github.event.inputs.dry_run != 'true'
         run: |
-          echo "📡 Sincronizando release v${{ steps.semantic.outputs.new_release_version }} com banco de dados..."
+          echo "[INFO] Sincronizando release v${{ steps.semantic.outputs.new_release_version }} com banco de dados..."
           node backend/scripts/sync-release-to-db.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        continue-on-error: true
+
+      - name: Resumo da sincronização com banco
+        if: steps.semantic.outputs.new_release_published == 'true' && success()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 💾 Sincronização com Banco de Dados" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Nota de atualização salva na tabela \`update_notes\`" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Modal será exibido automaticamente para os usuários" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Versão: \`v${{ steps.semantic.outputs.new_release_version }}\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Erro na sincronização com banco
         if: steps.semantic.outputs.new_release_published == 'true' && failure()
