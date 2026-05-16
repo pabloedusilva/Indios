@@ -5,6 +5,16 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.6.0](https://github.com/pabloedusilva/Indios/compare/v1.5.0...v1.6.0) (2026-05-16)
+
+### Novas Funcionalidades
+
+* adicionar script de sincronização automática do CHANGELOG com GitHub ([46fbd49](https://github.com/pabloedusilva/Indios/commit/46fbd498bc6fd720c7ed4d8245f80d4e0c6ff637))
+
+### Documentação
+
+* sincronizar CHANGELOG.md com releases do GitHub [skip ci] ([571d7e0](https://github.com/pabloedusilva/Indios/commit/571d7e0eea446f3367f39008ebac33db2ab43814))
+
 Histórico completo de releases do projeto.
 
 ## v1.5.0 (16/05/2026)
