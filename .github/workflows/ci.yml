@@ -2,11 +2,11 @@
 # ci.yml — Pipeline de Integração Contínua (CI)
 #
 # Responsabilidades:
-#   · Sincronizar versões dos package.json
+#   · Buscar última tag/release do GitHub
+#   · Sincronizar package.json com versão da última tag
 #   · Sincronizar CHANGELOG.md com releases do GitHub
 #   · Validar mensagens de commit do Pull Request
 #   · Executar testes do backend e frontend
-#   · Exibir informação de versão atual
 #   · Garantir que só código validado possa ser mergeado na main
 #
 # Gatilho: abertura, atualização e reabertura de PRs para main
@@ -31,7 +31,7 @@ concurrency:
 jobs:
   # ============================================================
   # JOB 1: Informações de Versão
-  # Exibe versão atual e sincroniza package.json se necessário
+  # Busca última tag do GitHub e sincroniza package.json
   # ============================================================
   version-info:
     name: version-info
@@ -53,25 +53,65 @@ jobs:
       - name: Instalar dependências de tooling
         run: npm ci --ignore-scripts
 
-      - name: Verificar e sincronizar versões
+      - name: Buscar última tag do GitHub
+        id: get-tag
+        run: |
+          echo "[INFO] Buscando ultima tag do GitHub..."
+          
+          # Buscar última tag via git
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -z "$LATEST_TAG" ]; then
+            echo "[WARN] Nenhuma tag encontrada, usando versão do package.json"
+            LATEST_VERSION=$(node -p "require('./package.json').version")
+          else
+            # Remover 'v' do início da tag se existir
+            LATEST_VERSION=${LATEST_TAG#v}
+            echo "[OK] Ultima tag encontrada: $LATEST_TAG (versão: $LATEST_VERSION)"
+          fi
+          
+          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Sincronizar versões dos package.json
         id: sync
         run: |
-          echo "[INFO] Verificando sincronização de versões..."
+          echo "[INFO] Sincronizando versões para v${{ steps.get-tag.outputs.version }}..."
           
-          # Executar script de sincronização
-          node scripts/sync-versions.js
+          # Versão alvo (da última tag)
+          TARGET_VERSION="${{ steps.get-tag.outputs.version }}"
           
-          # Capturar versão atual
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          # Versões atuais
+          ROOT_VERSION=$(node -p "require('./package.json').version")
+          FRONTEND_VERSION=$(node -p "require('./frontend/package.json').version")
+          BACKEND_VERSION=$(node -p "require('./backend/package.json').version")
           
-          # Verificar se há mudanças
-          if git diff --quiet package.json frontend/package.json backend/package.json; then
+          echo "[INFO] Versões atuais:"
+          echo "   Raiz: $ROOT_VERSION"
+          echo "   Frontend: $FRONTEND_VERSION"
+          echo "   Backend: $BACKEND_VERSION"
+          echo "   Alvo: $TARGET_VERSION"
+          
+          # Verificar se precisa sincronizar
+          if [ "$ROOT_VERSION" = "$TARGET_VERSION" ] && \
+             [ "$FRONTEND_VERSION" = "$TARGET_VERSION" ] && \
+             [ "$BACKEND_VERSION" = "$TARGET_VERSION" ]; then
             echo "synced=true" >> $GITHUB_OUTPUT
-            echo "[OK] Todas as versões já estão sincronizadas em $VERSION"
+            echo "[OK] Todas as versões já estão sincronizadas em $TARGET_VERSION"
           else
             echo "synced=false" >> $GITHUB_OUTPUT
-            echo "[INFO] Versões foram sincronizadas para $VERSION"
+            echo "[INFO] Sincronizando versões para $TARGET_VERSION..."
+            
+            # Atualizar package.json raiz
+            node -e "const pkg=require('./package.json');pkg.version='$TARGET_VERSION';require('fs').writeFileSync('package.json',JSON.stringify(pkg,null,2)+'\n')"
+            
+            # Atualizar package.json frontend
+            node -e "const pkg=require('./frontend/package.json');pkg.version='$TARGET_VERSION';require('fs').writeFileSync('frontend/package.json',JSON.stringify(pkg,null,2)+'\n')"
+            
+            # Atualizar package.json backend
+            node -e "const pkg=require('./backend/package.json');pkg.version='$TARGET_VERSION';require('fs').writeFileSync('backend/package.json',JSON.stringify(pkg,null,2)+'\n')"
+            
+            echo "[OK] Versões sincronizadas para $TARGET_VERSION"
           fi
 
       - name: Commit de sincronização (se necessário)
@@ -81,7 +121,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
           git add package.json frontend/package.json backend/package.json
-          git commit -m "chore: sincronizar versões dos package.json para v${{ steps.sync.outputs.version }} [skip ci]"
+          git commit -m "chore: sincronizar versões dos package.json para v${{ steps.get-tag.outputs.version }} [skip ci]"
           git push origin HEAD:${{ github.head_ref }}
           
           echo "[OK] Versões sincronizadas e commitadas no PR"
@@ -90,17 +130,22 @@ jobs:
         run: |
           echo "## 📦 Informações de Versão" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Última Tag** | \`${{ steps.get-tag.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Versão Alvo** | \`${{ steps.get-tag.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Workspace | Versão |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Raiz** | \`${{ steps.sync.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Raiz** | \`$(node -p "require('./package.json').version")\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Frontend** | \`$(node -p "require('./frontend/package.json').version")\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Backend** | \`$(node -p "require('./backend/package.json').version")\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ "${{ steps.sync.outputs.synced }}" = "true" ]; then
-            echo "✅ **Status:** Todas as versões estão sincronizadas" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Status:** Todas as versões estão sincronizadas com a última tag" >> $GITHUB_STEP_SUMMARY
           else
-            echo "🔄 **Status:** Versões foram sincronizadas automaticamente" >> $GITHUB_STEP_SUMMARY
+            echo "🔄 **Status:** Versões foram sincronizadas automaticamente com a última tag" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Um commit de sincronização foi adicionado ao PR." >> $GITHUB_STEP_SUMMARY
           fi
