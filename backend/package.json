@@ -1,16 +1,14 @@
 {
   "name": "indios-churrasco-gourmet-api",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "API REST — Índios Churrasco Gourmet",
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "migrate": "node scripts/migrate.js",
-    "migrate:db": "node scripts/migrate-database.js",
-    "migrate:run": "node scripts/run-migrations.js",
-    "seed": "node scripts/seedUsuario.js",
-    "seed:update-note": "node scripts/seed-update-note.js",
+    "migrate": "node scripts/run-migrations.js",
+    "sync:release": "node scripts/sync-release-to-db.js",
+    "check:notes": "node scripts/check-update-notes.js",
     "test": "vitest",
     "test:run": "vitest run --passWithNoTests"
   },
