@@ -475,6 +475,36 @@ jobs:
           echo "- ✅ GitHub Release com release notes" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ CHANGELOG.md atualizado" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ package.json sincronizados (raiz, frontend, backend)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Nota de atualização salva no banco de dados" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Próximos Passos" >> $GITHUB_STEP_SUMMARY
+          echo "- O modal de update notes será exibido automaticamente para os usuários" >> $GITHUB_STEP_SUMMARY
+          echo "- Deploy será disparado automaticamente no Render" >> $GITHUB_STEP_SUMMARY
+
+      # Sincroniza release com banco de dados (tabela update_notes)
+      - name: Sincronizar release com banco de dados
+        if: steps.semantic.outputs.new_release_published == 'true' && github.event.inputs.dry_run != 'true'
+        run: |
+          echo "📡 Sincronizando release v${{ steps.semantic.outputs.new_release_version }} com banco de dados..."
+          node backend/scripts/sync-release-to-db.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        continue-on-error: true
+
+      - name: Erro na sincronização com banco
+        if: steps.semantic.outputs.new_release_published == 'true' && failure()
+        run: |
+          echo "## ⚠️ Aviso: Sincronização com Banco Falhou" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "A release foi criada com sucesso, mas não foi possível sincronizar com o banco de dados." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Ação necessária:** Crie a nota manualmente via API ou SQL:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`sql" >> $GITHUB_STEP_SUMMARY
+          echo "INSERT INTO update_notes (versao, tipo, titulo, descricao, melhorias, correcoes, ativo)" >> $GITHUB_STEP_SUMMARY
+          echo "VALUES ('${{ steps.semantic.outputs.new_release_version }}', 'minor', 'Título', 'Descrição', JSON_ARRAY(), JSON_ARRAY(), 1);" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Nenhuma release necessária
         if: steps.semantic.outputs.new_release_published != 'true' && github.event.inputs.dry_run != 'true'
