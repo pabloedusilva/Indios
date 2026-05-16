@@ -1,6 +1,6 @@
 {
   "name": "indios-churrasco-gourmet-monorepo",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Monorepo — Índios Churrasco Gourmet (Dashboard SaaS)",
   "private": true,
   "workspaces": [
@@ -13,7 +13,9 @@
     "release": "semantic-release",
     "release:dry": "semantic-release --dry-run",
     "lint:commits": "commitlint --from HEAD~1 --to HEAD --verbose",
-    "lint:commits:ci": "commitlint --from origin/main --to HEAD --verbose"
+    "lint:commits:ci": "commitlint --from origin/main --to HEAD --verbose",
+    "sync:versions": "node scripts/sync-versions.js",
+    "clean:cache": "node -e \"const fs=require('fs');const p='frontend/node_modules/.vite';if(fs.existsSync(p)){fs.rmSync(p,{recursive:true});console.log('[OK] Cache limpo com sucesso')}else{console.log('[INFO] Cache já estava limpo')}\""
   },
   "devDependencies": {
     "@commitlint/cli": "^19.3.0",
