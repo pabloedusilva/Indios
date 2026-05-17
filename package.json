@@ -1,6 +1,6 @@
 {
   "name": "indios-churrasco-gourmet-monorepo",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Monorepo — Índios Churrasco Gourmet (Dashboard SaaS)",
   "private": true,
   "workspaces": [
