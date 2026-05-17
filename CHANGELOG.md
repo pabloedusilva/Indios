@@ -5,6 +5,16 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.11.1](https://github.com/pabloedusilva/Indios/compare/v1.11.0...v1.11.1) (2026-05-17)
+
+### Correções de Bugs
+
+* **ci:** adicionar token de autenticação em todos os checkouts ([e5ea527](https://github.com/pabloedusilva/Indios/commit/e5ea5276c24b81577bfae9986a3a9c8e3a60b03c))
+
+### Documentação
+
+* sincronizar CHANGELOG.md com releases do GitHub [skip ci] ([3c310ff](https://github.com/pabloedusilva/Indios/commit/3c310ff1fc7ffab207087ab0ee33f448acb3bc31))
+
 ## [1.11.0](https://github.com/pabloedusilva/Indios/compare/v1.10.0...v1.11.0) (2026-05-17)
 
 ### Novas Funcionalidades
