@@ -228,7 +228,21 @@ jobs:
             echo ""
             npx semantic-release --dry-run
           else
-            npx semantic-release
+            # Executar semantic-release e capturar output
+            npx semantic-release > /tmp/semantic-release-output.txt 2>&1 || true
+            cat /tmp/semantic-release-output.txt
+            
+            # Verificar se release foi publicada
+            if grep -q "Published release" /tmp/semantic-release-output.txt; then
+              echo "new_release_published=true" >> $GITHUB_OUTPUT
+              # Extrair versão da release
+              VERSION=$(grep -oP "Published release \K[0-9]+\.[0-9]+\.[0-9]+" /tmp/semantic-release-output.txt | head -1)
+              echo "new_release_version=$VERSION" >> $GITHUB_OUTPUT
+              echo "[SUCCESS] Release $VERSION publicada com sucesso!"
+            else
+              echo "new_release_published=false" >> $GITHUB_OUTPUT
+              echo "[INFO] Nenhuma release foi publicada"
+            fi
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
