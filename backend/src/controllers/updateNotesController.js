@@ -22,6 +22,26 @@ const getLatest = async (req, res, next) => {
   }
 }
 
+// GET /api/update-notes/version/:versao
+// Retorna a nota de uma versão específica (ex: 1.9.0)
+const getByVersion = async (req, res, next) => {
+  try {
+    const { versao } = req.params
+    const nota = await UpdateNoteModel.findByVersao(versao)
+    
+    if (!nota) {
+      return res.status(404).json({
+        success: false,
+        message: `Nota da versão ${versao} não encontrada.`,
+      })
+    }
+    
+    res.json({ success: true, data: nota })
+  } catch (err) {
+    next(err)
+  }
+}
+
 // GET /api/update-notes
 // Histórico completo de notas ativas
 const listar = async (req, res, next) => {
@@ -71,4 +91,4 @@ const upsert = async (req, res, next) => {
   }
 }
 
-module.exports = { getLatest, listar, upsert }
+module.exports = { getLatest, getByVersion, listar, upsert }
