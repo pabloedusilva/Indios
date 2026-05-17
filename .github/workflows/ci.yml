@@ -128,7 +128,7 @@ jobs:
 
       - name: Exibir informações de versão
         run: |
-          echo "## 📦 Informações de Versão" >> $GITHUB_STEP_SUMMARY
+          echo "## Informações de Versão" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Item | Valor |" >> $GITHUB_STEP_SUMMARY
           echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -145,13 +145,13 @@ jobs:
           if [ "${{ steps.sync.outputs.synced }}" = "true" ]; then
             echo "✅ **Status:** Todas as versões estão sincronizadas com a última tag" >> $GITHUB_STEP_SUMMARY
           else
-            echo "🔄 **Status:** Versões foram sincronizadas automaticamente com a última tag" >> $GITHUB_STEP_SUMMARY
+            echo "**Status:** Versões foram sincronizadas automaticamente com a última tag" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Um commit de sincronização foi adicionado ao PR." >> $GITHUB_STEP_SUMMARY
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🎯 Próxima Release" >> $GITHUB_STEP_SUMMARY
+          echo "### Próxima Release" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Após o merge deste PR, o semantic-release irá:" >> $GITHUB_STEP_SUMMARY
           echo "- Analisar os commits do PR" >> $GITHUB_STEP_SUMMARY
@@ -219,19 +219,19 @@ jobs:
 
       - name: Exibir resumo da sincronização
         run: |
-          echo "## 📝 Sincronização do CHANGELOG" >> $GITHUB_STEP_SUMMARY
+          echo "## Sincronização do CHANGELOG" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ "${{ steps.sync.outputs.synced }}" = "true" ]; then
             echo "✅ **Status:** CHANGELOG.md já está sincronizado com o GitHub" >> $GITHUB_STEP_SUMMARY
           else
-            echo "🔄 **Status:** CHANGELOG.md foi atualizado com dados reais do GitHub" >> $GITHUB_STEP_SUMMARY
+            echo "**Status:** CHANGELOG.md foi atualizado com dados reais do GitHub" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Um commit de sincronização foi adicionado ao PR." >> $GITHUB_STEP_SUMMARY
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📊 Informações" >> $GITHUB_STEP_SUMMARY
+          echo "### Informações" >> $GITHUB_STEP_SUMMARY
           echo "- O CHANGELOG é sincronizado automaticamente com as releases do GitHub" >> $GITHUB_STEP_SUMMARY
           echo "- Todas as datas, títulos e notas são extraídos da API do GitHub" >> $GITHUB_STEP_SUMMARY
           echo "- Garante que o CHANGELOG sempre reflete a realidade do repositório" >> $GITHUB_STEP_SUMMARY
@@ -263,7 +263,7 @@ jobs:
 
       - name: Validar mensagens de commit do PR
         run: |
-          echo "🔍 Validando commits do PR..."
+          echo "Validando commits do PR..."
           echo "Range: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
           
           npx commitlint \
