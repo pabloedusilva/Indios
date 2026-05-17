@@ -207,7 +207,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -230,7 +231,7 @@ jobs:
             npx semantic-release
           fi
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GIT_AUTHOR_NAME: "github-actions[bot]"
           GIT_AUTHOR_EMAIL: "github-actions[bot]@users.noreply.github.com"
           GIT_COMMITTER_NAME: "github-actions[bot]"
@@ -298,7 +299,7 @@ jobs:
           echo "[INFO] Sincronizando release v${{ steps.semantic.outputs.new_release_version }} com banco de dados..."
           echo "[DEBUG] GITHUB_REPOSITORY: ${{ github.repository }}"
           echo "[DEBUG] DATABASE_URL configurado: ${{ secrets.DATABASE_URL != '' }}"
-          echo "[DEBUG] GITHUB_TOKEN configurado: ${{ secrets.RELEASE_TOKEN != '' || secrets.GITHUB_TOKEN != '' }}"
+          echo "[DEBUG] GITHUB_TOKEN configurado: true"
           
           # Instalar dependências se necessário
           cd backend
@@ -313,7 +314,7 @@ jobs:
             exit 1
           }
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
