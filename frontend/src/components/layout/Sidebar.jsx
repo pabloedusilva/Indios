@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   MdDashboard, MdRestaurantMenu, MdInventory2,
-  MdHistory, MdClose, MdLogout, MdBarChart, MdSettings, MdPayment,
+  MdHistory, MdClose, MdLogout, MdBarChart, MdSettings, MdPayment, MdRocketLaunch,
 } from 'react-icons/md'
 import { useApp } from '../../contexts/AppContext'
 import { useAuth } from '../../contexts/AuthContext'
 import ModalConfiguracoes from '../ui/ModalConfiguracoes'
 import ModalPagamentos from '../ui/ModalPagamentos'
+import ModalUpdateNotes from '../ui/ModalUpdateNotes'
 import { APP_VERSION } from '../../utils/version'
+import { api } from '../../services/api'
 
 const navItems = [
   { to: '/dashboard',    label: 'Dashboard',    icon: MdDashboard,      exact: true },
@@ -25,6 +27,44 @@ export default function Sidebar({ isOpen, onClose }) {
   const pendentes = pedidosAtivos.filter((p) => p.status === 'preparando').length
   const [modalConfigOpen,    setModalConfigOpen]    = useState(false)
   const [modalPagamentosOpen, setModalPagamentosOpen] = useState(false)
+  const [modalUpdateOpen,     setModalUpdateOpen]     = useState(false)
+  const [updateNote,          setUpdateNote]          = useState(null)
+  const [isMajor,             setIsMajor]             = useState(false)
+
+  // Buscar nota da versão atual ao montar
+  useEffect(() => {
+    async function buscarNota() {
+      try {
+        const data = await api.get(`/update-notes/version/${APP_VERSION}`)
+        if (data) {
+          setUpdateNote(data)
+          setIsMajor(data.tipo === 'major')
+        }
+      } catch {
+        // Falha silenciosa - versão pode não ter nota no banco ainda
+      }
+    }
+    buscarNota()
+  }, [])
+
+  function abrirModalUpdate() {
+    // Se nota não foi carregada, busca novamente ao clicar
+    if (!updateNote) {
+      api.get(`/update-notes/version/${APP_VERSION}`)
+        .then(data => {
+          if (data) {
+            setUpdateNote(data)
+            setIsMajor(data.tipo === 'major')
+            setModalUpdateOpen(true)
+          }
+        })
+        .catch(() => {
+          // Falha silenciosa
+        })
+    } else {
+      setModalUpdateOpen(true)
+    }
+  }
 
   async function handleLogout() {
     await logoutFn()
@@ -55,9 +95,26 @@ export default function Sidebar({ isOpen, onClose }) {
           />
           <div className="relative z-10 flex items-center justify-center px-5 py-4 w-full">
             <img src="/logo.png" alt="Índios Churrasco Gourmet" className="h-24 w-24 object-contain [filter:drop-shadow(0_4px_16px_rgba(0,0,0,0.45))] dark:[filter:none]" />
-            <span className="absolute bottom-2 left-3 text-[10px] font-medium text-black/40 dark:text-white/50 select-none">
+            
+            {/* Badge de versão clicável — mesmo estilo do modal, menor */}
+            <button
+              onClick={abrirModalUpdate}
+              title="Ver notas da versão"
+              className="absolute bottom-2 left-3 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
+              style={{
+                background: isMajor
+                  ? 'linear-gradient(135deg, #C93517, #E8650A)'
+                  : 'rgba(0,0,0,0.45)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                color: '#fff',
+              }}
+            >
+              <MdRocketLaunch size={9} />
               v{APP_VERSION}
-            </span>
+            </button>
+
             {/* Botão de pagamentos */}
             <button
               onClick={() => setModalPagamentosOpen(true)}
@@ -126,6 +183,11 @@ export default function Sidebar({ isOpen, onClose }) {
       <ModalPagamentos
         isOpen={modalPagamentosOpen}
         onClose={() => setModalPagamentosOpen(false)}
+      />
+      <ModalUpdateNotes
+        isOpen={modalUpdateOpen}
+        onClose={() => setModalUpdateOpen(false)}
+        nota={updateNote}
       />
     </>
   )
