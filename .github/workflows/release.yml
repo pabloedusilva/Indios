@@ -299,7 +299,19 @@ jobs:
           echo "[DEBUG] GITHUB_REPOSITORY: ${{ github.repository }}"
           echo "[DEBUG] DATABASE_URL configurado: ${{ secrets.DATABASE_URL != '' }}"
           echo "[DEBUG] GITHUB_TOKEN configurado: ${{ secrets.RELEASE_TOKEN != '' || secrets.GITHUB_TOKEN != '' }}"
-          node backend/scripts/sync-release-to-db.js
+          
+          # Instalar dependências se necessário
+          cd backend
+          if [ ! -d "node_modules" ]; then
+            echo "[INFO] Instalando dependências do backend..."
+            npm install --production
+          fi
+          
+          # Executar script de sincronização
+          node scripts/sync-release-to-db.js || {
+            echo "[ERROR] Falha ao sincronizar release com banco de dados"
+            exit 1
+          }
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
