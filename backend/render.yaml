@@ -13,6 +13,8 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: npm start
+    # Executar script de sincronização após deploy bem-sucedido
+    postDeployCommand: node scripts/sync-release-to-db.js || echo "Aviso: Sincronização de release falhou"
     envVars:
       - key: NODE_ENV
         value: production
@@ -28,4 +30,6 @@ services:
       # - MP_PUBLIC_KEY
       # - MP_WEBHOOK_SECRET
       # - VALOR_MENSALIDADE
+      # - GITHUB_TOKEN (para sincronização de releases)
+      # - GITHUB_REPOSITORY (ex: pabloedusilva/Indios)
     healthCheckPath: /api/health
