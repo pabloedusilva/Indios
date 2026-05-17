@@ -5,6 +5,12 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.12.0](https://github.com/pabloedusilva/Indios/compare/v1.11.2...v1.12.0) (2026-05-17)
+
+### Novas Funcionalidades
+
+* **ui:** melhorias no badge de versão ([880161f](https://github.com/pabloedusilva/Indios/commit/880161fe956a41220d0f399a8bf60ae15e170103))
+
 ## [1.11.2](https://github.com/pabloedusilva/Indios/compare/v1.11.1...v1.11.2) (2026-05-17)
 
 ### Correções de Bugs
