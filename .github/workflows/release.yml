@@ -272,7 +272,7 @@ jobs:
       - name: Resumo da release
         if: steps.semantic.outputs.new_release_published == 'true' && github.event.inputs.dry_run != 'true'
         run: |
-          echo "## 🎉 Nova Release Publicada" >> $GITHUB_STEP_SUMMARY
+          echo "## Nova Release Publicada" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Campo | Valor |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -280,14 +280,14 @@ jobs:
           echo "| **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📝 Artefatos Criados" >> $GITHUB_STEP_SUMMARY
+          echo "### Artefatos Criados" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Git tag \`v${{ steps.semantic.outputs.new_release_version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ GitHub Release com release notes" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ CHANGELOG.md atualizado" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ package.json sincronizados (raiz, frontend, backend)" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Nota de atualização salva no banco de dados" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🎯 Próximos Passos" >> $GITHUB_STEP_SUMMARY
+          echo "### Próximos Passos" >> $GITHUB_STEP_SUMMARY
           echo "- O modal de update notes será exibido automaticamente para os usuários" >> $GITHUB_STEP_SUMMARY
           echo "- Deploy será disparado automaticamente no Render" >> $GITHUB_STEP_SUMMARY
 
@@ -306,7 +306,7 @@ jobs:
         if: steps.semantic.outputs.new_release_published == 'true' && success()
         run: |
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 💾 Sincronização com Banco de Dados" >> $GITHUB_STEP_SUMMARY
+          echo "### Sincronização com Banco de Dados" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Nota de atualização salva na tabela \`update_notes\`" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Modal será exibido automaticamente para os usuários" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Versão: \`v${{ steps.semantic.outputs.new_release_version }}\`" >> $GITHUB_STEP_SUMMARY
@@ -356,7 +356,7 @@ jobs:
             exit 0
           fi
           
-          echo "🚀 Disparando deploy no Render para v${{ needs.release.outputs.new_release_version }}..."
+          echo "Disparando deploy no Render para v${{ needs.release.outputs.new_release_version }}..."
           
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$RENDER_DEPLOY_HOOK_URL")
           
@@ -372,7 +372,7 @@ jobs:
       - name: Resumo do deploy
         if: success()
         run: |
-          echo "## 🚀 Deploy Disparado" >> $GITHUB_STEP_SUMMARY
+          echo "## Deploy Disparado" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Versão:** \`v${{ needs.release.outputs.new_release_version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
