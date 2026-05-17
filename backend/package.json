@@ -11,6 +11,7 @@
     "test:sync": "node scripts/test-sync.js",
     "test:commit-removal": "node scripts/test-commit-removal.js",
     "check:notes": "node scripts/check-update-notes.js",
+    "check:last-note": "node scripts/check-last-note.js",
     "test": "vitest",
     "test:run": "vitest run --passWithNoTests"
   },
