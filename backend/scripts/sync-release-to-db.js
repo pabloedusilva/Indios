@@ -145,7 +145,9 @@ function extractMelhorias(body) {
       const itemMatch = line.match(/^[\s]*[*\-•]\s*(.+)$/)
       if (itemMatch && itemMatch[1]) {
         let item = itemMatch[1].trim()
-        // Remove hash de commit se presente (ex: "feat: algo (abc1234)")
+        // Remove links de commit completos (ex: "([abc1234](https://github.com/...))")
+        item = item.replace(/\s*\(\[[a-f0-9]{7,}\]\(https?:\/\/[^\)]+\)\)\s*$/i, '')
+        // Remove hash de commit simples (ex: "(abc1234)")
         item = item.replace(/\s*\([a-f0-9]{7,}\)\s*$/i, '')
         // Remove prefixo "feat:" se presente
         item = item.replace(/^feat:\s*/i, '')
@@ -178,7 +180,9 @@ function extractCorrecoes(body) {
       const itemMatch = line.match(/^[\s]*[*\-•]\s*(.+)$/)
       if (itemMatch && itemMatch[1]) {
         let item = itemMatch[1].trim()
-        // Remove hash de commit se presente
+        // Remove links de commit completos (ex: "([abc1234](https://github.com/...))")
+        item = item.replace(/\s*\(\[[a-f0-9]{7,}\]\(https?:\/\/[^\)]+\)\)\s*$/i, '')
+        // Remove hash de commit simples (ex: "(abc1234)")
         item = item.replace(/\s*\([a-f0-9]{7,}\)\s*$/i, '')
         // Remove prefixo "fix:" se presente
         item = item.replace(/^fix:\s*/i, '')
