@@ -5,6 +5,12 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.9.0](https://github.com/pabloedusilva/Indios/compare/v1.8.1...v1.9.0) (2026-05-17)
+
+### Novas Funcionalidades
+
+* remover links de commit do modal de update notes ([574db03](https://github.com/pabloedusilva/Indios/commit/574db033d0b11ba39edc91c0ddc5d9d838fc16a3))
+
 ## [1.8.1](https://github.com/pabloedusilva/Indios/compare/v1.8.0...v1.8.1) (2026-05-17)
 
 ### Correções de Bugs
