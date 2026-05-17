@@ -5,6 +5,12 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.8.1](https://github.com/pabloedusilva/Indios/compare/v1.8.0...v1.8.1) (2026-05-17)
+
+### Correções de Bugs
+
+* **release:** corrige sincronização para salvar releases e tags automaticamente no banco ao abrir pull request ([f2d3ba7](https://github.com/pabloedusilva/Indios/commit/f2d3ba703e6dc2c629a5a52176d15f3f55a2e68f))
+
 ## [1.8.0](https://github.com/pabloedusilva/Indios/compare/v1.7.0...v1.8.0) (2026-05-16)
 
 ### Novas Funcionalidades
