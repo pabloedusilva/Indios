@@ -5,13 +5,12 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
-Histórico completo de releases do projeto.
+## [1.11.0](https://github.com/pabloedusilva/Indios/compare/v1.10.0...v1.11.0) (2026-05-17)
 
-## v1.10.0 (17/05/2026)
+### Novas Funcionalidades
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.10.0)
-
-[1.10.0](https://github.com/pabloedusilva/Indios/compare/v1.9.0...v1.10.0) (2026-05-17)
+* corrigir autenticação do workflow ([b717b1a](https://github.com/pabloedusilva/Indios/commit/b717b1a3bc09988742b0753dd5d888079f1f77d1))
+* testar release automática ([b482a28](https://github.com/pabloedusilva/Indios/commit/b482a283b007434b9796f9ee57a6ca8f21d1e7fe))
 
 ## [1.10.0](https://github.com/pabloedusilva/Indios/compare/v1.9.0...v1.10.0) (2026-05-17)
 
