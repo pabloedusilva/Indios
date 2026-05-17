@@ -9,6 +9,7 @@
     "migrate": "node scripts/run-migrations.js",
     "sync:release": "node scripts/sync-release-to-db.js",
     "test:sync": "node scripts/test-sync.js",
+    "test:commit-removal": "node scripts/test-commit-removal.js",
     "check:notes": "node scripts/check-update-notes.js",
     "test": "vitest",
     "test:run": "vitest run --passWithNoTests"
