@@ -95,7 +95,7 @@ export default function ModalUpdateNotes({ isOpen, onClose, nota }) {
 
           {/* ── Imagem — ocupa todo o modal ───────────── */}
           <img
-            src={nota.imagem || '/update/new-update.png'}
+            src={nota.imagem || (isMajor ? '/update/new-update-major.png' : '/update/new-update.png')}
             alt="Nova atualização"
             draggable={false}
             className="w-full block"
