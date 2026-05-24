@@ -23,13 +23,12 @@
 const path = require('path')
 require('dotenv').config({ path: path.join(__dirname, '../.env') })
 const https = require('https')
-const mysql = require('mysql2/promise')
+const { Pool } = require('pg')
 
 // =============================================================
 // Configuração
 // =============================================================
 
-const GITHUB_API = 'https://api.github.com'
 const GITHUB_REPO = process.env.GITHUB_REPOSITORY || 'pabloedusilva/Indios'
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || ''
 
@@ -247,16 +246,21 @@ function generateDescricao(type, melhorias, correcoes) {
 
 /**
  * Conecta ao banco de dados
- * @returns {Promise<Connection>} Conexão MySQL
+ * @returns {Promise<Pool>} Pool de conexão PostgreSQL
  */
 async function connectDatabase() {
   try {
-    const connection = await mysql.createConnection({
-      uri: process.env.DATABASE_URL,
-      timezone: '+00:00',
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false
+      }
     })
-    console.log('[OK] Conectado ao banco de dados')
-    return connection
+    
+    // Testa a conexão
+    await pool.query('SELECT NOW()')
+    console.log('[OK] Conectado ao banco de dados (PostgreSQL/Supabase)')
+    return pool
   } catch (error) {
     console.error('[ERROR] Erro ao conectar ao banco:', error.message)
     throw error
@@ -265,15 +269,15 @@ async function connectDatabase() {
 
 /**
  * Busca versão anterior no banco
- * @param {Connection} connection - Conexão MySQL
+ * @param {Pool} pool - Pool de conexão PostgreSQL
  * @returns {Promise<string|null>} Versão anterior ou null
  */
-async function getPreviousVersion(connection) {
+async function getPreviousVersion(pool) {
   try {
-    const [rows] = await connection.execute(
+    const result = await pool.query(
       `SELECT versao FROM update_notes ORDER BY criado_em DESC LIMIT 1`
     )
-    return rows.length > 0 ? rows[0].versao : null
+    return result.rows.length > 0 ? result.rows[0].versao : null
   } catch (error) {
     console.warn('[WARN] Erro ao buscar versao anterior:', error.message)
     return null
@@ -282,23 +286,24 @@ async function getPreviousVersion(connection) {
 
 /**
  * Salva ou atualiza nota no banco de dados
- * @param {Connection} connection - Conexão MySQL
+ * @param {Pool} pool - Pool de conexão PostgreSQL
  * @param {object} nota - Dados da nota
  * @returns {Promise<void>}
  */
-async function upsertNota(connection, nota) {
+async function upsertNota(pool, nota) {
   try {
-    await connection.execute(
+    await pool.query(
       `INSERT INTO update_notes (versao, tipo, titulo, descricao, melhorias, correcoes, imagem, ativo)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         tipo      = VALUES(tipo),
-         titulo    = VALUES(titulo),
-         descricao = VALUES(descricao),
-         melhorias = VALUES(melhorias),
-         correcoes = VALUES(correcoes),
-         imagem    = VALUES(imagem),
-         ativo     = VALUES(ativo)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (versao) DO UPDATE SET
+         tipo      = EXCLUDED.tipo,
+         titulo    = EXCLUDED.titulo,
+         descricao = EXCLUDED.descricao,
+         melhorias = EXCLUDED.melhorias,
+         correcoes = EXCLUDED.correcoes,
+         imagem    = EXCLUDED.imagem,
+         ativo     = EXCLUDED.ativo,
+         atualizado_em = CURRENT_TIMESTAMP`,
       [
         nota.versao,
         nota.tipo,
@@ -307,7 +312,7 @@ async function upsertNota(connection, nota) {
         JSON.stringify(nota.melhorias),
         JSON.stringify(nota.correcoes),
         nota.imagem,
-        nota.ativo ? 1 : 0,
+        nota.ativo,
       ]
     )
     console.log(`[OK] Nota salva no banco: v${nota.versao}`)
@@ -324,7 +329,7 @@ async function upsertNota(connection, nota) {
 async function main() {
   console.log('[START] Iniciando sincronizacao de release para banco de dados...\n')
 
-  let connection
+  let pool
 
   try {
     // 1. Buscar última release do GitHub
@@ -335,10 +340,10 @@ async function main() {
     console.log(`\n[INFO] Processando release v${version}`)
     
     // 3. Conectar ao banco
-    connection = await connectDatabase()
+    pool = await connectDatabase()
     
     // 4. Buscar versão anterior para determinar tipo
-    const previousVersion = await getPreviousVersion(connection)
+    const previousVersion = await getPreviousVersion(pool)
     const tipo = determineReleaseType(version, previousVersion)
     console.log(`[INFO] Tipo de release: ${tipo.toUpperCase()}`)
     
@@ -376,7 +381,7 @@ async function main() {
     
     // 9. Salvar no banco
     console.log(`\n[SAVE] Salvando nota no banco de dados...`)
-    await upsertNota(connection, nota)
+    await upsertNota(pool, nota)
     
     // 10. Resumo final
     console.log(`\n[SUCCESS] Sincronizacao concluida com sucesso!`)
@@ -393,8 +398,8 @@ async function main() {
     console.error('\n[ERROR] Erro fatal durante sincronizacao:', error.message)
     process.exit(1)
   } finally {
-    if (connection) {
-      await connection.end()
+    if (pool) {
+      await pool.end()
       console.log('\n[CLOSE] Conexao com banco encerrada')
     }
   }
