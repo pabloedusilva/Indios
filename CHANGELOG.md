@@ -5,7 +5,111 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
-Histórico completo de releases do projeto.
+## [1.12.0](https://github.com/pabloedusilva/Indios/compare/v1.11.2...v1.12.0) (2026-05-17)
+
+### Novas Funcionalidades
+
+* **ui:** melhorias no badge de versão ([880161f](https://github.com/pabloedusilva/Indios/commit/880161fe956a41220d0f399a8bf60ae15e170103))
+
+## [1.11.2](https://github.com/pabloedusilva/Indios/compare/v1.11.1...v1.11.2) (2026-05-17)
+
+### Correções de Bugs
+
+* **ci:** adicionar token de autenticação em todos os checkouts ([6720cf0](https://github.com/pabloedusilva/Indios/commit/6720cf047fc3c05bc13ced59c9019b40d553583d))
+
+## [1.11.1](https://github.com/pabloedusilva/Indios/compare/v1.11.0...v1.11.1) (2026-05-17)
+
+### Correções de Bugs
+
+* **ci:** adicionar token de autenticação em todos os checkouts ([e5ea527](https://github.com/pabloedusilva/Indios/commit/e5ea5276c24b81577bfae9986a3a9c8e3a60b03c))
+
+### Documentação
+
+* sincronizar CHANGELOG.md com releases do GitHub [skip ci] ([3c310ff](https://github.com/pabloedusilva/Indios/commit/3c310ff1fc7ffab207087ab0ee33f448acb3bc31))
+
+## [1.11.0](https://github.com/pabloedusilva/Indios/compare/v1.10.0...v1.11.0) (2026-05-17)
+
+### Novas Funcionalidades
+
+* corrigir autenticação do workflow ([b717b1a](https://github.com/pabloedusilva/Indios/commit/b717b1a3bc09988742b0753dd5d888079f1f77d1))
+* testar release automática ([b482a28](https://github.com/pabloedusilva/Indios/commit/b482a283b007434b9796f9ee57a6ca8f21d1e7fe))
+
+## [1.10.0](https://github.com/pabloedusilva/Indios/compare/v1.9.0...v1.10.0) (2026-05-17)
+
+
+### Novas Funcionalidades
+
+* validar sincronização automática ([4633603](https://github.com/pabloedusilva/Indios/commit/4633603378204440f566dfaf7d33fa1dca542433))
+
+## v1.9.0 (17/05/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.9.0)
+
+[1.9.0](https://github.com/pabloedusilva/Indios/compare/v1.8.1...v1.9.0) (2026-05-17)
+
+## [1.9.0](https://github.com/pabloedusilva/Indios/compare/v1.8.1...v1.9.0) (2026-05-17)
+
+
+### Novas Funcionalidades
+
+* remover links de commit do modal de update notes ([574db03](https://github.com/pabloedusilva/Indios/commit/574db033d0b11ba39edc91c0ddc5d9d838fc16a3))
+
+## v1.8.1 (17/05/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.8.1)
+
+[1.8.1](https://github.com/pabloedusilva/Indios/compare/v1.8.0...v1.8.1) (2026-05-17)
+
+## [1.8.1](https://github.com/pabloedusilva/Indios/compare/v1.8.0...v1.8.1) (2026-05-17)
+
+
+### Correções de Bugs
+
+* **release:** corrige sincronização para salvar releases e tags automaticamente no banco ao abrir pull request ([f2d3ba7](https://github.com/pabloedusilva/Indios/commit/f2d3ba703e6dc2c629a5a52176d15f3f55a2e68f))
+
+## v1.8.0 (16/05/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.8.0)
+
+[1.8.0](https://github.com/pabloedusilva/Indios/compare/v1.7.0...v1.8.0) (2026-05-16)
+
+## [1.8.0](https://github.com/pabloedusilva/Indios/compare/v1.7.0...v1.8.0) (2026-05-16)
+
+
+### Novas Funcionalidades
+
+* implementar sistema completo de automação (CHANGELOG, package.json, update notes) ([8da7130](https://github.com/pabloedusilva/Indios/commit/8da71301e3ebf983a0f6bf776d5b69442f1e11fe))
+
+## v1.7.0 (16/05/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.7.0)
+
+[1.7.0](https://github.com/pabloedusilva/Indios/compare/v1.6.0...v1.7.0) (2026-05-16)
+
+## [1.7.0](https://github.com/pabloedusilva/Indios/compare/v1.6.0...v1.7.0) (2026-05-16)
+
+
+### Novas Funcionalidades
+
+* **ci:** sincronizar package.json com última tag do GitHub em PRs ([14c8eaf](https://github.com/pabloedusilva/Indios/commit/14c8eafc2822506d0b09adc1e4b5f25911cb72f8))
+
+## v1.6.0 (16/05/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.6.0)
+
+[1.6.0](https://github.com/pabloedusilva/Indios/compare/v1.5.0...v1.6.0) (2026-05-16)
+
+## [1.6.0](https://github.com/pabloedusilva/Indios/compare/v1.5.0...v1.6.0) (2026-05-16)
+
+
+### Novas Funcionalidades
+
+* adicionar script de sincronização automática do CHANGELOG com GitHub ([46fbd49](https://github.com/pabloedusilva/Indios/commit/46fbd498bc6fd720c7ed4d8245f80d4e0c6ff637))
+
+
+### Documentação
+
+* sincronizar CHANGELOG.md com releases do GitHub [skip ci] ([571d7e0](https://github.com/pabloedusilva/Indios/commit/571d7e0eea446f3367f39008ebac33db2ab43814))
 
 ## v1.5.0 (16/05/2026)
 
@@ -25,7 +129,7 @@ Histórico completo de releases do projeto.
 
 * **changelog:** atualiza CHANGELOG com novas releases e melhorias ([4d92497](https://github.com/pabloedusilva/Indios/commit/4d92497dca48addf2c4d1c9537a4e2c0cd41f8d9))
 
-## v1.4.0 (15/05/2026)
+## v1.4.0 (16/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.4.0)
 
@@ -38,7 +142,7 @@ Histórico completo de releases do projeto.
 
 * implementar sistema completo de release automático com modal de update notes ([80d5124](https://github.com/pabloedusilva/Indios/commit/80d512476bd0b5528eab390f56809f0a3b586848))
 
-## v1.3.0 (15/05/2026)
+## v1.3.0 (16/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.3.0)
 
@@ -51,7 +155,7 @@ Histórico completo de releases do projeto.
 
 * implementar sistema de update notes com modal automático ([b62e680](https://github.com/pabloedusilva/Indios/commit/b62e680ea0bab6c605e6a7a6414453559b9d788d))
 
-## v1.2.5 (12/05/2026)
+## v1.2.5 (13/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.5)
 
@@ -64,7 +168,7 @@ Histórico completo de releases do projeto.
 
 * sincroniza package.json com versao da ultima tag ([7cf10f3](https://github.com/pabloedusilva/Indios/commit/7cf10f34b23d9707b753f8599fd0edbfb2667abb))
 
-## v1.2.4 (12/05/2026)
+## v1.2.4 (13/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.4)
 
@@ -77,7 +181,7 @@ Histórico completo de releases do projeto.
 
 * **ci:** elimina conflitos do semantic-release utilizando atualização manual do package.json no workflow ([e757e64](https://github.com/pabloedusilva/Indios/commit/e757e647ab623279edab40a138e39f4c5b666015))
 
-## v1.2.3 (12/05/2026)
+## v1.2.3 (13/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.3)
 
@@ -90,7 +194,7 @@ Histórico completo de releases do projeto.
 
 * **ci:** ajusta condição de secrets para compatibilidade com GitHub Actions ([10633ff](https://github.com/pabloedusilva/Indios/commit/10633ffcb2f6fa395af5cc5304db3fcb0adfe6b7))
 
-## v1.2.2 (12/05/2026)
+## v1.2.2 (13/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.2)
 
@@ -103,7 +207,7 @@ Histórico completo de releases do projeto.
 
 * corrige versao no package.json ([dcb624f](https://github.com/pabloedusilva/Indios/commit/dcb624fd94b0f0d8f9f7e8f4910ddf96c8def485))
 
-## v1.2.1 (12/05/2026)
+## v1.2.1 (13/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.1)
 
@@ -116,7 +220,7 @@ Histórico completo de releases do projeto.
 
 * **release:** estabiliza pipeline de release automático com commit de versão e changelog ([5093166](https://github.com/pabloedusilva/Indios/commit/5093166af3b7f0427fd83975639dfefac2de8861))
 
-## v1.2.0 (12/05/2026)
+## v1.2.0 (13/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.0)
 
@@ -129,7 +233,7 @@ Histórico completo de releases do projeto.
 
 * implementa fluxo automático de versionamento no frontend integrado ao semantic-release ([4ff88b4](https://github.com/pabloedusilva/Indios/commit/4ff88b49049eb0cdff410ee6b5150e1b5b05e622))
 
-## v1.1.0 (11/05/2026)
+## v1.1.0 (12/05/2026)
 
 [Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.1.0)
 
