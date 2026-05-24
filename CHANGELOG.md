@@ -5,6 +5,13 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.1.1](https://github.com/pabloedusilva/Indios/compare/v2.1.0...v2.1.1) (2026-05-24)
+
+### Correções de Bugs
+
+* corrigir execução do cross-env em produção ([375498d](https://github.com/pabloedusilva/Indios/commit/375498dcc82a25410cc1ca3cda2a0147223adbbe))
+* corrigir execução do cross-env em produção ([c3c9ba1](https://github.com/pabloedusilva/Indios/commit/c3c9ba1c57a2611c6ef9d97ad8f82df4f2bef448))
+
 ## [2.1.0](https://github.com/pabloedusilva/Indios/compare/v2.0.0...v2.1.0) (2026-05-24)
 
 ### Novas Funcionalidades
