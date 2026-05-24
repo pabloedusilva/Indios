@@ -5,8 +5,8 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "cross-env NODE_OPTIONS='--dns-result-order=ipv4first' nodemon src/server.js",
-    "start": "cross-env NODE_OPTIONS='--dns-result-order=ipv4first' node src/server.js",
-    "migrate": "cross-env NODE_OPTIONS='--dns-result-order=ipv4first' node scripts/run-migrations.js",
+    "start": "node src/server.js",
+    "migrate": "node scripts/run-migrations.js",
     "migrate:mysql": "node scripts/migrate-mysql-to-postgres.js",
     "reset:usuario": "node scripts/reset-usuario.js",
     "sync:release": "node scripts/sync-release-to-db.js",
@@ -19,6 +19,7 @@
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "cross-env": "^10.1.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^8.3.2",
@@ -33,7 +34,6 @@
     "uuid": "^10.0.0"
   },
   "devDependencies": {
-    "cross-env": "^10.1.0",
     "fast-check": "^4.7.0",
     "nodemon": "^3.1.7",
     "supertest": "^7.2.2",
