@@ -5,6 +5,16 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.0](https://github.com/pabloedusilva/Indios/compare/v1.12.0...v2.0.0) (2026-05-19)
+
+### ⚠ BREAKING CHANGES
+
+* lançamento oficial da versão 2.0.0
+
+### Novas Funcionalidades
+
+* lançamento oficial da versão 2.0.0 ([68b4aa9](https://github.com/pabloedusilva/Indios/commit/68b4aa91732d8fcd689eda690e1e77efce712122))
+
 ## [1.12.0](https://github.com/pabloedusilva/Indios/compare/v1.11.2...v1.12.0) (2026-05-17)
 
 ### Novas Funcionalidades
