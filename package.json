@@ -8,7 +8,7 @@
     "backend"
   ],
   "scripts": {
-    "prepare": "[ -z \"$CI\" ] && husky || true",
+    "prepare": "node -e \"if (process.env.CI !== 'true') { const { execSync } = require('child_process'); try { execSync('husky', { stdio: 'inherit' }); } catch (e) { console.log('Husky not installed or failed'); } }\"",
     "commit": "git-cz",
     "release": "semantic-release",
     "release:dry": "semantic-release --dry-run",
@@ -40,5 +40,9 @@
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.106.1"
   }
 }

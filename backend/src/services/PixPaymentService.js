@@ -25,8 +25,11 @@ const mpClient = new MercadoPagoConfig({
 // ── Helpers ───────────────────────────────────────────────────
 
 function mesAtual() {
-  const brt = new Date(Date.now() - 3 * 60 * 60 * 1000)
-  return brt.toISOString().slice(0, 7)
+  // Usa Intl para obter o mês atual em BRT sem depender de subtração manual de horas
+  const agora = new Date()
+  const ano = new Intl.DateTimeFormat('pt-BR', { year: 'numeric', timeZone: 'America/Sao_Paulo' }).format(agora)
+  const mes = new Intl.DateTimeFormat('pt-BR', { month: '2-digit', timeZone: 'America/Sao_Paulo' }).format(agora)
+  return `${ano}-${mes}`
 }
 
 // forcarNovo=true → inclui timestamp → Mercado Pago cria novo pagamento

@@ -142,11 +142,16 @@ export function AppProvider({ children }) {
   }, [carregarProdutos])
 
   // —— Actions: Pedidos ——————————————————————————————————————
+
+  // Notifica o useDashboard para atualizar imediatamente
+  const notificarDashboard = () => window.dispatchEvent(new Event('pedido-atualizado'))
+
   const criarPedido = useCallback(async (dadosPedido) => {
     try {
       const novoPedido = await api.post('/pedidos', dadosPedido)
       carregarPedidosAtivos()
       carregarPedidos()
+      notificarDashboard()
       toast.success(`Pedido #${novoPedido.numero} criado para ${novoPedido.nomeCliente}!`)
       return novoPedido
     } catch (err) {
@@ -159,6 +164,7 @@ export function AppProvider({ children }) {
     try {
       await api.patch(`/pedidos/${id}/pronto`)
       carregarPedidosAtivos()
+      notificarDashboard()
       toast.success('Pedido marcado como pronto!')
     } catch (err) {
       toast.error(err.message || 'Erro ao marcar pedido como pronto.')
@@ -170,6 +176,7 @@ export function AppProvider({ children }) {
       await api.patch(`/pedidos/${id}/finalizar`, { formaPagamento, valorRecebido, troco })
       carregarPedidosAtivos()
       carregarPedidos()
+      notificarDashboard()
       const label = { pix: 'PIX', credito: 'Crédito', debito: 'Débito', dinheiro: 'Dinheiro' }[formaPagamento] ?? formaPagamento
       toast.success(`Pedido finalizado! Pagamento via ${label} ✅`)
     } catch (err) {
@@ -183,6 +190,7 @@ export function AppProvider({ children }) {
       const { finalizados = 0 } = await api.patch('/pedidos/finalizar-sem-pagamento')
       await carregarPedidosAtivos()
       await carregarPedidos()
+      notificarDashboard()
       toast.success(`${finalizados} pedido${finalizados === 1 ? '' : 's'} finalizado${finalizados === 1 ? '' : 's'} sem pagamento!`)
     } catch (err) {
       toast.error(err.message || 'Erro ao concluir pedidos sem pagamento.')
@@ -195,6 +203,7 @@ export function AppProvider({ children }) {
       await api.patch(`/pedidos/${id}/cancelar`)
       carregarPedidosAtivos()
       carregarPedidos()
+      notificarDashboard()
       toast.error('Pedido cancelado.')
     } catch (err) {
       toast.error(err.message || 'Erro ao cancelar pedido.')
@@ -205,6 +214,7 @@ export function AppProvider({ children }) {
     try {
       await api.delete(`/pedidos/${id}`)
       await carregarPedidos()
+      notificarDashboard()
       toast.success('Pedido excluído do histórico.')
     } catch (err) {
       toast.error(err.message || 'Erro ao excluir pedido.')
@@ -224,6 +234,8 @@ export function AppProvider({ children }) {
     produtos,
     // categorias como strings (nomes) para uso nos selects/filtros
     categorias: categorias.map((c) => c.nome),
+    // categorias completas (com id) para uso em formulários
+    categoriasCompletas: categorias,
     pedidos,
     pedidosHoje,
     pedidosAtivos,

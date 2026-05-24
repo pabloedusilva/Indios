@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import Modal from '../ui/Modal'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { useApp } from '../../contexts/AppContext'
@@ -61,6 +61,7 @@ function CheckIcon() {
 export default function ModalNovoPedido({ isOpen, onClose }) {
   const { produtos, criarPedido } = useApp()
 
+  const [comNome, setComNome] = useState(true)
   const [nomeCliente, setNomeCliente] = useState('')
   const [observacoes, setObservacoes] = useState('')
   const [busca, setBusca] = useState('')
@@ -130,14 +131,14 @@ export default function ModalNovoPedido({ isOpen, onClose }) {
   const [confirmFechar, setConfirmFechar] = useState(false)
 
   const handleFechar = () => {
-    setNomeCliente(''); setObservacoes(''); setBusca('')
+    setComNome(true); setNomeCliente(''); setObservacoes(''); setBusca('')
     setCategoriaAtiva('Todos'); setItens([]); setStep(1); setPedidoCriado(null)
     setConfirmFechar(false)
     onClose()
   }
 
   const tentarFechar = () => {
-    if (pedidoCriado || (!nomeCliente.trim() && itens.length === 0)) {
+    if (pedidoCriado || ((!comNome || !nomeCliente.trim()) && itens.length === 0)) {
       handleFechar()
     } else {
       setConfirmFechar(true)
@@ -157,10 +158,18 @@ export default function ModalNovoPedido({ isOpen, onClose }) {
   }
 
   const handleConfirmar = async () => {
-    if (!nomeCliente.trim() || itens.length === 0) return
+    if (itens.length === 0) return
+    
+    // Se "Sem Nome" foi escolhido OU campo está vazio, envia "Cliente #TEMP" para o backend gerar automaticamente
+    const nomeParaEnviar = (!comNome || !nomeCliente.trim()) ? 'Cliente #TEMP' : nomeCliente.trim()
+    
     setSalvando(true)
     try {
-      const novoPedido = await criarPedido({ nomeCliente: nomeCliente.trim(), itens, observacoes: observacoes.trim() })
+      const novoPedido = await criarPedido({ 
+        nomeCliente: nomeParaEnviar, 
+        itens, 
+        observacoes: observacoes.trim() 
+      })
       setPedidoCriado(novoPedido)
     } catch {
       // toast exibido pelo AppContext
@@ -202,7 +211,7 @@ export default function ModalNovoPedido({ isOpen, onClose }) {
               <button
                 onClick={() => {
                   if (bloqueado) return
-                  if (s.num < step || (s.num === 2 && nomeCliente.trim())) setStep(s.num)
+                  if (s.num < step || (s.num === 2 && (comNome ? nomeCliente.trim() : true))) setStep(s.num)
                 }}
                 className={`flex items-center gap-2.5 px-4 py-2 rounded-xl transition-all duration-200 text-sm font-semibold cursor-default
                   ${ativo ? 'text-brand-orange' : concluido ? 'text-emerald-500' : 'text-brand-text-3'}
@@ -239,19 +248,63 @@ export default function ModalNovoPedido({ isOpen, onClose }) {
                 <MdPerson className="text-white text-2xl" />
               </div>
               <div className="w-full max-w-md space-y-4">
+                {/* Toggle Com Nome / Sem Nome */}
+                <div className="flex items-center justify-center gap-2 p-1 bg-brand-surface rounded-xl border border-brand-border">
+                  <button
+                    onClick={() => setComNome(true)}
+                    className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200
+                      ${comNome 
+                        ? 'bg-gradient-brand text-white shadow-brand' 
+                        : 'text-brand-text-2 hover:text-brand-text'
+                      }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <MdPerson size={16} />
+                      Com Nome
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setComNome(false)
+                      setNomeCliente('') // Limpa o campo quando seleciona "Sem Nome"
+                    }}
+                    className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200
+                      ${!comNome 
+                        ? 'bg-gradient-brand text-white shadow-brand' 
+                        : 'text-brand-text-2 hover:text-brand-text'
+                      }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <MdRestaurantMenu size={16} />
+                      Sem Nome
+                    </div>
+                  </button>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-brand-text-2 mb-1.5 uppercase tracking-wider">
-                    Nome do Cliente *
+                    Nome do Cliente {comNome && '*'}
                   </label>
                   <input
                     type="text"
-                    value={nomeCliente}
+                    value={comNome ? nomeCliente : ''}
                     onChange={(e) => setNomeCliente(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && nomeCliente.trim() && setStep(2)}
-                    placeholder="Ex: João Silva"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (!comNome || nomeCliente.trim()) setStep(2)
+                      }
+                    }}
+                    placeholder={comNome ? "Ex: João Silva" : "Será gerado automaticamente"}
                     className="input-field text-base"
-                    autoFocus
+                    disabled={!comNome}
+                    autoFocus={comNome}
                   />
+                  {!comNome && (
+                    <p className="text-xs text-brand-text-3 mt-1.5 flex items-center gap-1">
+                      <MdCheck size={14} className="text-emerald-500" />
+                      O nome será gerado automaticamente como "Cliente #0001"
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-brand-text-2 mb-1.5 uppercase tracking-wider">
@@ -267,7 +320,7 @@ export default function ModalNovoPedido({ isOpen, onClose }) {
                 </div>
                 <button
                   onClick={() => setStep(2)}
-                  disabled={!nomeCliente.trim()}
+                  disabled={comNome && !nomeCliente.trim()}
                   className="btn-primary w-full py-3 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   <MdRestaurantMenu size={18} />
@@ -441,7 +494,9 @@ export default function ModalNovoPedido({ isOpen, onClose }) {
                     <MdPerson className="text-brand-orange" size={16} />
                     <span className="text-[10px] text-brand-text-3 uppercase tracking-wider font-semibold">Cliente</span>
                   </div>
-                  <p className="text-base font-bold text-brand-text">{nomeCliente}</p>
+                  <p className="text-base font-bold text-brand-text">
+                    {comNome ? nomeCliente : 'Cliente (gerado automaticamente)'}
+                  </p>
                   {observacoes && <p className="text-xs text-brand-text-2 mt-1">Obs: {observacoes}</p>}
                 </div>
 

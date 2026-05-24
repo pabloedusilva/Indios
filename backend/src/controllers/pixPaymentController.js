@@ -24,8 +24,11 @@ function getUsuarioId(req) {
 }
 
 function mesAtual() {
-  const brt = new Date(Date.now() - 3 * 60 * 60 * 1000)
-  return brt.toISOString().slice(0, 7)
+  // Agora o timezone está configurado no pool, então Date.now() já reflete BRT
+  const agora = new Date()
+  const ano = agora.getFullYear()
+  const mes = String(agora.getMonth() + 1).padStart(2, '0')
+  return `${ano}-${mes}`
 }
 
 // ── Controller ────────────────────────────────────────────────
