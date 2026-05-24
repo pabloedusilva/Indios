@@ -5,6 +5,12 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.1.0](https://github.com/pabloedusilva/Indios/compare/v2.0.0...v2.1.0) (2026-05-24)
+
+### Novas Funcionalidades
+
+* migração para PostgreSQL, correções e suporte a pedidos anônimos ([33f2e4a](https://github.com/pabloedusilva/Indios/commit/33f2e4adfdc1af238c700042337a9ffcd209bb29))
+
 ## [2.0.0](https://github.com/pabloedusilva/Indios/compare/v1.12.0...v2.0.0) (2026-05-19)
 
 ### ⚠ BREAKING CHANGES
