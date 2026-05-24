@@ -24,58 +24,59 @@ function mapNote(row) {
 const UpdateNoteModel = {
   // Retorna todas as notas ativas, ordenadas por versão decrescente
   async findAll() {
-    const [rows] = await db.execute(
-      `SELECT * FROM update_notes WHERE ativo = 1 ORDER BY criado_em DESC`
+    const result = await db.query(
+      `SELECT * FROM update_notes WHERE ativo = true ORDER BY criado_em DESC`
     )
-    return rows.map(mapNote)
+    return result.rows.map(mapNote)
   },
 
   // Retorna a nota mais recente do tipo minor ou major.
   // O frontend usa localStorage para controlar se já foi vista.
   async findLatestRelease() {
-    const [rows] = await db.execute(
+    const result = await db.query(
       `SELECT n.*
          FROM update_notes n
-        WHERE n.ativo = 1
+        WHERE n.ativo = true
           AND n.tipo IN ('minor', 'major')
         ORDER BY n.criado_em DESC
         LIMIT 1`
     )
-    return rows.length ? mapNote(rows[0]) : null
+    return result.rows.length ? mapNote(result.rows[0]) : null
   },
 
   // Retorna uma nota pela versão exata
   async findByVersao(versao) {
-    const [rows] = await db.execute(
-      `SELECT * FROM update_notes WHERE versao = ? LIMIT 1`,
+    const result = await db.query(
+      `SELECT * FROM update_notes WHERE versao = $1 LIMIT 1`,
       [versao]
     )
-    return rows.length ? mapNote(rows[0]) : null
+    return result.rows.length ? mapNote(result.rows[0]) : null
   },
 
   // Retorna uma nota pelo id
   async findById(id) {
-    const [rows] = await db.execute(
-      `SELECT * FROM update_notes WHERE id = ? LIMIT 1`,
+    const result = await db.query(
+      `SELECT * FROM update_notes WHERE id = $1 LIMIT 1`,
       [id]
     )
-    return rows.length ? mapNote(rows[0]) : null
+    return result.rows.length ? mapNote(result.rows[0]) : null
   },
 
   // Cria ou atualiza uma nota (upsert por versão)
-  async upsert({ versao, tipo, titulo, descricao, melhorias = [], correcoes = [], imagem, ativo = 1 }) {
+  async upsert({ versao, tipo, titulo, descricao, melhorias = [], correcoes = [], imagem, ativo = true }) {
     const imagemFinal = imagem || '/update/new-update.png'
-    await db.execute(
+    await db.query(
       `INSERT INTO update_notes (versao, tipo, titulo, descricao, melhorias, correcoes, imagem, ativo)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         tipo      = VALUES(tipo),
-         titulo    = VALUES(titulo),
-         descricao = VALUES(descricao),
-         melhorias = VALUES(melhorias),
-         correcoes = VALUES(correcoes),
-         imagem    = VALUES(imagem),
-         ativo     = VALUES(ativo)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (versao) DO UPDATE SET
+         tipo      = EXCLUDED.tipo,
+         titulo    = EXCLUDED.titulo,
+         descricao = EXCLUDED.descricao,
+         melhorias = EXCLUDED.melhorias,
+         correcoes = EXCLUDED.correcoes,
+         imagem    = EXCLUDED.imagem,
+         ativo     = EXCLUDED.ativo,
+         atualizado_em = CURRENT_TIMESTAMP`,
       [
         versao,
         tipo,
@@ -84,7 +85,7 @@ const UpdateNoteModel = {
         JSON.stringify(melhorias),
         JSON.stringify(correcoes),
         imagemFinal,
-        ativo ? 1 : 0,
+        ativo,
       ]
     )
     return this.findByVersao(versao)

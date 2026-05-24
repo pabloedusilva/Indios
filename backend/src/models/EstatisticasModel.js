@@ -1,21 +1,31 @@
 // =============================================================
 //  models/EstatisticasModel.js — Estatísticas e Relatórios Mensais
-//  Todas as datas são convertidas para America/Sao_Paulo (UTC-3)
+//  PostgreSQL/Supabase (UTC com conversão para Brasília)
+//  Queries convertem timestamps para 'America/Sao_Paulo' quando necessário
 // =============================================================
 
 const db = require('../config/database')
 
 // ── Helpers internos ──────────────────────────────────────────
 
-// Condição WHERE para um mês específico (YYYY-MM)
+// Condição WHERE para um mês específico (YYYY-MM) em Brasília
+// Agora que as colunas são TIMESTAMPTZ, a conversão é mais simples
 function condMes(campo, ano, mes) {
-  return `YEAR(CONVERT_TZ(${campo}, '+00:00', '-03:00')) = ${ano}
-      AND MONTH(CONVERT_TZ(${campo}, '+00:00', '-03:00')) = ${mes}`
+  return `EXTRACT(YEAR FROM (${campo} AT TIME ZONE 'America/Sao_Paulo')) = ${ano}
+      AND EXTRACT(MONTH FROM (${campo} AT TIME ZONE 'America/Sao_Paulo')) = ${mes}`
 }
 
-// MySQL DATE columns podem vir como Date ou string — normaliza para YYYY-MM-DD
+// Converte Date do pg para ISO string
+function toISO(val) {
+  if (!val) return null
+  if (val instanceof Date) return val.toISOString()
+  return val
+}
+
+// Normaliza valor de data para string YYYY-MM-DD.
 function diaStr(val) {
   if (!val) return null
+  if (typeof val === 'string') return val.slice(0, 10)
   if (val instanceof Date) return val.toISOString().slice(0, 10)
   return String(val).slice(0, 10)
 }
@@ -25,9 +35,7 @@ function mapSnapshot(row) {
   const parse = (v) => (typeof v === 'string' ? JSON.parse(v) : v)
   return {
     mes: row.mes,
-    atualizadoEm: row.atualizado_em instanceof Date
-      ? row.atualizado_em.toISOString()
-      : row.atualizado_em,
+    atualizadoEm: toISO(row.atualizado_em),
     resumo: {
       faturamento:      parseFloat(row.faturamento),
       totalPedidos:     Number(row.total_pedidos),
@@ -54,9 +62,7 @@ function mapRelatorio(row) {
   const parse = (v) => (typeof v === 'string' ? JSON.parse(v) : v)
   return {
     mes:      row.mes,
-    geradoEm: row.gerado_em instanceof Date
-      ? row.gerado_em.toISOString()
-      : row.gerado_em,
+    geradoEm: toISO(row.gerado_em),
     resumo: {
       faturamento:      parseFloat(row.faturamento),
       totalPedidos:     Number(row.total_pedidos),
@@ -85,12 +91,12 @@ const EstatisticasModel = {
   async mesesDisponiveis() {
     const [rows] = await db.execute(`
       SELECT
-        DATE_FORMAT(CONVERT_TZ(criado_em, '+00:00', '-03:00'), '%Y-%m') AS mes,
-        COUNT(*)                                                          AS totalPedidos,
+        TO_CHAR(created_at AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM') AS mes,
+        COUNT(*)                        AS "totalPedidos",
         COALESCE(SUM(CASE WHEN status != 'cancelado' THEN total ELSE 0 END), 0) AS faturamento
       FROM pedidos
-      WHERE criado_em >= DATE_SUB(NOW(), INTERVAL 3 MONTH)
-      GROUP BY DATE_FORMAT(CONVERT_TZ(criado_em, '+00:00', '-03:00'), '%Y-%m')
+      WHERE created_at >= NOW() - INTERVAL '3 months'
+      GROUP BY TO_CHAR(created_at AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM')
       ORDER BY mes DESC
       LIMIT 3
     `)
@@ -112,20 +118,20 @@ const EstatisticasModel = {
           ticket_medio, taxa_cancelamento,
           melhor_dia, melhor_dia_faturamento, melhor_dia_pedidos,
           top_produtos, pagamentos, por_dia)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         faturamento            = VALUES(faturamento),
-         total_pedidos          = VALUES(total_pedidos),
-         finalizados            = VALUES(finalizados),
-         cancelados             = VALUES(cancelados),
-         ticket_medio           = VALUES(ticket_medio),
-         taxa_cancelamento      = VALUES(taxa_cancelamento),
-         melhor_dia             = VALUES(melhor_dia),
-         melhor_dia_faturamento = VALUES(melhor_dia_faturamento),
-         melhor_dia_pedidos     = VALUES(melhor_dia_pedidos),
-         top_produtos           = VALUES(top_produtos),
-         pagamentos             = VALUES(pagamentos),
-         por_dia                = VALUES(por_dia),
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       ON CONFLICT (mes) DO UPDATE SET
+         faturamento            = EXCLUDED.faturamento,
+         total_pedidos          = EXCLUDED.total_pedidos,
+         finalizados            = EXCLUDED.finalizados,
+         cancelados             = EXCLUDED.cancelados,
+         ticket_medio           = EXCLUDED.ticket_medio,
+         taxa_cancelamento      = EXCLUDED.taxa_cancelamento,
+         melhor_dia             = EXCLUDED.melhor_dia,
+         melhor_dia_faturamento = EXCLUDED.melhor_dia_faturamento,
+         melhor_dia_pedidos     = EXCLUDED.melhor_dia_pedidos,
+         top_produtos           = EXCLUDED.top_produtos,
+         pagamentos             = EXCLUDED.pagamentos,
+         por_dia                = EXCLUDED.por_dia,
          atualizado_em          = CURRENT_TIMESTAMP`,
       [
         mes,
@@ -167,7 +173,7 @@ const EstatisticasModel = {
         ticket_medio, taxa_cancelamento,
         melhor_dia, melhor_dia_faturamento, melhor_dia_pedidos,
         top_produtos, pagamentos, por_dia, atualizado_em
-       FROM estatisticas_mensais WHERE mes = ?`,
+       FROM estatisticas_mensais WHERE mes = $1`,
       [mes]
     )
     return rows.length ? mapSnapshot(rows[0]) : null
@@ -176,22 +182,17 @@ const EstatisticasModel = {
   // ── Relatórios mensais (relatorios_mensais) ───────────────
 
   // Salva o relatório de um mês no banco (idempotente — não sobrescreve se já existir)
-  // gerado_em é gravado explicitamente em horário de Brasília (UTC-3) no momento da inserção
   async salvarRelatorio(mes, stats) {
     const { resumo, topProdutos, pagamentos, porDia, melhorDia } = stats
 
-    // Calcula o horário atual em BRT (UTC-3) para gravar como gerado_em
-    const agora = new Date()
-    const brt = new Date(agora.getTime() - 3 * 60 * 60 * 1000)
-    const geradoEmBRT = brt.toISOString().slice(0, 19).replace('T', ' ')
-
     await db.execute(
-      `INSERT IGNORE INTO relatorios_mensais
+      `INSERT INTO relatorios_mensais
          (mes, faturamento, total_pedidos, finalizados, cancelados,
           ticket_medio, taxa_cancelamento,
           melhor_dia, melhor_dia_faturamento, melhor_dia_pedidos,
-          top_produtos, pagamentos, por_dia, gerado_em)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          top_produtos, pagamentos, por_dia)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       ON CONFLICT (mes) DO NOTHING`,
       [
         mes,
         resumo.faturamento,
@@ -206,7 +207,6 @@ const EstatisticasModel = {
         JSON.stringify(topProdutos),
         JSON.stringify(pagamentos),
         JSON.stringify(porDia),
-        geradoEmBRT,
       ]
     )
   },
@@ -233,7 +233,7 @@ const EstatisticasModel = {
         ticket_medio, taxa_cancelamento,
         melhor_dia, melhor_dia_faturamento, melhor_dia_pedidos,
         top_produtos, pagamentos, por_dia, gerado_em
-       FROM relatorios_mensais WHERE mes = ?`,
+       FROM relatorios_mensais WHERE mes = $1`,
       [mes]
     )
     return rows.length ? mapRelatorio(rows[0]) : null
@@ -246,25 +246,25 @@ const EstatisticasModel = {
     const ano = parseInt(anoStr, 10)
     const num = parseInt(mesStr, 10)
 
-    const COND   = condMes('criado_em',   ano, num)
-    const COND_P = condMes('p.criado_em', ano, num)
+    const COND_P = condMes('p.created_at', ano, num)
+    const COND_C = condMes('created_at',   ano, num)
 
     const [
-      [[resumo]],
+      [resumoRows],
       [topProdutos],
       [pagamentos],
       [porDia],
-      [[melhorDia]],
+      [melhorDiaRows],
     ] = await Promise.all([
       db.execute(`
         SELECT
-          COUNT(*)                                                              AS totalPedidos,
+          COUNT(*)                                                              AS "totalPedidos",
           SUM(CASE WHEN status != 'cancelado' THEN 1 ELSE 0 END)              AS finalizados,
           SUM(CASE WHEN status = 'cancelado'  THEN 1 ELSE 0 END)              AS cancelados,
           COALESCE(SUM(CASE WHEN status != 'cancelado' THEN total ELSE 0 END), 0) AS faturamento,
-          COALESCE(AVG(CASE WHEN status != 'cancelado' THEN total END), 0)    AS ticketMedio
+          COALESCE(AVG(CASE WHEN status != 'cancelado' THEN total END), 0)    AS "ticketMedio"
         FROM pedidos
-        WHERE ${COND}
+        WHERE ${COND_C}
       `),
       db.execute(`
         SELECT
@@ -285,47 +285,48 @@ const EstatisticasModel = {
           COUNT(*)                                   AS qtd,
           COALESCE(SUM(total), 0)                    AS total
         FROM pedidos
-        WHERE ${COND}
+        WHERE ${COND_C}
           AND status = 'finalizado'
         GROUP BY forma_pagamento
         ORDER BY qtd DESC
       `),
       db.execute(`
         SELECT
-          DATE(CONVERT_TZ(criado_em, '+00:00', '-03:00'))                         AS dia,
-          COUNT(*)                                                                  AS pedidos,
-          COALESCE(SUM(CASE WHEN status != 'cancelado' THEN total ELSE 0 END), 0) AS faturamento,
-          SUM(CASE WHEN status = 'cancelado' THEN 1 ELSE 0 END)                   AS cancelados
+          TO_CHAR(created_at AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD')                                          AS dia,
+          COUNT(*)                                                                    AS pedidos,
+          COALESCE(SUM(CASE WHEN status != 'cancelado' THEN total ELSE 0 END), 0)   AS faturamento,
+          SUM(CASE WHEN status = 'cancelado' THEN 1 ELSE 0 END)                     AS cancelados
         FROM pedidos
-        WHERE ${COND}
-        GROUP BY DATE(CONVERT_TZ(criado_em, '+00:00', '-03:00'))
+        WHERE ${COND_C}
+        GROUP BY TO_CHAR(created_at AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD')
         ORDER BY dia ASC
       `),
       db.execute(`
         SELECT
-          DATE(CONVERT_TZ(criado_em, '+00:00', '-03:00'))   AS dia,
-          COUNT(CASE WHEN status != 'cancelado' THEN 1 END)  AS pedidos,
-          COALESCE(SUM(CASE WHEN status != 'cancelado' THEN total ELSE 0 END), 0) AS faturamento
+          TO_CHAR(created_at AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD')                                          AS dia,
+          COUNT(CASE WHEN status != 'cancelado' THEN 1 END)                         AS pedidos,
+          COALESCE(SUM(CASE WHEN status != 'cancelado' THEN total ELSE 0 END), 0)   AS faturamento
         FROM pedidos
-        WHERE ${COND}
+        WHERE ${COND_C}
           AND status != 'cancelado'
-        GROUP BY DATE(CONVERT_TZ(criado_em, '+00:00', '-03:00'))
+        GROUP BY TO_CHAR(created_at AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD')
         ORDER BY faturamento DESC
         LIMIT 1
       `),
     ])
 
-    const totalPedidos = Number(resumo.totalPedidos)
-    const cancelados   = Number(resumo.cancelados)
+    const resumo      = resumoRows[0] || {}
+    const totalPedidos = Number(resumo.totalPedidos ?? 0)
+    const cancelados   = Number(resumo.cancelados   ?? 0)
 
     return {
       mes,
       resumo: {
         totalPedidos,
-        finalizados:      Number(resumo.finalizados),
+        finalizados:      Number(resumo.finalizados ?? 0),
         cancelados,
-        faturamento:      parseFloat(resumo.faturamento),
-        ticketMedio:      parseFloat(resumo.ticketMedio),
+        faturamento:      parseFloat(resumo.faturamento ?? 0),
+        ticketMedio:      parseFloat(resumo.ticketMedio ?? 0),
         taxaCancelamento: totalPedidos > 0
           ? parseFloat(((cancelados / totalPedidos) * 100).toFixed(1))
           : 0,
@@ -346,11 +347,11 @@ const EstatisticasModel = {
         faturamento: parseFloat(r.faturamento),
         cancelados:  Number(r.cancelados),
       })),
-      melhorDia: melhorDia
+      melhorDia: melhorDiaRows[0]
         ? {
-            dia:         diaStr(melhorDia.dia),
-            pedidos:     Number(melhorDia.pedidos),
-            faturamento: parseFloat(melhorDia.faturamento),
+            dia:         diaStr(melhorDiaRows[0].dia),
+            pedidos:     Number(melhorDiaRows[0].pedidos),
+            faturamento: parseFloat(melhorDiaRows[0].faturamento),
           }
         : null,
     }

@@ -121,7 +121,7 @@ export default function CardPedido({ pedido }) {
           )}
           {!isAtivo && (
             <button onClick={() => setShowPedido(true)} className="btn-secondary w-full py-2.5">
-              <MdPrint size={15} /> Ver Pedido
+              <MdVisibility size={15} /> Ver Pedido
             </button>
           )}
         </div>

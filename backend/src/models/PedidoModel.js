@@ -1,15 +1,15 @@
 // =============================================================
 //  models/PedidoModel.js — Camada de acesso a dados: Pedidos
+//  PostgreSQL/Supabase (UTC com conversão para Brasília)
 // =============================================================
 
 const db = require('../config/database')
 
-// Retorna a data de hoje em BRT (YYYY-MM-DD)
-function hoje() {
-  const d = new Date()
-  // UTC-3
-  d.setHours(d.getHours() - 3)
-  return d.toISOString().slice(0, 10)
+// Converte Date do pg para ISO string
+function toISO(val) {
+  if (!val) return null
+  if (val instanceof Date) return val.toISOString()
+  return val
 }
 
 // Mapeia uma linha do banco (snake_case) para o formato do frontend (camelCase)
@@ -27,17 +27,22 @@ function mapPedido(row) {
       subtotal: parseFloat(i.subtotal),
     }))
   }
+  
+  // Mapeia status do banco (em_preparo) para o frontend (preparando)
+  let status = row.status
+  if (status === 'em_preparo') status = 'preparando'
+  
   return {
     id: row.id,
-    numero: row.numero,
+    numero: row.numero_pedido,
     nomeCliente: row.nome_cliente,
     observacoes: row.observacoes,
-    status: row.status,
+    status,
     total: parseFloat(row.total),
-    criadoEm: row.criado_em,
-    prontoEm: row.pronto_em,
-    entregueEm: row.entregue_em,
-    pagamentoEm: row.pagamento_em,
+    criadoEm: toISO(row.created_at),
+    prontoEm: toISO(row.pronto_em),
+    entregueEm: toISO(row.entregue_em),
+    pagamentoEm: toISO(row.pagamento_em),
     formaPagamento: row.forma_pagamento,
     valorRecebido: row.valor_recebido != null ? parseFloat(row.valor_recebido) : null,
     troco: row.troco != null ? parseFloat(row.troco) : null,
@@ -45,21 +50,25 @@ function mapPedido(row) {
   }
 }
 
-// Query base para pedidos com itens agrupados
+// Query base para pedidos com itens agrupados (PostgreSQL)
 const SELECT_PEDIDO = `
   SELECT
-    p.id, p.numero, p.nome_cliente, p.observacoes, p.status, p.total,
-    p.criado_em, p.pronto_em, p.entregue_em, p.pagamento_em,
+    p.id, p.numero_pedido, p.nome_cliente, p.observacoes, p.status, p.total,
+    p.created_at, p.pronto_em, p.entregue_em, p.pagamento_em,
     p.forma_pagamento, p.valor_recebido, p.troco,
-    JSON_ARRAYAGG(
-      CASE WHEN i.id IS NOT NULL THEN JSON_OBJECT(
-        'id', i.id,
-        'produto_id', i.produto_id,
-        'nome_produto', i.nome_produto,
-        'quantidade', i.quantidade,
-        'preco_unitario', i.preco_unitario,
-        'subtotal', i.subtotal
-      ) END
+    COALESCE(
+      json_agg(
+        json_build_object(
+          'id', i.id,
+          'produto_id', i.produto_id,
+          'nome_produto', i.nome_produto,
+          'quantidade', i.quantidade,
+          'preco_unitario', i.preco_unitario,
+          'subtotal', i.subtotal
+        )
+        ORDER BY i.created_at
+      ) FILTER (WHERE i.id IS NOT NULL),
+      '[]'::json
     ) AS itens
   FROM pedidos p
   LEFT JOIN itens_pedido i ON i.pedido_id = p.id
@@ -71,40 +80,40 @@ const PedidoModel = {
   async findAll(filtros = {}) {
     let where = 'WHERE 1=1'
     const params = []
+    let paramIndex = 1
 
     if (filtros.status) {
-      where += ' AND p.status = ?'
+      where += ` AND p.status = $${paramIndex}`
       params.push(filtros.status)
+      paramIndex++
     }
     if (filtros.periodo === 'hoje') {
-      // FIX: CONVERT_TZ garante que a comparação de "hoje" use o horário de
-      // Brasília (UTC-3), e não o UTC do servidor MySQL (Railway).
-      // Sem isso, pedidos feitos após 21h SP (= 00h UTC) seriam contados
-      // no dia seguinte.
-      where += ` AND DATE(CONVERT_TZ(p.criado_em, '+00:00', '-03:00'))
-                   = DATE(CONVERT_TZ(NOW(), '+00:00', '-03:00'))`
+      // Compara a data em Brasília (America/Sao_Paulo)
+      where += ` AND (p.created_at AT TIME ZONE 'America/Sao_Paulo')::date 
+                   = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date`
     } else if (filtros.periodo === '7d') {
-      where += ' AND p.criado_em >= DATE_SUB(NOW(), INTERVAL 7 DAY)'
+      where += ` AND p.created_at >= NOW() - INTERVAL '7 days'`
     } else if (filtros.periodo === '30d') {
-      where += ' AND p.criado_em >= DATE_SUB(NOW(), INTERVAL 30 DAY)'
+      where += ` AND p.created_at >= NOW() - INTERVAL '30 days'`
     }
     if (filtros.busca) {
-      where += ' AND p.nome_cliente LIKE ?'
+      where += ` AND p.nome_cliente ILIKE $${paramIndex}`
       params.push(`%${filtros.busca}%`)
+      paramIndex++
     }
 
-    const sql = `${SELECT_PEDIDO} ${where} GROUP BY p.id ORDER BY p.criado_em DESC`
+    const sql = `${SELECT_PEDIDO} ${where} GROUP BY p.id ORDER BY p.created_at DESC`
     const [rows] = await db.execute(sql, params)
     return rows.map(mapPedido)
   },
 
-  // Retorna apenas pedidos com status preparando ou pronto ordenados por criadoEm ASC
+  // Retorna apenas pedidos com status em_preparo ou pronto ordenados por criadoEm ASC
   async findAtivos() {
     const sql = `
       ${SELECT_PEDIDO}
-      WHERE p.status IN ('preparando', 'pronto')
+      WHERE p.status IN ('em_preparo', 'pronto')
       GROUP BY p.id
-      ORDER BY p.criado_em ASC
+      ORDER BY p.created_at ASC
     `
     const [rows] = await db.execute(sql)
     return rows.map(mapPedido)
@@ -112,7 +121,7 @@ const PedidoModel = {
 
   // Retorna um pedido com seus itens pelo id
   async findById(id) {
-    const sql = `${SELECT_PEDIDO} WHERE p.id = ? GROUP BY p.id`
+    const sql = `${SELECT_PEDIDO} WHERE p.id = $1 GROUP BY p.id`
     const [rows] = await db.execute(sql, [id])
     return rows.length ? mapPedido(rows[0]) : null
   },
@@ -120,33 +129,46 @@ const PedidoModel = {
   // Insere o pedido + itens em transação, retorna o pedido completo
   // dados: { nomeCliente, observacoes, itens: [{ produtoId, nomeProduto, quantidade, precoUnitario }] }
   async create(dados) {
-    const conn = await db.getConnection()
+    const client = await db.connect()
     try {
-      await conn.beginTransaction()
+      await client.query('BEGIN')
 
-      const pedidoId = require('crypto').randomUUID()
       const total = dados.itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0)
 
-      await conn.execute(
-        `INSERT INTO pedidos (id, nome_cliente, observacoes, total) VALUES (?, ?, ?, ?)`,
-        [pedidoId, dados.nomeCliente, dados.observacoes || '', total]
+      // Busca o próximo número de pedido da sequência
+      const seqResult = await client.query(`SELECT nextval('pedidos_numero_seq') AS numero`)
+      const numeroPedido = seqResult.rows[0].numero
+
+      // Detecta se é pedido sem identificação (Cliente #TEMP do frontend)
+      let nomeCliente = dados.nomeCliente
+      if (nomeCliente === 'Cliente #TEMP') {
+        nomeCliente = `Cliente #${String(numeroPedido).padStart(4, '0')}`
+      }
+
+      // Insere o pedido e retorna o id gerado
+      const pedidoResult = await client.query(
+        `INSERT INTO pedidos (numero_pedido, nome_cliente, observacoes, total, status) 
+         VALUES ($1, $2, $3, $4, 'em_preparo')
+         RETURNING id`,
+        [String(numeroPedido).padStart(4, '0'), nomeCliente, dados.observacoes || '', total]
       )
+      const pedidoId = pedidoResult.rows[0].id
 
       for (const item of dados.itens) {
-        const itemId = require('crypto').randomUUID()
-        await conn.execute(
-          `INSERT INTO itens_pedido (id, pedido_id, produto_id, nome_produto, preco_unitario, quantidade)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [itemId, pedidoId, item.produtoId, item.nomeProduto, item.precoUnitario, item.quantidade]
+        const subtotal = item.quantidade * item.precoUnitario
+        await client.query(
+          `INSERT INTO itens_pedido (pedido_id, produto_id, nome_produto, preco_unitario, quantidade, subtotal)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [pedidoId, item.produtoId, item.nomeProduto, item.precoUnitario, item.quantidade, subtotal]
         )
       }
 
-      await conn.commit()
-      conn.release()
+      await client.query('COMMIT')
+      client.release()
       return this.findById(pedidoId)
     } catch (err) {
-      await conn.rollback()
-      conn.release()
+      await client.query('ROLLBACK')
+      client.release()
       throw err
     }
   },
@@ -154,7 +176,7 @@ const PedidoModel = {
   // Muda status → 'pronto' e registra pronto_em
   async marcarPronto(id) {
     await db.execute(
-      `UPDATE pedidos SET status = 'pronto', pronto_em = NOW() WHERE id = ?`,
+      `UPDATE pedidos SET status = 'pronto', pronto_em = NOW() WHERE id = $1`,
       [id]
     )
     return this.findById(id)
@@ -166,8 +188,8 @@ const PedidoModel = {
     await db.execute(
       `UPDATE pedidos
          SET status = 'finalizado', entregue_em = NOW(), pagamento_em = NOW(),
-             forma_pagamento = ?, valor_recebido = ?, troco = ?
-       WHERE id = ?`,
+             forma_pagamento = $1, valor_recebido = $2, troco = $3
+       WHERE id = $4`,
       [pagamento.formaPagamento, pagamento.valorRecebido, pagamento.troco ?? 0, id]
     )
     return this.findById(id)
@@ -179,21 +201,21 @@ const PedidoModel = {
       `UPDATE pedidos
          SET status = 'finalizado', entregue_em = NOW(), pagamento_em = NOW(),
              forma_pagamento = NULL, valor_recebido = 0, troco = 0
-       WHERE status IN ('preparando', 'pronto')`
+       WHERE status IN ('em_preparo', 'pronto')`
     )
-    return result.affectedRows || 0
+    return result.rowCount || 0
   },
 
   // Muda status → 'cancelado'
   async cancelar(id) {
-    await db.execute(`UPDATE pedidos SET status = 'cancelado' WHERE id = ?`, [id])
+    await db.execute(`UPDATE pedidos SET status = 'cancelado' WHERE id = $1`, [id])
     return this.findById(id)
   },
 
   // Remove permanentemente o pedido e seus itens (cascade)
   async remove(id) {
-    const [result] = await db.execute(`DELETE FROM pedidos WHERE id = ?`, [id])
-    return result.affectedRows > 0
+    const [result] = await db.execute(`DELETE FROM pedidos WHERE id = $1`, [id])
+    return result.rowCount > 0
   },
 
   // Consolida estatísticas do dia + pedidos ativos + pedidos de hoje
@@ -201,68 +223,41 @@ const PedidoModel = {
     const SQL_TOP_PRODUTOS = `
       SELECT
         i.nome_produto        AS nome,
-        SUM(i.quantidade)     AS totalVendido,
+        SUM(i.quantidade)     AS "totalVendido",
         SUM(i.subtotal)       AS receita
       FROM itens_pedido i
       JOIN pedidos p ON p.id = i.pedido_id
-      WHERE DATE(CONVERT_TZ(p.criado_em, '+00:00', '-03:00'))
-              = DATE(CONVERT_TZ(NOW(), '+00:00', '-03:00'))
+      WHERE (p.created_at AT TIME ZONE 'America/Sao_Paulo')::date 
+              = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
         AND p.status != 'cancelado'
       GROUP BY i.nome_produto
-      ORDER BY totalVendido DESC
+      ORDER BY "totalVendido" DESC
       LIMIT 3
     `
     const SQL_TICKET_MEDIO = `
-      SELECT COALESCE(AVG(total), 0) AS ticketMedio
+      SELECT COALESCE(AVG(total), 0) AS "ticketMedio"
       FROM pedidos
-      WHERE DATE(CONVERT_TZ(criado_em, '+00:00', '-03:00'))
-              = DATE(CONVERT_TZ(NOW(), '+00:00', '-03:00'))
+      WHERE (created_at AT TIME ZONE 'America/Sao_Paulo')::date 
+              = (NOW() AT TIME ZONE 'America/Sao_Paulo')::date
         AND status != 'cancelado'
     `
 
     const [
-      [[resumoRaw]],
+      [resumoRows],
       pedidosAtivos,
       pedidosHoje,
       [topProdutosRows],
-      [[ticketMedioRow]],
+      [ticketMedioRows],
     ] = await Promise.all([
-      db.execute(`SELECT * FROM resumo_dashboard WHERE id = 1`),
+      db.execute(`SELECT * FROM resumo_dashboard`),
       this.findAtivos(),
       this.findAll({ periodo: 'hoje' }),
       db.execute(SQL_TOP_PRODUTOS),
       db.execute(SQL_TICKET_MEDIO),
     ])
 
-    // Guarda de segurança: se o resumo_dashboard for de um dia anterior
-    // (ex: servidor ficou offline à meia-noite), zera os dados em memória
-    // e dispara o recálculo em background para o novo dia.
-    const dataRef = resumoRaw?.data_ref
-      ? (resumoRaw.data_ref instanceof Date
-          ? resumoRaw.data_ref.toISOString().slice(0, 10)
-          : String(resumoRaw.data_ref).slice(0, 10))
-      : null
-
-    const resumoDesatualizado = !dataRef || dataRef !== hoje()
-    if (resumoDesatualizado) {
-      // Recalcula em background — próxima requisição já pega os dados corretos
-      db.execute(`
-        INSERT INTO resumo_dashboard
-          (id, data_ref, total_pedidos, faturamento, preparando, prontos, finalizados, cancelados)
-        SELECT 1,
-          DATE(CONVERT_TZ(NOW(), '+00:00', '-03:00')), 0, 0.00, 0, 0, 0, 0
-        ON DUPLICATE KEY UPDATE
-          data_ref      = VALUES(data_ref),
-          total_pedidos = 0,
-          faturamento   = 0.00,
-          preparando    = 0,
-          prontos       = 0,
-          finalizados   = 0,
-          cancelados    = 0
-      `).catch(() => {})
-    }
-
-    const resumo = resumoDesatualizado ? null : resumoRaw
+    const resumo = resumoRows[0] || {}
+    const ticketMedio = ticketMedioRows[0] || {}
 
     const topProdutos = topProdutosRows.map((r) => ({
       nome: r.nome,
@@ -271,14 +266,14 @@ const PedidoModel = {
     }))
 
     return {
-      totalPedidosHoje: resumo?.total_pedidos ?? 0,
-      faturamentoHoje:  parseFloat(resumo?.faturamento ?? 0),
-      preparando:       resumo?.preparando ?? 0,
-      prontos:          resumo?.prontos ?? 0,
-      finalizados:      resumo?.finalizados ?? 0,
-      cancelados:       resumo?.cancelados ?? 0,
-      atualizadoEm:     resumo?.atualizado_em ?? null,
-      ticketMedio:      parseFloat(ticketMedioRow.ticketMedio),
+      totalPedidosHoje: Number(resumo.total_pedidos ?? 0),
+      faturamentoHoje:  parseFloat(resumo.faturamento ?? 0),
+      preparando:       Number(resumo.preparando ?? 0),
+      prontos:          Number(resumo.prontos ?? 0),
+      finalizados:      Number(resumo.finalizados ?? 0),
+      cancelados:       Number(resumo.cancelados ?? 0),
+      atualizadoEm:     toISO(resumo.atualizado_em),
+      ticketMedio:      parseFloat(ticketMedio.ticketMedio ?? 0),
       topProdutos,
       pedidosAtivos,
       pedidosHoje,
