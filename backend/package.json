@@ -1,6 +1,6 @@
 {
   "name": "indios-churrasco-gourmet-api",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "API REST — Índios Churrasco Gourmet",
   "main": "src/server.js",
   "scripts": {
