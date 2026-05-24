@@ -1,5 +1,7 @@
 // =============================================================
 //  hooks/useDashboard.js — Dados do Dashboard via API
+//  Atualiza a cada 10s e também quando recebe o evento
+//  'pedido-atualizado' disparado pelo AppContext.
 // =============================================================
 
 import { useState, useEffect, useCallback } from 'react'
@@ -19,7 +21,7 @@ const INITIAL = {
   produtos: [],
 }
 
-export function useDashboard(intervalo = 30000) {
+export function useDashboard(intervalo = 10000) {
   const [dados, setDados] = useState(INITIAL)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -38,8 +40,18 @@ export function useDashboard(intervalo = 30000) {
 
   useEffect(() => {
     buscar()
+
+    // Polling a cada 10s
     const timer = setInterval(buscar, intervalo)
-    return () => clearInterval(timer)
+
+    // Atualiza imediatamente quando um pedido é criado/alterado
+    const handlePedidoAtualizado = () => buscar()
+    window.addEventListener('pedido-atualizado', handlePedidoAtualizado)
+
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('pedido-atualizado', handlePedidoAtualizado)
+    }
   }, [buscar, intervalo])
 
   return { ...dados, loading, error, refetch: buscar }

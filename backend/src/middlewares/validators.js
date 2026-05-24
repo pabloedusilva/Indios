@@ -28,9 +28,9 @@ const validarProduto = [
     .notEmpty().withMessage('Nome é obrigatório.')
     .isLength({ max: 100 }).withMessage('Nome deve ter no máximo 100 caracteres.'),
 
-  body('categoria')
-    .trim()
-    .notEmpty().withMessage('Categoria é obrigatória.'),
+  body('categoriaId')
+    .optional({ nullable: true })
+    .isInt().withMessage('Categoria ID deve ser um número inteiro.'),
 
   body('preco')
     .notEmpty().withMessage('Preço é obrigatório.')
@@ -39,10 +39,6 @@ const validarProduto = [
   body('disponivel')
     .optional()
     .isBoolean().withMessage('Disponível deve ser true ou false.'),
-
-  body('icone')
-    .optional()
-    .isString().withMessage('Ícone deve ser uma string.'),
 
   aplicarValidacao,
 ]

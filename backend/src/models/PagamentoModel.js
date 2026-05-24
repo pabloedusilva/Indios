@@ -19,16 +19,16 @@ class PagamentoModel {
   // Retorna o registro mais recente independente do status,
   // usado pelo controller para decidir se reutiliza ou cria novo.
   static async buscarUltimoPorUsuarioMes(usuarioId, mesReferencia) {
-    const [rows] = await db.execute(
+    const result = await db.query(
       `SELECT id, usuario_id, mercado_pago_id, qr_code, qr_code_base64,
               status, expires_at, valor, created_at, updated_at
        FROM pagamentos
-       WHERE usuario_id = ? AND mes_referencia = ?
+       WHERE usuario_id = $1 AND mes_referencia = $2
        ORDER BY created_at DESC
        LIMIT 1`,
       [usuarioId, mesReferencia],
     )
-    return rows[0] || null
+    return result.rows[0] || null
   }
 
   // ── Criar pagamento pendente ────────────────────────────────
@@ -36,39 +36,40 @@ class PagamentoModel {
   // pendente válido nem aprovado antes de chamar este método.
   static async criarPagamento(data) {
     const { usuarioId, valor, mesReferencia, mercadoPagoId, qrCode, qrCodeBase64 } = data
-    const conn = await db.getConnection()
+    const conn = await db.connect()
 
     try {
-      await conn.beginTransaction()
+      await conn.query('BEGIN')
 
       // Segurança: garantir que não existe aprovado (double-check com lock)
-      const [aprovado] = await conn.execute(
+      const aprovado = await conn.query(
         `SELECT id FROM pagamentos
-         WHERE usuario_id = ? AND mes_referencia = ? AND status = 'approved'
+         WHERE usuario_id = $1 AND mes_referencia = $2 AND status = 'approved'
          FOR UPDATE`,
         [usuarioId, mesReferencia],
       )
-      if (aprovado.length > 0) {
-        await conn.rollback()
+      if (aprovado.rows.length > 0) {
+        await conn.query('ROLLBACK')
         throw new Error('Já existe um pagamento aprovado para este mês')
       }
 
       // Calcular expiração: 24h a partir de agora
       const expiresAt = new Date(Date.now() + PIX_EXPIRACAO_HORAS * 60 * 60 * 1000)
 
-      const [result] = await conn.execute(
+      const result = await conn.query(
         `INSERT INTO pagamentos
            (usuario_id, valor, mes_referencia, mercado_pago_id,
             qr_code, qr_code_base64, status, expires_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, NOW(), NOW())`,
+         VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7, NOW(), NOW())
+         RETURNING id`,
         [usuarioId, valor, mesReferencia, mercadoPagoId,
          qrCode, qrCodeBase64 || null, expiresAt],
       )
 
-      await conn.commit()
+      await conn.query('COMMIT')
 
       return {
-        id:            result.insertId,
+        id:            result.rows[0].id,
         mercadoPagoId,
         qrCode,
         qrCodeBase64:  qrCodeBase64 || null,
@@ -78,7 +79,7 @@ class PagamentoModel {
       }
 
     } catch (err) {
-      await conn.rollback()
+      await conn.query('ROLLBACK')
       throw err
     } finally {
       conn.release()
@@ -88,37 +89,38 @@ class PagamentoModel {
   // ── Criar registro retroativo já aprovado (via webhook sem registro prévio) ──
   static async criarPagamentoAprovado(data) {
     const { usuarioId, mesReferencia, mercadoPagoId, valor, dadosMercadoPago } = data
-    const conn = await db.getConnection()
+    const conn = await db.connect()
 
     try {
-      await conn.beginTransaction()
+      await conn.query('BEGIN')
 
       // Idempotência: já existe aprovado?
-      const [existente] = await conn.execute(
+      const existente = await conn.query(
         `SELECT id FROM pagamentos
-         WHERE usuario_id = ? AND mes_referencia = ? AND status = 'approved'
+         WHERE usuario_id = $1 AND mes_referencia = $2 AND status = 'approved'
          FOR UPDATE`,
         [usuarioId, mesReferencia],
       )
-      if (existente.length > 0) {
-        await conn.rollback()
-        return { id: existente[0].id, criado: false }
+      if (existente.rows.length > 0) {
+        await conn.query('ROLLBACK')
+        return { id: existente.rows[0].id, criado: false }
       }
 
-      const [result] = await conn.execute(
+      const result = await conn.query(
         `INSERT INTO pagamentos
            (usuario_id, valor, mes_referencia, mercado_pago_id,
             qr_code, status, dados_mercado_pago, created_at, updated_at)
-         VALUES (?, ?, ?, ?, '', 'approved', ?, NOW(), NOW())`,
+         VALUES ($1, $2, $3, $4, '', 'approved', $5, NOW(), NOW())
+         RETURNING id`,
         [usuarioId, valor || 0, mesReferencia, mercadoPagoId,
          JSON.stringify(dadosMercadoPago || {})],
       )
 
-      await conn.commit()
-      return { id: result.insertId, criado: true }
+      await conn.query('COMMIT')
+      return { id: result.rows[0].id, criado: true }
 
     } catch (err) {
-      await conn.rollback()
+      await conn.query('ROLLBACK')
       throw err
     } finally {
       conn.release()
@@ -127,58 +129,58 @@ class PagamentoModel {
 
   // ── Buscar por ID do Mercado Pago ───────────────────────────
   static async buscarPorMercadoPagoId(mercadoPagoId) {
-    const [rows] = await db.execute(
+    const result = await db.query(
       `SELECT id, usuario_id, valor, mes_referencia, mercado_pago_id,
               qr_code, qr_code_base64, status, expires_at, created_at, updated_at
        FROM pagamentos
-       WHERE mercado_pago_id = ?`,
+       WHERE mercado_pago_id = $1`,
       [String(mercadoPagoId)],
     )
-    return rows[0] || null
+    return result.rows[0] || null
   }
 
   // ── Atualizar status (com lock para evitar race condition) ──
   static async atualizarStatus(mercadoPagoId, novoStatus, dadosAdicionais = {}) {
-    const conn = await db.getConnection()
+    const conn = await db.connect()
 
     try {
-      await conn.beginTransaction()
+      await conn.query('BEGIN')
 
-      const [rows] = await conn.execute(
+      const rows = await conn.query(
         `SELECT id, status FROM pagamentos
-         WHERE mercado_pago_id = ? FOR UPDATE`,
+         WHERE mercado_pago_id = $1 FOR UPDATE`,
         [String(mercadoPagoId)],
       )
 
-      if (rows.length === 0) {
-        await conn.rollback()
+      if (rows.rows.length === 0) {
+        await conn.query('ROLLBACK')
         return false
       }
 
       // Idempotência: já aprovado, não regredir
-      if (rows[0].status === 'approved' && novoStatus === 'approved') {
-        await conn.commit()
+      if (rows.rows[0].status === 'approved' && novoStatus === 'approved') {
+        await conn.query('COMMIT')
         return true
       }
 
       // Não regredir de approved para qualquer outro status
-      if (rows[0].status === 'approved') {
-        await conn.rollback()
+      if (rows.rows[0].status === 'approved') {
+        await conn.query('ROLLBACK')
         return false
       }
 
-      const [result] = await conn.execute(
+      const result = await conn.query(
         `UPDATE pagamentos
-         SET status = ?, dados_mercado_pago = ?, updated_at = NOW()
-         WHERE mercado_pago_id = ?`,
+         SET status = $1, dados_mercado_pago = $2, updated_at = NOW()
+         WHERE mercado_pago_id = $3`,
         [novoStatus, JSON.stringify(dadosAdicionais), String(mercadoPagoId)],
       )
 
-      await conn.commit()
-      return result.affectedRows > 0
+      await conn.query('COMMIT')
+      return result.rowCount > 0
 
     } catch (err) {
-      await conn.rollback()
+      await conn.query('ROLLBACK')
       throw err
     } finally {
       conn.release()
@@ -187,75 +189,75 @@ class PagamentoModel {
 
   // ── Verificar se o mês está pago ────────────────────────────
   static async verificarMesPago(usuarioId, mesReferencia) {
-    const [rows] = await db.execute(
+    const result = await db.query(
       `SELECT COUNT(*) AS total FROM pagamentos
-       WHERE usuario_id = ? AND mes_referencia = ? AND status = 'approved'`,
+       WHERE usuario_id = $1 AND mes_referencia = $2 AND status = 'approved'`,
       [usuarioId, mesReferencia],
     )
-    return rows[0].total > 0
+    return result.rows[0].total > 0
   }
 
   // ── Listar pagamentos aprovados de um usuário ───────────────
   static async listarAprovadosPorUsuario(usuarioId) {
-    const [rows] = await db.execute(
+    const result = await db.query(
       `SELECT id, valor, mes_referencia, mercado_pago_id,
               dados_mercado_pago, created_at, updated_at
        FROM pagamentos
-       WHERE usuario_id = ? AND status = 'approved'
+       WHERE usuario_id = $1 AND status = 'approved'
        ORDER BY mes_referencia DESC`,
       [usuarioId],
     )
-    return rows
+    return result.rows
   }
 
   // ── Buscar pagamento aprovado por ID (para comprovante) ─────
   static async buscarAprovadoPorId(id, usuarioId) {
-    const [rows] = await db.execute(
+    const result = await db.query(
       `SELECT id, valor, mes_referencia, mercado_pago_id,
               dados_mercado_pago, created_at, updated_at
        FROM pagamentos
-       WHERE id = ? AND usuario_id = ? AND status = 'approved'`,
+       WHERE id = $1 AND usuario_id = $2 AND status = 'approved'`,
       [id, usuarioId],
     )
-    return rows[0] || null
+    return result.rows[0] || null
   }
 
   // ── Listar pagamentos de um usuário ─────────────────────────
   static async listarPorUsuario(usuarioId, limit = 10) {
-    const [rows] = await db.execute(
+    const result = await db.query(
       `SELECT id, valor, mes_referencia, status, expires_at, created_at, updated_at
        FROM pagamentos
-       WHERE usuario_id = ?
+       WHERE usuario_id = $1
        ORDER BY created_at DESC
-       LIMIT ?`,
+       LIMIT $2`,
       [usuarioId, limit],
     )
-    return rows
+    return result.rows
   }
 
   // ── Expirar pendentes vencidos (job a cada 5 min) ───────────
   // Marca como 'expired' todos os pagamentos pending cujo expires_at já passou.
   static async expirarPendentesVencidos() {
-    const [result] = await db.execute(
+    const result = await db.query(
       `UPDATE pagamentos
        SET status = 'expired', updated_at = NOW()
        WHERE status = 'pending'
          AND expires_at IS NOT NULL
          AND expires_at < NOW()`,
     )
-    return result.affectedRows
+    return result.rowCount
   }
 
   // ── Deletar expirados antigos (job diário) ──────────────────
   // Remove permanentemente registros 'expired' criados há mais de 30 dias.
   // Registros recentes são mantidos para auditoria.
   static async deletarExpiradosAntigos() {
-    const [result] = await db.execute(
+    const result = await db.query(
       `DELETE FROM pagamentos
        WHERE status = 'expired'
-         AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)`,
+         AND created_at < NOW() - INTERVAL '30 days'`,
     )
-    return result.affectedRows
+    return result.rowCount
   }
 }
 

@@ -1,19 +1,18 @@
 {
   "name": "indios-churrasco-gourmet-api",
-  "version": "1.11.2",
+  "version": "1.12.0",
   "description": "API REST — Índios Churrasco Gourmet",
   "main": "src/server.js",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
-    "migrate": "node scripts/run-migrations.js",
+    "dev": "cross-env NODE_OPTIONS='--dns-result-order=ipv4first' nodemon src/server.js",
+    "start": "cross-env NODE_OPTIONS='--dns-result-order=ipv4first' node src/server.js",
+    "migrate": "cross-env NODE_OPTIONS='--dns-result-order=ipv4first' node scripts/run-migrations.js",
+    "migrate:mysql": "node scripts/migrate-mysql-to-postgres.js",
+    "reset:usuario": "node scripts/reset-usuario.js",
     "sync:release": "node scripts/sync-release-to-db.js",
-    "test:sync": "node scripts/test-sync.js",
-    "test:commit-removal": "node scripts/test-commit-removal.js",
-    "check:notes": "node scripts/check-update-notes.js",
-    "check:last-note": "node scripts/check-last-note.js",
     "test": "vitest",
-    "test:run": "vitest run --passWithNoTests"
+    "test:run": "vitest run --passWithNoTests",
+    "test:db": "node test-db-connection.js"
   },
   "dependencies": {
     "axios": "^1.15.0",
@@ -26,13 +25,15 @@
     "express-validator": "^7.2.0",
     "jsonwebtoken": "^9.0.3",
     "mercadopago": "^2.12.0",
-    "mysql2": "^3.22.0",
+    "mysql2": "^3.22.3",
     "node-cron": "^4.2.1",
     "pdfkit": "^0.18.0",
+    "pg": "^8.21.0",
     "qrcode": "^1.5.4",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "fast-check": "^4.7.0",
     "nodemon": "^3.1.7",
     "supertest": "^7.2.2",

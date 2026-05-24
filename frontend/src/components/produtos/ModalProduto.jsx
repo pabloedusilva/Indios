@@ -1,15 +1,17 @@
 ﻿import { useState, useEffect } from 'react'
 import Modal from '../ui/Modal'
 import { formatarMoeda } from '../../utils/formatters'
+import { useApp } from '../../contexts/AppContext'
 
 const valoresIniciais = {
   nome: '',
-  categoria: '',
+  categoriaId: '',
   preco: '',
   disponivel: true,
 }
 
 export default function ModalProduto({ isOpen, onClose, produtoEditando, onSalvar, categorias = [] }) {
+  const { categoriasCompletas } = useApp()
   const [form, setForm] = useState(valoresIniciais)
   const [errors, setErrors] = useState({})
   const [salvando, setSalvando] = useState(false)
@@ -18,16 +20,21 @@ export default function ModalProduto({ isOpen, onClose, produtoEditando, onSalva
     if (produtoEditando) {
       setForm({
         nome: produtoEditando.nome,
-        categoria: produtoEditando.categoria,
+        categoriaId: produtoEditando.categoriaId || '',
         preco: String(produtoEditando.preco),
         disponivel: produtoEditando.disponivel,
       })
     } else {
-      setForm({ ...valoresIniciais, categoria: categorias[0] ?? '' })
+      // Pega o ID da primeira categoria disponível
+      const primeiraCategoria = categoriasCompletas?.[0]
+      setForm({ 
+        ...valoresIniciais, 
+        categoriaId: primeiraCategoria?.id || '' 
+      })
     }
     setErrors({})
     setSalvando(false)
-  }, [produtoEditando, isOpen])
+  }, [produtoEditando, isOpen, categoriasCompletas])
 
   const set = (field, value) => {
     setForm((f) => ({ ...f, [field]: value }))
@@ -49,7 +56,7 @@ export default function ModalProduto({ isOpen, onClose, produtoEditando, onSalva
     try {
       await onSalvar({
         nome: form.nome.trim(),
-        categoria: form.categoria,
+        categoriaId: form.categoriaId ? parseInt(form.categoriaId) : null,
         preco: parseFloat(form.preco),
         disponivel: form.disponivel,
       })
@@ -60,6 +67,9 @@ export default function ModalProduto({ isOpen, onClose, produtoEditando, onSalva
       setSalvando(false)
     }
   }
+
+  // Encontra o nome da categoria selecionada para exibição
+  const categoriaSelecionada = categoriasCompletas?.find(c => c.id === parseInt(form.categoriaId))
 
   return (
     <Modal
@@ -88,12 +98,12 @@ export default function ModalProduto({ isOpen, onClose, produtoEditando, onSalva
           <div>
             <label className="block text-xs font-semibold text-brand-text-2 mb-1.5 uppercase tracking-wider">Categoria</label>
             <select
-              value={form.categoria}
-              onChange={(e) => set('categoria', e.target.value)}
+              value={form.categoriaId || ''}
+              onChange={(e) => set('categoriaId', e.target.value)}
               className="input-field"
             >
-              {categorias.map((c) => (
-                <option key={c} value={c}>{c}</option>
+              {categoriasCompletas?.map((c) => (
+                <option key={c.id} value={c.id}>{c.nome}</option>
               ))}
             </select>
           </div>
@@ -139,7 +149,7 @@ export default function ModalProduto({ isOpen, onClose, produtoEditando, onSalva
           }`}>
             <div>
               <p className={`font-semibold text-sm ${form.disponivel ? 'text-brand-text' : 'text-brand-text-3'}`}>{form.nome}</p>
-              <p className="text-xs text-brand-text-3">{form.categoria}</p>
+              <p className="text-xs text-brand-text-3">{categoriaSelecionada?.nome || 'Sem categoria'}</p>
             </div>
             <p className={`font-bold ${form.disponivel ? 'text-brand-orange' : 'text-brand-text-3'}`}>{formatarMoeda(parseFloat(form.preco) || 0)}</p>
           </div>
