@@ -13,7 +13,7 @@ import {
   MdWarning,
 } from 'react-icons/md'
 import { useAuth } from '../../contexts/AuthContext'
-import toast from 'react-hot-toast'
+import { toast } from '../../utils/toastWithSound'
 import Portal from './Portal'
 
 // ── Componente de campo de input reutilizável ─────────────────

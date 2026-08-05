@@ -4,14 +4,16 @@ import PageLoader from '../components/ui/PageLoader'
 import StatusBadge from '../components/ui/StatusBadge'
 import ModalPedido from '../components/pedidos/ModalPedido'
 import EmptyState from '../components/ui/EmptyState'
+import ModalSelecionarMes from '../components/ui/ModalSelecionarMes'
 import { formatarMoeda, formatarHora, agruparPorData } from '../utils/formatters'
 import {
   MdHistory, MdSearch, MdFilterList, MdCalendarToday,
   MdPrint, MdAttachMoney, MdRestaurantMenu,
   MdCheckCircle, MdCancel, MdExpandMore, MdExpandLess, MdClear,
-  MdChevronLeft, MdChevronRight, MdRefresh, MdWarning,
+  MdChevronLeft, MdChevronRight, MdRefresh, MdWarning, MdMoreTime,
 } from 'react-icons/md'
 import { Skeleton, SkeletonGroup } from '../components/ui/Skeleton'
+import { AnimatedValue } from '../components/common'
 
 // ── Constantes ────────────────────────────────────────────────
 
@@ -23,32 +25,31 @@ const FILTROS_STATUS = [
   { id: 'cancelado',  label: 'Cancelados' },
 ]
 
-const PERIODOS = [
-  { id: 'hoje',  label: 'Hoje' },
-  { id: '7d',    label: '7 dias' },
-  { id: '30d',   label: '30 dias' },
-  { id: 'todos', label: 'Tudo' },
-]
-
 const POR_PAGINA = 50
 
 // ── Helpers ───────────────────────────────────────────────────
 
-// Compara datas no timezone de São Paulo para evitar erro na virada do dia
-const TZ_SP = 'America/Sao_Paulo'
+// Formatar mês/ano para exibição
+const MESES_PT = [
+  'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
+]
 
-function isNoPeriodo(dataISO, periodo) {
-  if (periodo === 'todos') return true
-  const data = new Date(dataISO)
-  const agora = new Date()
-  if (periodo === 'hoje') {
-    const opts = { timeZone: TZ_SP, year: 'numeric', month: '2-digit', day: '2-digit' }
-    return data.toLocaleDateString('pt-BR', opts) === agora.toLocaleDateString('pt-BR', opts)
-  }
-  const dias = periodo === '7d' ? 7 : 30
-  const limite = new Date()
-  limite.setDate(limite.getDate() - dias)
-  return data >= limite
+function nomeMesAbrev(mesStr) {
+  if (!mesStr) return ''
+  const [ano, m] = mesStr.split('-')
+  const nome = MESES_PT[parseInt(m, 10) - 1] || m
+  return `${nome.slice(0, 3)} ${ano}`
+}
+
+// Verifica se um pedido pertence a um determinado mês
+function pedidoPertenceAoMes(pedido, mesStr) {
+  if (!mesStr) return true
+  const dataPedido = new Date(pedido.criadoEm)
+  const ano = dataPedido.getFullYear()
+  const mes = String(dataPedido.getMonth() + 1).padStart(2, '0')
+  const mesPedido = `${ano}-${mes}`
+  return mesPedido === mesStr
 }
 
 // ── Subcomponentes ────────────────────────────────────────────
@@ -188,10 +189,46 @@ export default function Historico() {
 
   const [busca,             setBusca]             = useState('')
   const [filtroStatus,      setFiltroStatus]      = useState('todos')
-  const [periodo,           setPeriodo]           = useState('todos')
+  const [mesSelecionado,    setMesSelecionado]    = useState(null)
   const [pagina,            setPagina]            = useState(1)
   const [pedidoSelecionado, setPedidoSelecionado] = useState(null)
   const [refreshing,        setRefreshing]        = useState(false)
+  const [modalMesesAberto,  setModalMesesAberto]  = useState(false)
+
+  // Calcular meses disponíveis dos pedidos
+  const mesesDisponiveis = useMemo(() => {
+    const mesesMap = {}
+    
+    pedidos.forEach(pedido => {
+      const data = new Date(pedido.criadoEm)
+      const ano = data.getFullYear()
+      const mes = String(data.getMonth() + 1).padStart(2, '0')
+      const mesStr = `${ano}-${mes}`
+      
+      if (!mesesMap[mesStr]) {
+        mesesMap[mesStr] = {
+          mes: mesStr,
+          total: 0,
+        }
+      }
+      mesesMap[mesStr].total++
+    })
+
+    return Object.values(mesesMap).sort((a, b) => b.mes.localeCompare(a.mes))
+  }, [pedidos])
+
+  // Últimos 3 meses disponíveis
+  const ultimos3Meses = useMemo(() => {
+    return mesesDisponiveis.slice(0, 3)
+  }, [mesesDisponiveis])
+
+  // Mês atual (mais recente)
+  const mesAtual = useMemo(() => {
+    return mesesDisponiveis.length > 0 ? mesesDisponiveis[0].mes : null
+  }, [mesesDisponiveis])
+
+  // Mês ativo (selecionado ou atual)
+  const mesAtivo = mesSelecionado || mesAtual
 
   const handleRefresh = async () => {
     if (refreshing) return
@@ -206,11 +243,11 @@ export default function Historico() {
         const matchBusca   = p.nomeCliente.toLowerCase().includes(busca.toLowerCase()) ||
                              String(p.numero).includes(busca)
         const matchStatus  = filtroStatus === 'todos' || p.status === filtroStatus
-        const matchPeriodo = isNoPeriodo(p.criadoEm, periodo)
-        return matchBusca && matchStatus && matchPeriodo
+        const matchMes     = !mesAtivo || pedidoPertenceAoMes(p, mesAtivo)
+        return matchBusca && matchStatus && matchMes
       })
       .sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm))
-  }, [pedidos, busca, filtroStatus, periodo])
+  }, [pedidos, busca, filtroStatus, mesAtivo])
 
   const pedidosPagina   = useMemo(() =>
     pedidosFiltrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA),
@@ -219,7 +256,7 @@ export default function Historico() {
   const pedidosAgrupados = useMemo(() => agruparPorData(pedidosPagina), [pedidosPagina])
 
   // Reseta para página 1 quando filtros mudam
-  useEffect(() => { setPagina(1) }, [busca, filtroStatus, periodo])
+  useEffect(() => { setPagina(1) }, [busca, filtroStatus, mesAtivo])
 
   const totalPaginas = Math.max(1, Math.ceil(pedidosFiltrados.length / POR_PAGINA))
 
@@ -233,8 +270,8 @@ export default function Historico() {
     }
   }, [pedidosFiltrados])
 
-  const filtrosAtivos = busca !== '' || filtroStatus !== 'todos' || periodo !== 'todos'
-  const limparFiltros = () => { setBusca(''); setFiltroStatus('todos'); setPeriodo('todos') }
+  const filtrosAtivos = busca !== '' || filtroStatus !== 'todos'
+  const limparFiltros = () => { setBusca(''); setFiltroStatus('todos') }
 
   // ── Loading ───────────────────────────────────────────────
 
@@ -329,48 +366,101 @@ export default function Historico() {
           <div>
             <h1 className="font-heading text-2xl font-bold text-brand-text flex items-center gap-2">
               <MdHistory className="text-brand-orange" size={26} />
-              Historico de Pedidos
+              Histórico de Pedidos
             </h1>
             <p className="text-brand-text-3 text-sm mt-0.5">Consulte todos os pedidos registrados</p>
           </div>
-          <button
-            onClick={handleRefresh}
-            title="Atualizar histórico"
-            className="p-2 rounded-xl text-brand-text-3 hover:text-brand-text hover:bg-brand-surface
-                       border border-brand-border transition-all active:scale-95 self-start sm:self-auto"
-          >
-            <MdRefresh size={16} className={refreshing ? 'animate-spin' : ''} />
-          </button>
+          
+          <div className="flex items-center gap-2 self-start flex-wrap">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              title="Atualizar"
+              className="p-2 rounded-xl text-brand-text-3 hover:text-brand-text hover:bg-brand-surface border border-brand-border transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <MdRefresh size={16} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+
+            {/* Tabs dos últimos 3 meses */}
+            {ultimos3Meses.length > 0 && (
+              <div className="flex gap-1.5 p-1 bg-brand-surface rounded-xl border border-brand-border shadow-sm">
+                {ultimos3Meses.map((m) => (
+                  <button
+                    key={m.mes}
+                    onClick={() => setMesSelecionado(m.mes)}
+                    className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
+                      mesAtivo === m.mes
+                        ? 'bg-gradient-brand text-white shadow-brand'
+                        : 'text-brand-text-2 hover:text-brand-text hover:bg-brand-bg'
+                    }`}
+                  >
+                    {nomeMesAbrev(m.mes)}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Botão Ver Todos */}
+            {mesesDisponiveis.length > 3 && (
+              <button
+                onClick={() => setModalMesesAberto(true)}
+                className="btn-secondary gap-2 text-xs py-2 px-3"
+              >
+                <MdMoreTime size={14} />
+                Ver Todos
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ── Cards de estatísticas ──────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="card flex flex-col gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-brand-text-3 flex items-center gap-1.5">
-              <MdRestaurantMenu size={13} /> Pedidos
-            </span>
-            <p className="text-2xl font-bold text-brand-text font-heading">{stats.total}</p>
+          <div className="card flex flex-col gap-3">
+            <div className="flex items-start justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-brand-text-3">Pedidos</span>
+              <div className="w-8 h-8 rounded-xl bg-brand-red/10 flex items-center justify-center flex-shrink-0">
+                <MdRestaurantMenu className="text-brand-red" size={16} />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-brand-text font-heading">
+              <AnimatedValue value={stats.total} type="number" />
+            </p>
             <p className="text-xs text-brand-text-3">no período</p>
           </div>
-          <div className="card flex flex-col gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-brand-text-3 flex items-center gap-1.5">
-              <MdAttachMoney size={13} /> Faturamento
-            </span>
-            <p className="text-2xl font-bold text-brand-text font-heading">{formatarMoeda(stats.faturamento)}</p>
+          <div className="card flex flex-col gap-3">
+            <div className="flex items-start justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-brand-text-3">Faturamento</span>
+              <div className="w-8 h-8 rounded-xl bg-brand-orange/10 flex items-center justify-center flex-shrink-0">
+                <MdAttachMoney className="text-brand-orange" size={16} />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-brand-text font-heading">
+              <AnimatedValue value={stats.faturamento} type="money" />
+            </p>
             <p className="text-xs text-brand-text-3">excl. cancelados</p>
           </div>
-          <div className="card flex flex-col gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-brand-text-3 flex items-center gap-1.5">
-              <MdCheckCircle size={13} /> Finalizados
-            </span>
-            <p className="text-2xl font-bold text-brand-text font-heading">{stats.entregues}</p>
+          <div className="card flex flex-col gap-3">
+            <div className="flex items-start justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-brand-text-3">Finalizados</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                <MdCheckCircle className="text-emerald-500 dark:text-emerald-400" size={16} />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-brand-text font-heading">
+              <AnimatedValue value={stats.entregues} type="number" />
+            </p>
             <p className="text-xs text-brand-text-3">finalizados</p>
           </div>
-          <div className="card flex flex-col gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-brand-text-3 flex items-center gap-1.5">
-              <MdCancel size={13} /> Cancelados
-            </span>
-            <p className="text-2xl font-bold text-brand-text font-heading">{stats.cancelados}</p>
+          <div className="card flex flex-col gap-3">
+            <div className="flex items-start justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-brand-text-3">Cancelados</span>
+              <div className="w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                <MdCancel className="text-red-500 dark:text-red-400" size={16} />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-brand-text font-heading">
+              <AnimatedValue value={stats.cancelados} type="number" />
+            </p>
             <p className="text-xs text-brand-text-3">pedidos cancelados</p>
           </div>
         </div>
@@ -401,42 +491,22 @@ export default function Historico() {
             />
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="space-y-2 flex-1">
-              <p className="text-[10px] text-brand-text-3 uppercase tracking-wider font-bold">Período</p>
-              <div className="flex gap-2 flex-wrap">
-                {PERIODOS.map(({ id, label }) => (
-                  <button
-                    key={id}
-                    onClick={() => setPeriodo(id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all
-                      ${periodo === id
-                        ? 'bg-gradient-brand text-white shadow-brand'
-                        : 'bg-brand-bg text-brand-text-2 border border-brand-border hover:border-brand-orange/40'
-                      }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2 flex-1">
-              <p className="text-[10px] text-brand-text-3 uppercase tracking-wider font-bold">Status</p>
-              <div className="flex gap-2 flex-wrap">
-                {FILTROS_STATUS.map(({ id, label }) => (
-                  <button
-                    key={id}
-                    onClick={() => setFiltroStatus(id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all
-                      ${filtroStatus === id
-                        ? 'bg-gradient-brand text-white shadow-brand'
-                        : 'bg-brand-bg text-brand-text-2 border border-brand-border hover:border-brand-orange/40'
-                      }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+          <div className="space-y-2">
+            <p className="text-[10px] text-brand-text-3 uppercase tracking-wider font-bold">Status</p>
+            <div className="flex gap-2 flex-wrap">
+              {FILTROS_STATUS.map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setFiltroStatus(id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all
+                    ${filtroStatus === id
+                      ? 'bg-gradient-brand text-white shadow-brand'
+                      : 'bg-brand-bg text-brand-text-2 border border-brand-border hover:border-brand-orange/40'
+                    }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -525,6 +595,16 @@ export default function Historico() {
         isOpen={!!pedidoSelecionado}
         onClose={() => setPedidoSelecionado(null)}
         pedido={pedidoSelecionado}
+      />
+
+      {/* ── Modal de seleção de meses ──────────────────────── */}
+      <ModalSelecionarMes
+        isOpen={modalMesesAberto}
+        onClose={() => setModalMesesAberto(false)}
+        mesesDisponiveis={mesesDisponiveis}
+        onSelecionar={setMesSelecionado}
+        mesAtual={mesAtivo}
+        titulo="Selecionar Período - Histórico"
       />
     </>
   )

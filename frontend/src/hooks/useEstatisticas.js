@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { api } from '../services/api'
-import toast from 'react-hot-toast'
+import { toast } from '../utils/toastWithSound'
 
 const STATS_VAZIA = {
   mes: '',
@@ -41,8 +41,9 @@ export function useEstatisticas() {
 
   // ── Busca meses disponíveis + stats iniciais ──────────────
   // Sempre reseta para o mês mais recente ao montar (ao entrar na rota)
-  const carregarMeses = useCallback(async () => {
+  const carregarMeses = useCallback(async (mostrarLoading = true) => {
     try {
+      if (mostrarLoading) setLoading(true)
       setError(null)
       const data = await api.get('/estatisticas/inicio')
       setMeses(data.meses)
@@ -71,19 +72,6 @@ export function useEstatisticas() {
     }
   }, [])
 
-  // ── Sincroniza todos os meses no banco ────────────────────
-  const sincronizar = useCallback(async () => {
-    setSincronizando(true)
-    try {
-      await api.post('/estatisticas/sincronizar', {})
-      if (mesAtivo) await carregarStats(mesAtivo)
-    } catch (err) {
-      toast.error(err.message || 'Erro ao sincronizar')
-    } finally {
-      setSincronizando(false)
-    }
-  }, [mesAtivo, carregarStats])
-
   // ── Busca lista de relatórios disponíveis no banco ────────
   const carregarRelatorios = useCallback(async () => {
     try {
@@ -93,6 +81,27 @@ export function useEstatisticas() {
       // silencioso — relatórios são secundários
     }
   }, [])
+
+  // ── Sincroniza todos os meses no banco ────────────────────
+  const sincronizar = useCallback(async () => {
+    setSincronizando(true)
+    try {
+      await api.post('/estatisticas/sincronizar', {})
+      await carregarMeses(false) // Recarrega sem mostrar loading completo
+      await carregarRelatorios()
+      toast.success('Dados sincronizados com sucesso!')
+    } catch (err) {
+      toast.error(err.message || 'Erro ao sincronizar')
+    } finally {
+      setSincronizando(false)
+    }
+  }, [carregarMeses, carregarRelatorios])
+
+  // ── Refetch completo (recarrega tudo mostrando skeleton) ──
+  const refetch = useCallback(async () => {
+    await carregarMeses(true)
+    await carregarRelatorios()
+  }, [carregarMeses, carregarRelatorios])
 
   // ── Baixa o PDF de um relatório (gerado em memória no servidor) ──
   const baixarRelatorio = useCallback(async (mes) => {
@@ -123,7 +132,7 @@ export function useEstatisticas() {
 
   // ── Efeitos ───────────────────────────────────────────────
   useEffect(() => {
-    carregarMeses()
+    carregarMeses(true)
     carregarRelatorios()
   }, []) // eslint-disable-line
 
@@ -148,6 +157,6 @@ export function useEstatisticas() {
     sincronizar,
     baixarRelatorio,
     recarregarRelatorios: carregarRelatorios,
-    refetch: carregarMeses,
+    refetch,
   }
 }

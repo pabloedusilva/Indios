@@ -26,8 +26,12 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 
+# Configuração fiscal (EXTREMAMENTE SENSÍVEL - NUNCA COMMITAR!)
+.env.fiscal
+
 # Manter apenas os arquivos de exemplo
 !.env.example
+!.env.fiscal.example
 !.env.development
 !.env.production
 

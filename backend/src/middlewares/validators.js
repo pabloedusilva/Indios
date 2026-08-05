@@ -36,6 +36,11 @@ const validarProduto = [
     .notEmpty().withMessage('Preço é obrigatório.')
     .isFloat({ min: 0.01 }).withMessage('Preço deve ser maior que zero.'),
 
+  body('ncm')
+    .trim()
+    .notEmpty().withMessage('NCM é obrigatório.')
+    .matches(/^\d{8}$/).withMessage('NCM deve ter exatamente 8 dígitos numéricos.'),
+
   body('disponivel')
     .optional()
     .isBoolean().withMessage('Disponível deve ser true ou false.'),

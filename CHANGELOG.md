@@ -5,6 +5,16 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.2.0](https://github.com/pabloedusilva/Indios/compare/v2.1.1...v2.2.0) (2026-05-24)
+
+### Novas Funcionalidades
+
+* implementar pedidos sem nome com geração automática de cliente temporário e remover cross-env dos scripts de produção ([c0b682a](https://github.com/pabloedusilva/Indios/commit/c0b682a66fde3d555ab9f81ebe7034cb7e02d9f4))
+
+### Correções de Bugs
+
+* remover dependência desnecessária do cross-env no Render ([65dc121](https://github.com/pabloedusilva/Indios/commit/65dc121a3cc43ec778cf7e85a007b9184953d312))
+
 ## [2.1.1](https://github.com/pabloedusilva/Indios/compare/v2.1.0...v2.1.1) (2026-05-24)
 
 ### Correções de Bugs

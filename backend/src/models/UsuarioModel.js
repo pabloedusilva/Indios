@@ -7,7 +7,7 @@ const pool = require('../config/database')
 const UsuarioModel = {
   async findByUsuario(usuario) {
     const result = await pool.query(
-      'SELECT id, usuario, senha_hash FROM usuarios WHERE usuario = $1 LIMIT 1',
+      'SELECT id, usuario, senha_hash, role FROM usuarios WHERE usuario = $1 LIMIT 1',
       [usuario],
     )
     return result.rows[0] ?? null
@@ -15,7 +15,7 @@ const UsuarioModel = {
 
   async findById(id) {
     const result = await pool.query(
-      'SELECT id, usuario FROM usuarios WHERE id = $1 LIMIT 1',
+      'SELECT id, usuario, role FROM usuarios WHERE id = $1 LIMIT 1',
       [id],
     )
     return result.rows[0] ?? null
@@ -40,7 +40,7 @@ const UsuarioModel = {
   // Retorna senha_hash para validação antes de alterar credenciais
   async findByIdWithHash(id) {
     const result = await pool.query(
-      'SELECT id, usuario, senha_hash FROM usuarios WHERE id = $1 LIMIT 1',
+      'SELECT id, usuario, senha_hash, role FROM usuarios WHERE id = $1 LIMIT 1',
       [id],
     )
     return result.rows[0] ?? null

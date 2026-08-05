@@ -2,12 +2,12 @@ import { useMemo, useState } from 'react'
 import { useEstatisticas } from '../hooks/useEstatisticas'
 import { formatarMoeda } from '../utils/formatters'
 import { Skeleton, SkeletonGroup } from '../components/ui/Skeleton'
-import ModalRelatorios from '../components/ui/ModalRelatorios'
+import ModalSelecionarMes from '../components/ui/ModalSelecionarMes'
 import {
   MdAttachMoney, MdRestaurantMenu, MdCheckCircle, MdCancel,
   MdTrendingUp, MdWarning, MdFileDownload, MdPictureAsPdf,
   MdCalendarMonth, MdAutoGraph, MdStar, MdPayment, MdLeaderboard,
-  MdRefresh, MdSync,
+  MdRefresh, MdMoreTime,
 } from 'react-icons/md'
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -148,60 +148,7 @@ function BarChart({ data }) {
 // Classes de somente leitura (amarelo sutil) reutilizadas em todos os cards
 const READ_ONLY_CARD = 'bg-yellow-50/60 dark:bg-yellow-950/10 border-yellow-200/70 dark:border-yellow-800/30'
 
-function KpiCard({ label, value, sub, icon: Icon, color, readOnly = false }) {
-  const map = {
-    orange: {
-      icon: 'text-brand-orange',
-      bg:   'bg-orange-50 dark:bg-orange-950/30',
-      bd:   'border-orange-100 dark:border-orange-900/40',
-    },
-    red: {
-      icon: 'text-brand-red',
-      bg:   'bg-red-50 dark:bg-red-950/30',
-      bd:   'border-red-100 dark:border-red-900/40',
-    },
-    green: {
-      icon: 'text-emerald-600 dark:text-emerald-400',
-      bg:   'bg-emerald-50 dark:bg-emerald-950/30',
-      bd:   'border-emerald-100 dark:border-emerald-900/40',
-    },
-    gold: {
-      icon: 'text-brand-gold',
-      bg:   'bg-amber-50 dark:bg-amber-950/30',
-      bd:   'border-amber-100 dark:border-amber-900/40',
-    },
-    blue: {
-      icon: 'text-blue-600 dark:text-blue-400',
-      bg:   'bg-blue-50 dark:bg-blue-950/30',
-      bd:   'border-blue-100 dark:border-blue-900/40',
-    },
-    violet: {
-      icon: 'text-violet-600 dark:text-violet-400',
-      bg:   'bg-violet-50 dark:bg-violet-950/30',
-      bd:   'border-violet-100 dark:border-violet-900/40',
-    },
-  }
-  const c = map[color] || map.orange
-
-  return (
-    <div className={`card flex flex-col gap-3 ${readOnly ? READ_ONLY_CARD : ''}`}>
-      <div className="flex items-start justify-between">
-        <p className="text-[11px] font-semibold text-brand-text-3 uppercase tracking-wider leading-tight">
-          {label}
-        </p>
-        {Icon && (
-          <div className={`w-8 h-8 rounded-xl ${c.bg} border ${c.bd} flex items-center justify-center shrink-0`}>
-            <Icon className={c.icon} size={17} />
-          </div>
-        )}
-      </div>
-      <div>
-        <p className="text-2xl font-bold text-brand-text font-heading leading-none">{value}</p>
-        {sub && <p className="text-xs text-brand-text-3 mt-1.5 leading-tight">{sub}</p>}
-      </div>
-    </div>
-  )
-}
+import { AnimatedValue, KpiCard } from '../components/common'
 
 // ── Componente principal ──────────────────────────────────────
 export default function Estatisticas() {
@@ -213,15 +160,18 @@ export default function Estatisticas() {
     relatorios,
     relatorioDoMesAtivo,
     loading,
-    sincronizando,
     error,
-    sincronizar,
     baixarRelatorio,
     refetch,
     recarregarRelatorios,
   } = useEstatisticas()
 
-  const [modalRelatoriosAberto, setModalRelatoriosAberto] = useState(false)
+  const [modalMesesAberto, setModalMesesAberto] = useState(false)
+
+  // Últimos 3 meses disponíveis
+  const ultimos3Meses = useMemo(() => {
+    return meses.slice(0, 3)
+  }, [meses])
 
   if (loading) return (
     <div className="space-y-5 animate-fade-in">
@@ -434,33 +384,46 @@ export default function Estatisticas() {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Botão sincronizar */}
+        <div className="flex items-center gap-2 self-start flex-wrap">
+          {/* Botão atualizar */}
           <button
-            onClick={sincronizar}
-            disabled={sincronizando}
-            title="Sincronizar dados"
+            onClick={refetch}
+            disabled={loading}
+            title="Atualizar"
             className="p-2 rounded-xl text-brand-text-3 hover:text-brand-text hover:bg-brand-surface border border-brand-border transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <MdSync size={16} className={sincronizando ? 'animate-spin' : ''} />
+            <MdRefresh size={16} className={loading ? 'animate-spin' : ''} />
           </button>
 
-          {/* Tabs de mês */}
-          <div className="flex gap-1.5 p-1 bg-brand-surface rounded-xl border border-brand-border shadow-sm">
-            {meses.map((m) => (
-              <button
-                key={m.mes}
-                onClick={() => setMesAtivo(m.mes)}
-                className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
-                  mesAtivo === m.mes
-                    ? 'bg-gradient-brand text-white shadow-brand'
-                    : 'text-brand-text-2 hover:text-brand-text hover:bg-brand-bg'
-                }`}
-              >
-                {nomeMesAbrev(m.mes)}
-              </button>
-            ))}
-          </div>
+          {/* Tabs dos últimos 3 meses */}
+          {ultimos3Meses.length > 0 && (
+            <div className="flex gap-1.5 p-1 bg-brand-surface rounded-xl border border-brand-border shadow-sm">
+              {ultimos3Meses.map((m) => (
+                <button
+                  key={m.mes}
+                  onClick={() => setMesAtivo(m.mes)}
+                  className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
+                    mesAtivo === m.mes
+                      ? 'bg-gradient-brand text-white shadow-brand'
+                      : 'text-brand-text-2 hover:text-brand-text hover:bg-brand-bg'
+                  }`}
+                >
+                  {nomeMesAbrev(m.mes)}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Botão Ver Todos */}
+          {meses.length > 0 && (
+            <button
+              onClick={() => setModalMesesAberto(true)}
+              className="btn-secondary gap-2 text-xs py-2 px-3"
+            >
+              <MdMoreTime size={14} />
+              Ver Todos
+            </button>
+          )}
         </div>
       </div>
 
@@ -468,7 +431,8 @@ export default function Estatisticas() {
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
           <KpiCard
             label="Faturamento Total"
-            value={formatarMoeda(resumo.faturamento)}
+            value={resumo.faturamento}
+            type="money"
             sub={`${resumo.finalizados} pedidos finalizados`}
             icon={MdAttachMoney}
             color="orange"
@@ -479,12 +443,13 @@ export default function Estatisticas() {
             value={resumo.totalPedidos}
             sub={`Período: ${nomeMes(mesAtivo)}`}
             icon={MdRestaurantMenu}
-            color="blue"
+            color="red"
             readOnly={somenteLeitura}
           />
           <KpiCard
             label="Ticket Médio"
-            value={formatarMoeda(resumo.ticketMedio)}
+            value={resumo.ticketMedio}
+            type="money"
             sub="por pedido finalizado"
             icon={MdTrendingUp}
             color="gold"
@@ -596,7 +561,7 @@ export default function Estatisticas() {
                       </div>
                       <div className="h-1.5 bg-brand-border rounded-full overflow-hidden">
                         <div
-                          className={`h-full ${barColor} rounded-full transition-all duration-500`}
+                          className={`h-full ${barColor} rounded-full animate-progress transition-smooth`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>
@@ -732,32 +697,18 @@ export default function Estatisticas() {
 
         {/* ── Relatório PDF ─────────────────────────────────── */}
         <div className={`card ${somenteLeitura ? READ_ONLY_CARD : ''}`}>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 flex items-center justify-center">
-                <MdPictureAsPdf className="text-brand-red" size={17} />
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold text-brand-text-3 uppercase tracking-wider">
-                  Relatório PDF
-                </p>
-                <p className="text-xs text-brand-text-3 mt-0.5">
-                  {nomeMes(mesAtivo)}
-                </p>
-              </div>
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 flex items-center justify-center">
+              <MdPictureAsPdf className="text-brand-red" size={17} />
             </div>
-
-            {/* Botão Ver todos */}
-            <button
-              onClick={() => setModalRelatoriosAberto(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold
-                         text-brand-text-2 border border-brand-border bg-brand-surface
-                         hover:border-brand-orange/50 hover:text-brand-orange hover:bg-orange-50
-                         dark:hover:bg-orange-950/20 transition-all duration-200 active:scale-95"
-            >
-              <MdPictureAsPdf size={13} />
-              Ver todos
-            </button>
+            <div>
+              <p className="text-[11px] font-semibold text-brand-text-3 uppercase tracking-wider">
+                Relatório PDF
+              </p>
+              <p className="text-xs text-brand-text-3 mt-0.5">
+                {nomeMes(mesAtivo)}
+              </p>
+            </div>
           </div>
 
           {relatorioDoMesAtivo ? (
@@ -825,13 +776,14 @@ export default function Estatisticas() {
           </p>
         </div>
 
-        {/* ── Modal de todos os relatórios ──────────────────── */}
-        <ModalRelatorios
-          isOpen={modalRelatoriosAberto}
-          onClose={() => setModalRelatoriosAberto(false)}
-          relatorios={relatorios}
-          onBaixar={baixarRelatorio}
-          onRecarregar={recarregarRelatorios}
+        {/* ── Modal de seleção de meses ──────────────────────── */}
+        <ModalSelecionarMes
+          isOpen={modalMesesAberto}
+          onClose={() => setModalMesesAberto(false)}
+          mesesDisponiveis={meses}
+          onSelecionar={setMesAtivo}
+          mesAtual={mesAtivo}
+          titulo="Selecionar Período - Estatísticas"
         />
     </div>
   )

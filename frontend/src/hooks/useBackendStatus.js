@@ -167,7 +167,6 @@ export function useBackendStatus() {
       if (!isMountedRef.current) return false
       
       // Erro de rede ou timeout
-      console.log(`[Backend] Tentativa ${retryCountRef.current + 1} falhou`)
       return false
     }
   }, [])

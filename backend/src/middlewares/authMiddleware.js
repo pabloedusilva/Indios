@@ -46,7 +46,7 @@ function requireAuth(req, res, next) {
     const payload = jwt.verify(token, JWT_SECRET, {
       algorithms: ['HS256'],
     })
-    req.usuario = { id: payload.sub, usuario: payload.usuario }
+    req.usuario = { id: payload.sub, usuario: payload.usuario, role: payload.role || 'user' }
     next()
   } catch (err) {
     // Token expirado ou inválido — limpa o cookie corrompido

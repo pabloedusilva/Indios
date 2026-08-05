@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   MdDashboard, MdRestaurantMenu, MdInventory2,
   MdHistory, MdClose, MdLogout, MdBarChart, MdSettings, MdPayment, MdRocketLaunch,
+  MdReceipt,
 } from 'react-icons/md'
 import { useApp } from '../../contexts/AppContext'
 import { useAuth } from '../../contexts/AuthContext'
@@ -13,11 +14,12 @@ import { APP_VERSION } from '../../utils/version'
 import { api } from '../../services/api'
 
 const navItems = [
-  { to: '/dashboard',    label: 'Dashboard',    icon: MdDashboard,      exact: true },
-  { to: '/pedidos',      label: 'Pedidos',      icon: MdRestaurantMenu },
-  { to: '/produtos',     label: 'Produtos',     icon: MdInventory2 },
-  { to: '/historico',    label: 'Histórico',    icon: MdHistory },
-  { to: '/estatisticas', label: 'Estatísticas', icon: MdBarChart },
+  { to: '/dashboard',      label: 'Dashboard',      icon: MdDashboard,      exact: true },
+  { to: '/pedidos',        label: 'Pedidos',         icon: MdRestaurantMenu },
+  { to: '/produtos',       label: 'Produtos',        icon: MdInventory2 },
+  { to: '/historico',      label: 'Histórico',       icon: MdHistory },
+  { to: '/estatisticas',   label: 'Estatísticas',    icon: MdBarChart },
+  { to: '/contabilidade',  label: 'Contabilidade',   icon: MdReceipt },
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
