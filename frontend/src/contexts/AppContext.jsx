@@ -191,19 +191,6 @@ export function AppProvider({ children }) {
     }
   }, [carregarPedidosAtivos, carregarPedidos])
 
-  const finalizarTodosSemPagamento = useCallback(async () => {
-    try {
-      const { finalizados = 0 } = await api.patch('/pedidos/finalizar-sem-pagamento')
-      await carregarPedidosAtivos()
-      await carregarPedidos()
-      notificarDashboard()
-      toast.success(`${finalizados} pedido${finalizados === 1 ? '' : 's'} finalizado${finalizados === 1 ? '' : 's'} sem pagamento!`)
-    } catch (err) {
-      toast.error(err.message || 'Erro ao concluir pedidos sem pagamento.')
-      throw err
-    }
-  }, [carregarPedidosAtivos, carregarPedidos])
-
   const cancelarPedido = useCallback(async (id) => {
     try {
       await api.patch(`/pedidos/${id}/cancelar`)
@@ -264,7 +251,6 @@ export function AppProvider({ children }) {
     finalizarPedido,
     cancelarPedido,
     excluirPedido,
-    finalizarTodosSemPagamento,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

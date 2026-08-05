@@ -140,17 +140,6 @@ const finalizar = async (req, res, next) => {
   }
 }
 
-// PATCH /api/pedidos/finalizar-sem-pagamento
-// Finaliza todos os pedidos ativos sem registrar forma de pagamento
-const finalizarTodosSemPagamento = async (req, res, next) => {
-  try {
-    const count = await PedidoModel.finalizarTodosSemPagamento()
-    res.json({ success: true, data: { finalizados: count } })
-  } catch (err) {
-    next(err)
-  }
-}
-
 // PATCH /api/pedidos/:id/cancelar
 // Muda status para 'cancelado'
 const cancelar = async (req, res, next) => {
@@ -175,4 +164,4 @@ const excluir = async (req, res, next) => {
   }
 }
 
-module.exports = { listar, listarAtivos, buscarPorId, criar, marcarPronto, finalizar, finalizarTodosSemPagamento, cancelar, excluir }
+module.exports = { listar, listarAtivos, buscarPorId, criar, marcarPronto, finalizar, cancelar, excluir }

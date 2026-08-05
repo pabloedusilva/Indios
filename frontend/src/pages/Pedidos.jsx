@@ -3,10 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useApp } from '../contexts/AppContext'
 import CardPedido from '../components/pedidos/CardPedido'
 import ModalNovoPedido from '../components/pedidos/ModalNovoPedido'
-import ConfirmDialog from '../components/ui/ConfirmDialog'
 import EmptyState from '../components/ui/EmptyState'
 import PageLoader from '../components/ui/PageLoader'
-import { MdAdd, MdRestaurantMenu, MdHourglassBottom, MdCheckCircle, MdLocalFireDepartment, MdRefresh, MdWarning, MdDoneAll } from 'react-icons/md'
+import { MdAdd, MdRestaurantMenu, MdHourglassBottom, MdCheckCircle, MdLocalFireDepartment, MdRefresh, MdWarning } from 'react-icons/md'
 import { Skeleton, SkeletonGroup } from '../components/ui/Skeleton'
 
 const ABAS = [
@@ -16,13 +15,11 @@ const ABAS = [
 ]
 
 export default function Pedidos() {
-  const { pedidosAtivos, loading, errorPedidosAtivos, refetchPedidosAtivos, finalizarTodosSemPagamento } = useApp()
+  const { pedidosAtivos, loading, errorPedidosAtivos, refetchPedidosAtivos } = useApp()
   const navigate = useNavigate()
   const location = useLocation()
   const [abaAtiva, setAbaAtiva] = useState('todos')
   const [refreshing, setRefreshing] = useState(false)
-  const [confirmarFinalizacao, setConfirmarFinalizacao] = useState(false)
-  const [finalizandoTodos, setFinalizandoTodos] = useState(false)
 
   const handleRefresh = async () => {
     if (refreshing) return
@@ -129,14 +126,6 @@ export default function Pedidos() {
               <MdRefresh size={16} className={refreshing ? 'animate-spin' : ''} />
             </button>
             <button
-              onClick={() => setConfirmarFinalizacao(true)}
-              disabled={pedidosAtivos.length === 0}
-              className="btn-danger px-5 py-3 shadow-brand disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-            >
-              <MdDoneAll size={18} />
-              Marcar todos como concluído
-            </button>
-            <button
               onClick={abrirModal}
               className="btn-primary px-6 py-3 shadow-brand"
             >
@@ -204,31 +193,6 @@ export default function Pedidos() {
       <ModalNovoPedido
         isOpen={modalNovoPedido}
         onClose={fecharModal}
-      />
-
-      <ConfirmDialog
-        isOpen={confirmarFinalizacao}
-        title="Confirmar finalização em massa"
-        message={
-          <p className="text-sm leading-relaxed">
-            Deseja marcar <span className="font-bold text-brand-orange">{pedidosAtivos.length}</span> pedido{pedidosAtivos.length === 1 ? '' : 's'} como concluído?
-            <br />
-            Esses pedidos serão finalizados sem forma de pagamento registrada e poderão deixar o relatório mensal menos preciso.
-          </p>
-        }
-        confirmLabel="Sim, concluir todos"
-        danger
-        disabled={finalizandoTodos}
-        onCancel={() => setConfirmarFinalizacao(false)}
-        onConfirm={async () => {
-          setFinalizandoTodos(true)
-          try {
-            await finalizarTodosSemPagamento()
-            setConfirmarFinalizacao(false)
-          } finally {
-            setFinalizandoTodos(false)
-          }
-        }}
       />
     </>
   )
