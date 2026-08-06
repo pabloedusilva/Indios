@@ -26,26 +26,33 @@ export function useDashboard(intervalo = 10000) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const buscar = useCallback(async () => {
+  const buscar = useCallback(async (mostrarLoading = false) => {
     try {
+      if (mostrarLoading) setLoading(true)
       setError(null)
       const data = await api.get('/dashboard/resumo')
       setDados(data)
     } catch (err) {
       setError(err.message || 'Erro ao carregar dashboard')
     } finally {
-      setLoading(false)
+      if (mostrarLoading) setLoading(false)
     }
   }, [])
 
+  // Refetch que mostra loading
+  const refetch = useCallback(async () => {
+    setLoading(true)
+    await buscar(true)
+  }, [buscar])
+
   useEffect(() => {
-    buscar()
+    buscar(true)
 
-    // Polling a cada 10s
-    const timer = setInterval(buscar, intervalo)
+    // Polling a cada 10s (sem mostrar loading)
+    const timer = setInterval(() => buscar(false), intervalo)
 
-    // Atualiza imediatamente quando um pedido é criado/alterado
-    const handlePedidoAtualizado = () => buscar()
+    // Atualiza imediatamente quando um pedido é criado/alterado (sem mostrar loading)
+    const handlePedidoAtualizado = () => buscar(false)
     window.addEventListener('pedido-atualizado', handlePedidoAtualizado)
 
     return () => {
@@ -54,5 +61,5 @@ export function useDashboard(intervalo = 10000) {
     }
   }, [buscar, intervalo])
 
-  return { ...dados, loading, error, refetch: buscar }
+  return { ...dados, loading, error, refetch }
 }

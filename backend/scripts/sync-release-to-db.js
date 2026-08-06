@@ -1,409 +1,323 @@
+#!/usr/bin/env node
 // =============================================================
-//  scripts/sync-release-to-db.js
+// sync-release-to-db.js — Sincroniza Release do GitHub com BD
 //
-//  Sincroniza release do GitHub com tabela update_notes
+// Responsabilidades:
+//   · Buscar release notes da última release no GitHub
+//   · Detectar migrações de banco de dados aplicadas nesta release
+//   · Criar ou atualizar entrada na tabela update_notes
+//   · Enviar notificação para usuários via modal automático
 //
-//  Responsabilidades:
-//    · Buscar última release do GitHub via API
-//    · Extrair versão, tipo, título e notas
-//    · Parsear release notes em melhorias e correções
-//    · Salvar/atualizar no banco de dados
-//    · Validar dados antes de inserir
+// Uso:
+//   GITHUB_TOKEN=xxx GITHUB_REPOSITORY=owner/repo DATABASE_URL=xxx node sync-release-to-db.js
 //
-//  Uso:
-//    node backend/scripts/sync-release-to-db.js
-//    Ou de dentro de backend/scripts: node sync-release-to-db.js
-//
-//  Variáveis de Ambiente Necessárias:
-//    - DATABASE_URL: URL de conexão com MySQL
-//    - GITHUB_TOKEN: Token para acessar API do GitHub (opcional)
-//    - GITHUB_REPOSITORY: owner/repo (ex: pabloedusilva/Indios)
+// Variáveis de Ambiente:
+//   GITHUB_TOKEN       - Token de acesso ao GitHub API
+//   GITHUB_REPOSITORY  - Repositório no formato owner/repo
+//   DATABASE_URL       - URL de conexão com PostgreSQL
 // =============================================================
 
-const path = require('path')
-require('dotenv').config({ path: path.join(__dirname, '../.env') })
-const https = require('https')
-const { Pool } = require('pg')
+const fs = require('fs').promises;
+const path = require('path');
 
 // =============================================================
-// Configuração
+// Validação de variáveis de ambiente
 // =============================================================
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_REPOSITORY = process.env.GITHUB_REPOSITORY;
+const DATABASE_URL = process.env.DATABASE_URL;
 
-const GITHUB_REPO = process.env.GITHUB_REPOSITORY || 'pabloedusilva/Indios'
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || ''
-
-// =============================================================
-// Funções Auxiliares - GitHub API
-// =============================================================
-
-/**
- * Faz requisição HTTPS para API do GitHub
- * @param {string} endpoint - Endpoint da API (ex: /repos/owner/repo/releases/latest)
- * @returns {Promise<object>} Resposta JSON da API
- */
-function githubRequest(endpoint) {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'api.github.com',
-      path: endpoint,
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Indios-Release-Sync',
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-    }
-
-    // Adiciona token se disponível
-    if (GITHUB_TOKEN) {
-      options.headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`
-    }
-
-    const req = https.request(options, (res) => {
-      let data = ''
-
-      res.on('data', (chunk) => {
-        data += chunk
-      })
-
-      res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          try {
-            resolve(JSON.parse(data))
-          } catch (error) {
-            reject(new Error(`Erro ao parsear JSON: ${error.message}`))
-          }
-        } else {
-          reject(new Error(`GitHub API retornou ${res.statusCode}: ${data}`))
-        }
-      })
-    })
-
-    req.on('error', (error) => {
-      reject(new Error(`Erro na requisição: ${error.message}`))
-    })
-
-    req.end()
-  })
+if (!GITHUB_TOKEN) {
+  console.error('[ERROR] GITHUB_TOKEN não configurado');
+  process.exit(1);
 }
 
-/**
- * Busca a última release do repositório
- * @returns {Promise<object>} Dados da release
- */
-async function getLatestRelease() {
-  console.log(`[INFO] Buscando ultima release de ${GITHUB_REPO}...`)
-  
+if (!GITHUB_REPOSITORY) {
+  console.error('[ERROR] GITHUB_REPOSITORY não configurado');
+  process.exit(1);
+}
+
+if (!DATABASE_URL) {
+  console.error('[ERROR] DATABASE_URL não configurado');
+  process.exit(1);
+}
+
+// =============================================================
+// Cliente PostgreSQL
+// =============================================================
+const { Pool } = require('pg');
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+});
+
+// =============================================================
+// Cliente GitHub API
+// =============================================================
+async function fetchLatestRelease() {
+  const [owner, repo] = GITHUB_REPOSITORY.split('/');
+  const url = `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
+
+  console.log(`[INFO] Buscando última release: ${url}`);
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      Accept: 'application/vnd.github.v3+json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`GitHub API retornou ${response.status}: ${await response.text()}`);
+  }
+
+  const release = await response.json();
+  console.log(`[SUCCESS] Release encontrada: v${release.tag_name}`);
+
+  return {
+    version: release.tag_name.replace(/^v/, ''),
+    title: release.name,
+    body: release.body,
+    createdAt: release.created_at,
+  };
+}
+
+// =============================================================
+// Detectar migrações desde a última release
+// =============================================================
+async function detectMigrationsSinceLastRelease() {
+  const migrationsDir = path.join(__dirname, '..', 'migrations');
+
   try {
-    const release = await githubRequest(`/repos/${GITHUB_REPO}/releases/latest`)
-    console.log(`[OK] Release encontrada: ${release.tag_name}`)
-    return release
+    const files = await fs.readdir(migrationsDir);
+    const sqlFiles = files
+      .filter(f => f.endsWith('.sql'))
+      .sort()
+      .reverse(); // Pegar as mais recentes primeiro
+
+    const migrations = [];
+
+    // Ler apenas as últimas 5 migrações (assumindo que não há mais de 5 por release)
+    for (const file of sqlFiles.slice(0, 5)) {
+      const filePath = path.join(migrationsDir, file);
+      const content = await fs.readFile(filePath, 'utf-8');
+
+      // Extrair comentário de descrição (primeira linha não-vazia após o header)
+      const lines = content.split('\n');
+      let description = '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('-- Migration')) {
+          description = trimmed.replace(/^--\s*Migration\s*\d+:\s*/i, '').trim();
+          break;
+        }
+      }
+
+      if (description) {
+        migrations.push({
+          file,
+          description,
+        });
+      }
+    }
+
+    console.log(`[INFO] ${migrations.length} migrações detectadas`);
+    return migrations;
   } catch (error) {
-    console.error(`[ERROR] Erro ao buscar release: ${error.message}`)
-    throw error
+    console.warn('[WARN] Não foi possível ler diretório de migrações:', error.message);
+    return [];
   }
 }
 
 // =============================================================
-// Funções Auxiliares - Parsing de Release Notes
+// Parsear Release Notes do GitHub
 // =============================================================
+function parseReleaseNotes(body) {
+  const melhorias = [];
+  const correcoes = [];
+  const migracoes = [];
 
-/**
- * Determina o tipo de release baseado na versão
- * @param {string} version - Versão (ex: "1.3.0")
- * @param {string} previousVersion - Versão anterior (ex: "1.2.4")
- * @returns {string} Tipo: 'major', 'minor' ou 'patch'
- */
-function determineReleaseType(version, previousVersion) {
-  const [major, minor, patch] = version.split('.').map(Number)
-  const [prevMajor, prevMinor, prevPatch] = (previousVersion || '0.0.0').split('.').map(Number)
+  // Dividir por seções
+  const sections = body.split(/##\s+/);
 
-  if (major > prevMajor) return 'major'
-  if (minor > prevMinor) return 'minor'
-  if (patch > prevPatch) return 'patch'
-  
-  return 'minor' // fallback
-}
+  for (const section of sections) {
+    const lines = section.trim().split('\n');
+    const title = lines[0]?.trim().toLowerCase() || '';
 
-/**
- * Extrai melhorias das release notes
- * @param {string} body - Corpo das release notes
- * @returns {string[]} Array de melhorias
- */
-function extractMelhorias(body) {
-  const melhorias = []
-  
-  // Procura seção "Novas Funcionalidades" ou "Features"
-  const featRegex = /(?:###?\s*(?:Novas Funcionalidades|Features|✨\s*Features)[^\n]*\n)([\s\S]*?)(?=###|$)/i
-  const match = body.match(featRegex)
-  
-  if (match && match[1]) {
-    const lines = match[1].split('\n')
-    for (const line of lines) {
-      // Extrai itens de lista (*, -, •) ou commits
-      const itemMatch = line.match(/^[\s]*[*\-•]\s*(.+)$/)
-      if (itemMatch && itemMatch[1]) {
-        let item = itemMatch[1].trim()
-        // Remove links de commit completos (ex: "([abc1234](https://github.com/...))")
-        item = item.replace(/\s*\(\[[a-f0-9]{7,}\]\(https?:\/\/[^\)]+\)\)\s*$/i, '')
-        // Remove hash de commit simples (ex: "(abc1234)")
-        item = item.replace(/\s*\([a-f0-9]{7,}\)\s*$/i, '')
-        // Remove prefixo "feat:" se presente
-        item = item.replace(/^feat:\s*/i, '')
-        if (item.length > 0) {
-          melhorias.push(item)
+    // Novas Funcionalidades, Features, Melhorias, Refatorações, Performance
+    if (
+      title.includes('novas funcionalidades') ||
+      title.includes('features') ||
+      title.includes('melhorias') ||
+      title.includes('refatorações') ||
+      title.includes('refactor') ||
+      title.includes('performance') ||
+      title.includes('perf') ||
+      title.includes('documentação') ||
+      title.includes('docs')
+    ) {
+      for (const line of lines.slice(1)) {
+        const match = line.match(/^\s*[-*]\s+(.+)/);
+        if (match) {
+          const item = match[1].trim();
+          // Remover links e hash de commit do final
+          const cleanItem = item.replace(/\s*\([a-f0-9]{7,}\)$/i, '').trim();
+          melhorias.push(cleanItem);
+        }
+      }
+    }
+
+    // Correções de Bugs, Bug Fixes
+    if (title.includes('correções') || title.includes('bug fixes') || title.includes('fixes') || title.includes('fix')) {
+      for (const line of lines.slice(1)) {
+        const match = line.match(/^\s*[-*]\s+(.+)/);
+        if (match) {
+          const item = match[1].trim();
+          const cleanItem = item.replace(/\s*\([a-f0-9]{7,}\)$/i, '').trim();
+          correcoes.push(cleanItem);
+        }
+      }
+    }
+
+    // Migrações de Banco de Dados
+    if (title.includes('migrações') || title.includes('migrations') || title.includes('banco de dados')) {
+      for (const line of lines.slice(1)) {
+        const match = line.match(/^\s*[-*]\s+(.+)/);
+        if (match) {
+          migracoes.push(match[1].trim());
         }
       }
     }
   }
-  
-  return melhorias
-}
 
-/**
- * Extrai correções das release notes
- * @param {string} body - Corpo das release notes
- * @returns {string[]} Array de correções
- */
-function extractCorrecoes(body) {
-  const correcoes = []
-  
-  // Procura seção "Correções de Bugs" ou "Bug Fixes"
-  const fixRegex = /(?:###?\s*(?:Correções de Bugs|Bug Fixes|🐛\s*Bug Fixes)[^\n]*\n)([\s\S]*?)(?=###|$)/i
-  const match = body.match(fixRegex)
-  
-  if (match && match[1]) {
-    const lines = match[1].split('\n')
-    for (const line of lines) {
-      // Extrai itens de lista (*, -, •) ou commits
-      const itemMatch = line.match(/^[\s]*[*\-•]\s*(.+)$/)
-      if (itemMatch && itemMatch[1]) {
-        let item = itemMatch[1].trim()
-        // Remove links de commit completos (ex: "([abc1234](https://github.com/...))")
-        item = item.replace(/\s*\(\[[a-f0-9]{7,}\]\(https?:\/\/[^\)]+\)\)\s*$/i, '')
-        // Remove hash de commit simples (ex: "(abc1234)")
-        item = item.replace(/\s*\([a-f0-9]{7,}\)\s*$/i, '')
-        // Remove prefixo "fix:" se presente
-        item = item.replace(/^fix:\s*/i, '')
-        if (item.length > 0) {
-          correcoes.push(item)
-        }
-      }
-    }
-  }
-  
-  return correcoes
-}
-
-/**
- * Gera título amigável para a release
- * @param {string} version - Versão (ex: "1.3.0")
- * @param {string} type - Tipo (major, minor, patch)
- * @returns {string} Título formatado
- */
-function generateTitle(version, type) {
-  const typeLabels = {
-    major: 'Grande Atualização',
-    minor: 'Nova Atualização',
-    patch: 'Correções e Melhorias',
-  }
-  
-  return `${typeLabels[type] || 'Atualização'} - Versão ${version}`
-}
-
-/**
- * Gera descrição amigável para a release
- * @param {string} type - Tipo (major, minor, patch)
- * @param {number} melhorias - Quantidade de melhorias
- * @param {number} correcoes - Quantidade de correções
- * @returns {string} Descrição formatada
- */
-function generateDescricao(type, melhorias, correcoes) {
-  const parts = []
-  
-  if (type === 'major') {
-    parts.push('Esta é uma atualização importante com mudanças significativas.')
-  } else if (type === 'minor') {
-    parts.push('Confira as novidades e melhorias desta versão.')
-  } else {
-    parts.push('Correções e ajustes para melhorar sua experiência.')
-  }
-  
-  if (melhorias > 0) {
-    parts.push(`${melhorias} nova${melhorias > 1 ? 's' : ''} funcionalidade${melhorias > 1 ? 's' : ''}.`)
-  }
-  
-  if (correcoes > 0) {
-    parts.push(`${correcoes} correç${correcoes > 1 ? 'ões' : 'ão'} de bug${correcoes > 1 ? 's' : ''}.`)
-  }
-  
-  return parts.join(' ')
+  return { melhorias, correcoes, migracoes };
 }
 
 // =============================================================
-// Funções Auxiliares - Banco de Dados
+// Determinar tipo de release (major, minor, patch)
 // =============================================================
+function getReleaseType(version) {
+  const [major, minor, patch] = version.split('.').map(Number);
 
-/**
- * Conecta ao banco de dados
- * @returns {Promise<Pool>} Pool de conexão PostgreSQL
- */
-async function connectDatabase() {
-  try {
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false
-      }
-    })
-    
-    // Testa a conexão
-    await pool.query('SELECT NOW()')
-    console.log('[OK] Conectado ao banco de dados (PostgreSQL/Supabase)')
-    return pool
-  } catch (error) {
-    console.error('[ERROR] Erro ao conectar ao banco:', error.message)
-    throw error
+  if (major > 0 && minor === 0 && patch === 0) {
+    return 'major';
   }
-}
 
-/**
- * Busca versão anterior no banco
- * @param {Pool} pool - Pool de conexão PostgreSQL
- * @returns {Promise<string|null>} Versão anterior ou null
- */
-async function getPreviousVersion(pool) {
-  try {
-    const result = await pool.query(
-      `SELECT versao FROM update_notes ORDER BY criado_em DESC LIMIT 1`
-    )
-    return result.rows.length > 0 ? result.rows[0].versao : null
-  } catch (error) {
-    console.warn('[WARN] Erro ao buscar versao anterior:', error.message)
-    return null
+  if (minor > 0) {
+    return 'minor';
   }
-}
 
-/**
- * Salva ou atualiza nota no banco de dados
- * @param {Pool} pool - Pool de conexão PostgreSQL
- * @param {object} nota - Dados da nota
- * @returns {Promise<void>}
- */
-async function upsertNota(pool, nota) {
-  try {
-    await pool.query(
-      `INSERT INTO update_notes (versao, tipo, titulo, descricao, melhorias, correcoes, imagem, ativo)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       ON CONFLICT (versao) DO UPDATE SET
-         tipo      = EXCLUDED.tipo,
-         titulo    = EXCLUDED.titulo,
-         descricao = EXCLUDED.descricao,
-         melhorias = EXCLUDED.melhorias,
-         correcoes = EXCLUDED.correcoes,
-         imagem    = EXCLUDED.imagem,
-         ativo     = EXCLUDED.ativo,
-         atualizado_em = CURRENT_TIMESTAMP`,
-      [
-        nota.versao,
-        nota.tipo,
-        nota.titulo,
-        nota.descricao,
-        JSON.stringify(nota.melhorias),
-        JSON.stringify(nota.correcoes),
-        nota.imagem,
-        nota.ativo,
-      ]
-    )
-    console.log(`[OK] Nota salva no banco: v${nota.versao}`)
-  } catch (error) {
-    console.error('[ERROR] Erro ao salvar nota no banco:', error.message)
-    throw error
-  }
+  return 'patch';
 }
 
 // =============================================================
-// Função Principal
+// Salvar no banco de dados
 // =============================================================
+async function saveUpdateNote(release, migrations) {
+  const { version, title, body } = release;
+  const tipo = getReleaseType(version);
+  const { melhorias, correcoes, migracoes } = parseReleaseNotes(body);
 
+  // Combinar todas as melhorias
+  const allMelhorias = [...melhorias];
+  
+  // Adicionar migrações detectadas automaticamente
+  const migrationItems = migrations.map(m => `🗄️ Banco de Dados: ${m.description}`);
+  allMelhorias.push(...migrationItems);
+  
+  // Adicionar migrações da seção do release notes (se houver)
+  allMelhorias.push(...migracoes);
+
+  // Descrição da release
+  const descricao =
+    allMelhorias.length > 0 || correcoes.length > 0
+      ? 'Nova versão disponível com melhorias e correções.'
+      : 'Atualização de manutenção e estabilidade.';
+
+  // Título padrão se não houver
+  const finalTitle = title || `Versão ${version}`;
+
+  console.log('[INFO] Salvando update note no banco de dados...');
+  console.log(`  Versão: ${version}`);
+  console.log(`  Tipo: ${tipo}`);
+  console.log(`  Título: ${finalTitle}`);
+  console.log(`  Melhorias: ${allMelhorias.length}`);
+  console.log(`  Correções: ${correcoes.length}`);
+  
+  if (allMelhorias.length > 0) {
+    console.log('[INFO] Detalhes das melhorias:');
+    allMelhorias.forEach((m, i) => console.log(`  ${i + 1}. ${m}`));
+  }
+  
+  if (correcoes.length > 0) {
+    console.log('[INFO] Detalhes das correções:');
+    correcoes.forEach((c, i) => console.log(`  ${i + 1}. ${c}`));
+  }
+
+  const query = `
+    INSERT INTO update_notes (versao, tipo, titulo, descricao, melhorias, correcoes, imagem, ativo)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    ON CONFLICT (versao) DO UPDATE SET
+      tipo = EXCLUDED.tipo,
+      titulo = EXCLUDED.titulo,
+      descricao = EXCLUDED.descricao,
+      melhorias = EXCLUDED.melhorias,
+      correcoes = EXCLUDED.correcoes,
+      imagem = EXCLUDED.imagem,
+      ativo = EXCLUDED.ativo,
+      atualizado_em = CURRENT_TIMESTAMP
+    RETURNING id, versao, tipo, titulo
+  `;
+
+  const values = [
+    version,
+    tipo,
+    finalTitle,
+    descricao,
+    JSON.stringify(allMelhorias),
+    JSON.stringify(correcoes),
+    '/update/new-update.png',
+    true,
+  ];
+
+  const result = await pool.query(query, values);
+  const note = result.rows[0];
+
+  console.log(`[SUCCESS] Update note salva: ID=${note.id}, versão=${note.versao}`);
+  return note;
+}
+
+// =============================================================
+// Main
+// =============================================================
 async function main() {
-  console.log('[START] Iniciando sincronizacao de release para banco de dados...\n')
-
-  let pool
-
   try {
+    console.log('[INFO] Iniciando sincronização de release com banco de dados...');
+
     // 1. Buscar última release do GitHub
-    const release = await getLatestRelease()
-    
-    // 2. Extrair versão (remove 'v' do início)
-    const version = release.tag_name.replace(/^v/, '')
-    console.log(`\n[INFO] Processando release v${version}`)
-    
-    // 3. Conectar ao banco
-    pool = await connectDatabase()
-    
-    // 4. Buscar versão anterior para determinar tipo
-    const previousVersion = await getPreviousVersion(pool)
-    const tipo = determineReleaseType(version, previousVersion)
-    console.log(`[INFO] Tipo de release: ${tipo.toUpperCase()}`)
-    
-    // 5. Parsear release notes
-    const body = release.body || ''
-    const melhorias = extractMelhorias(body)
-    const correcoes = extractCorrecoes(body)
-    
-    console.log(`\n[INFO] Conteudo extraido:`)
-    console.log(`   Melhorias: ${melhorias.length}`)
-    console.log(`   Correcoes: ${correcoes.length}`)
-    
-    // 6. Gerar título e descrição
-    const titulo = generateTitle(version, tipo)
-    const descricao = generateDescricao(tipo, melhorias.length, correcoes.length)
-    
-    // 7. Preparar objeto da nota
-    const nota = {
-      versao: version,
-      tipo: tipo,
-      titulo: titulo,
-      descricao: descricao,
-      melhorias: melhorias,
-      correcoes: correcoes,
-      imagem: '/update/new-update.png',
-      ativo: true,
+    const release = await fetchLatestRelease();
+
+    // 2. Detectar migrações aplicadas nesta release
+    const migrations = await detectMigrationsSinceLastRelease();
+
+    if (migrations.length > 0) {
+      console.log('[INFO] Migrações detectadas:');
+      migrations.forEach(m => console.log(`  - ${m.file}: ${m.description}`));
     }
-    
-    // 8. Validar dados
-    if (melhorias.length === 0 && correcoes.length === 0) {
-      console.warn('\n[WARN] Nenhuma melhoria ou correcao encontrada nas release notes.')
-      console.warn('   A nota sera criada, mas o modal pode ficar vazio.')
-      console.warn('   Considere adicionar conteudo manualmente via API ou SQL.')
-    }
-    
-    // 9. Salvar no banco
-    console.log(`\n[SAVE] Salvando nota no banco de dados...`)
-    await upsertNota(pool, nota)
-    
-    // 10. Resumo final
-    console.log(`\n[SUCCESS] Sincronizacao concluida com sucesso!`)
-    console.log(`\n[SUMMARY] Resumo da nota criada:`)
-    console.log(`   Versao: ${nota.versao}`)
-    console.log(`   Tipo: ${nota.tipo}`)
-    console.log(`   Titulo: ${nota.titulo}`)
-    console.log(`   Descricao: ${nota.descricao}`)
-    console.log(`   Melhorias: ${nota.melhorias.length}`)
-    console.log(`   Correcoes: ${nota.correcoes.length}`)
-    console.log(`   Ativo: ${nota.ativo ? 'Sim' : 'Nao'}`)
-    
+
+    // 3. Salvar no banco de dados
+    await saveUpdateNote(release, migrations);
+
+    console.log('[SUCCESS] Sincronização concluída com sucesso!');
+    process.exit(0);
   } catch (error) {
-    console.error('\n[ERROR] Erro fatal durante sincronizacao:', error.message)
-    process.exit(1)
+    console.error('[ERROR] Falha na sincronização:', error.message);
+    console.error(error.stack);
+    process.exit(1);
   } finally {
-    if (pool) {
-      await pool.end()
-      console.log('\n[CLOSE] Conexao com banco encerrada')
-    }
+    await pool.end();
   }
 }
 
-// Executar script
-main()
+main();

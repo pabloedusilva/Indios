@@ -1,6 +1,6 @@
 {
   "name": "indios-churrasco-gourmet-api",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "API REST — Índios Churrasco Gourmet",
   "main": "src/server.js",
   "scripts": {
@@ -25,6 +25,7 @@
     "express-rate-limit": "^8.3.2",
     "express-validator": "^7.2.0",
     "jsonwebtoken": "^9.0.3",
+    "jszip": "^3.10.1",
     "mercadopago": "^2.12.0",
     "mysql2": "^3.22.3",
     "node-cron": "^4.2.1",

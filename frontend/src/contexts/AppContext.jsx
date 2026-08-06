@@ -1,7 +1,8 @@
 ﻿import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { api } from '../services/api'
 import { isHoje } from '../utils/formatters'
-import toast from 'react-hot-toast'
+import { toast } from '../utils/toastWithSound'
+import { playCashSound } from '../services/audioService'
 
 const AppContext = createContext(null)
 
@@ -178,22 +179,14 @@ export function AppProvider({ children }) {
       carregarPedidos()
       notificarDashboard()
       const label = { pix: 'PIX', credito: 'Crédito', debito: 'Débito', dinheiro: 'Dinheiro' }[formaPagamento] ?? formaPagamento
-      toast.success(`Pedido finalizado! Pagamento via ${label} ✅`)
+      
+      // 🔊 Tocar som de cash register ao finalizar pedido
+      playCashSound()
+      
+      // Toast silencioso para não duplicar o som
+      toast.silent.success(`Pedido finalizado! Pagamento via ${label} ✅`)
     } catch (err) {
       toast.error(err.message || 'Erro ao finalizar pedido.')
-      throw err
-    }
-  }, [carregarPedidosAtivos, carregarPedidos])
-
-  const finalizarTodosSemPagamento = useCallback(async () => {
-    try {
-      const { finalizados = 0 } = await api.patch('/pedidos/finalizar-sem-pagamento')
-      await carregarPedidosAtivos()
-      await carregarPedidos()
-      notificarDashboard()
-      toast.success(`${finalizados} pedido${finalizados === 1 ? '' : 's'} finalizado${finalizados === 1 ? '' : 's'} sem pagamento!`)
-    } catch (err) {
-      toast.error(err.message || 'Erro ao concluir pedidos sem pagamento.')
       throw err
     }
   }, [carregarPedidosAtivos, carregarPedidos])
@@ -258,7 +251,6 @@ export function AppProvider({ children }) {
     finalizarPedido,
     cancelarPedido,
     excluirPedido,
-    finalizarTodosSemPagamento,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

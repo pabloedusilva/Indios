@@ -13,6 +13,7 @@ import Produtos from './pages/Produtos'
 import Historico from './pages/Historico'
 import Cardapio from './pages/Cardapio'
 import Estatisticas from './pages/Estatisticas'
+import Contabilidade from './pages/Contabilidade'
 
 function App() {
   return (
@@ -41,8 +42,9 @@ function App() {
                           <Route path="/pedidos/novo" element={<Pedidos />} />
                           <Route path="/produtos"     element={<Produtos />} />
                           <Route path="/historico"    element={<Historico />} />
-                          <Route path="/estatisticas" element={<Estatisticas />} />
-                          <Route path="*"             element={<Navigate to="/dashboard" replace />} />
+                          <Route path="/estatisticas"  element={<Estatisticas />} />
+                          <Route path="/contabilidade" element={<Contabilidade />} />
+                          <Route path="*"              element={<Navigate to="/dashboard" replace />} />
                         </Routes>
                       </Layout>
                     </PixPaymentProvider>

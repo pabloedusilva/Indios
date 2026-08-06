@@ -27,6 +27,7 @@ function mapProduto(row) {
     categoria:    row.categoria_nome || null,
     categoriaId:  row.categoria_id   || null,
     preco:        parseFloat(row.preco),
+    ncm:          row.ncm || null,
     imagem:       row.imagem || null,
     disponivel:   Boolean(row.disponivel),
     ordem:        row.ordem ?? 0,
@@ -85,14 +86,15 @@ const ProdutoModel = {
   // Cria novo produto
   async create(dados) {
     const [rows] = await db.execute(
-      `INSERT INTO produtos (nome, descricao, preco, categoria_id, imagem, disponivel, ordem)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO produtos (nome, descricao, preco, categoria_id, ncm, imagem, disponivel, ordem)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         dados.nome,
         dados.descricao || null,
         dados.preco,
         dados.categoriaId || dados.categoria_id || null,
+        dados.ncm || null,
         dados.imagem || null,
         dados.disponivel !== false,
         dados.ordem ?? 0,
@@ -111,6 +113,7 @@ const ProdutoModel = {
     if (dados.categoriaId !== undefined) { params.push(dados.categoriaId); campos.push(`categoria_id = $${params.length}`) }
     if (dados.categoria_id!== undefined) { params.push(dados.categoria_id);campos.push(`categoria_id = $${params.length}`) }
     if (dados.preco       !== undefined) { params.push(dados.preco);       campos.push(`preco = $${params.length}`) }
+    if (dados.ncm         !== undefined) { params.push(dados.ncm);         campos.push(`ncm = $${params.length}`) }
     if (dados.imagem      !== undefined) { params.push(dados.imagem);      campos.push(`imagem = $${params.length}`) }
     if (dados.disponivel  !== undefined) { params.push(Boolean(dados.disponivel)); campos.push(`disponivel = $${params.length}`) }
     if (dados.ordem       !== undefined) { params.push(dados.ordem);       campos.push(`ordem = $${params.length}`) }

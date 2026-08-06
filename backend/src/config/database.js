@@ -7,18 +7,17 @@ require('dotenv').config()
 
 const { Pool } = require('pg')
 
+// Configuração do Supabase Pooler com application_name para debug
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
   },
+  application_name: 'indios_backend',
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
   query_timeout: 30000,
-  // Força uso de IPv4 para evitar problemas com IPv6
-  host: 'db.erluhsofpxlcdunfwktp.supabase.co',
-  options: '-c search_path=public',
 })
 
 // Testa a conexão na inicialização e exibe status no terminal

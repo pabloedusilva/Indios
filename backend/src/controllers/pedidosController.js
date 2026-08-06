@@ -72,6 +72,7 @@ const marcarPronto = async (req, res, next) => {
 // PATCH /api/pedidos/:id/finalizar
 // Body: { formaPagamento, valorRecebido, troco }
 // Muda status para 'finalizado', registra entregueEm + pagamentoEm + dados do pagamento
+// Emite NFe automaticamente em modo homologação
 const finalizar = async (req, res, next) => {
   try {
     const { formaPagamento, valorRecebido, troco } = req.body
@@ -81,18 +82,59 @@ const finalizar = async (req, res, next) => {
       troco,
     })
     if (!pedido) return res.status(404).json({ success: false, message: 'Pedido não encontrado.' })
-    res.json({ success: true, data: pedido })
-  } catch (err) {
-    next(err)
-  }
-}
-
-// PATCH /api/pedidos/finalizar-sem-pagamento
-// Finaliza todos os pedidos ativos sem registrar forma de pagamento
-const finalizarTodosSemPagamento = async (req, res, next) => {
-  try {
-    const count = await PedidoModel.finalizarTodosSemPagamento()
-    res.json({ success: true, data: { finalizados: count } })
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // EMISSÃO AUTOMÁTICA DE NFe (AMBIENTE DE HOMOLOGAÇÃO)
+    // ═══════════════════════════════════════════════════════════════════
+    // Emite NFe automaticamente após finalizar pedido
+    // Se falhar, apenas registra o erro e não bloqueia a finalização
+    // ═══════════════════════════════════════════════════════════════════
+    try {
+      const NotaFiscalService = require('../services/NotaFiscalService')
+      
+      // Tenta emitir a NFe automaticamente
+      const nota = await NotaFiscalService.emitir(
+        req.params.id,
+        req.usuario?.id || 1, // ID do usuário autenticado
+        {
+          cpfDestinatario: req.body.cpfCliente || null,
+          ufDestinatario: 'MG', // Padrão Minas Gerais
+          observacoes: req.body.observacoes || null
+        }
+      )
+      
+      console.log(`[Pedido] ✅ NFe emitida automaticamente - Pedido #${pedido.numero}, Nota #${nota.numero}`)
+      
+      // Retorna sucesso com informação da nota
+      return res.json({ 
+        success: true, 
+        data: pedido,
+        nfe: {
+          emitida: true,
+          numero: nota.numero,
+          status: nota.status,
+          mensagem: 'Nota fiscal emitida automaticamente'
+        }
+      })
+      
+    } catch (nfeError) {
+      // Erro ao emitir NFe - NÃO bloqueia a finalização do pedido
+      console.error(`[Pedido] ⚠️ Erro ao emitir NFe automaticamente para pedido #${pedido.numero}:`, nfeError.message)
+      
+      // Retorna sucesso do pedido mas informa que NFe falhou
+      return res.json({ 
+        success: true, 
+        data: pedido,
+        nfe: {
+          emitida: false,
+          erro: true,
+          mensagem: 'Pedido finalizado com sucesso',
+          detalhes: nfeError.message,
+          observacao: 'A nota pode ser emitida manualmente em Contabilidade'
+        }
+      })
+    }
+    
   } catch (err) {
     next(err)
   }
@@ -122,4 +164,4 @@ const excluir = async (req, res, next) => {
   }
 }
 
-module.exports = { listar, listarAtivos, buscarPorId, criar, marcarPronto, finalizar, finalizarTodosSemPagamento, cancelar, excluir }
+module.exports = { listar, listarAtivos, buscarPorId, criar, marcarPronto, finalizar, cancelar, excluir }
