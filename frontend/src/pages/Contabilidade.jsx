@@ -7,6 +7,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { useNotasFiscais } from '../hooks/useNotasFiscais'
+import { useApp } from '../contexts/AppContext'
 import { formatarMoeda } from '../utils/formatters'
 import * as notasFiscaisService from '../services/notasFiscaisService'
 import { toast } from '../utils/toastWithSound'
@@ -83,6 +84,9 @@ export default function Contabilidade() {
     buscarPorId,
     notasPorMes,
   } = useNotasFiscais()
+  
+  // Estado global de download
+  const { baixandoZip, setBaixandoZip } = useApp()
 
   // Estados
   const [modalVisualizar, setModalVisualizar] = useState(null)
@@ -91,7 +95,6 @@ export default function Contabilidade() {
   const [mesSelecionado, setMesSelecionado] = useState(null)
   const [termoBusca, setTermoBusca] = useState('')
   const [filtroStatus, setFiltroStatus] = useState('todos')
-  const [baixandoZip, setBaixandoZip] = useState(false)
   const [estatisticasMes, setEstatisticasMes] = useState(null)
   const [loadingEstatisticas, setLoadingEstatisticas] = useState(false)
   const [impostosPeriodo, setImpostosPeriodo] = useState(null)

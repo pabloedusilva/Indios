@@ -2,12 +2,15 @@ import { useState } from 'react'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import BannerPagamento from '../ui/BannerPagamento'
+import DownloadProgress from '../ui/DownloadProgress'
 import ModalUpdateNotes from '../ui/ModalUpdateNotes'
 import { useUpdateNotes } from '../../hooks/useUpdateNotes'
+import { useApp } from '../../contexts/AppContext'
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { nota, modalAberto, fechar: fecharUpdate } = useUpdateNotes()
+  const { baixandoZip, setBaixandoZip } = useApp()
 
   return (
     <div className="flex h-screen bg-brand-bg overflow-hidden">
@@ -26,6 +29,12 @@ export default function Layout({ children }) {
 
       {/* Modal de novidades — exibido automaticamente em releases MINOR/MAJOR */}
       <ModalUpdateNotes isOpen={modalAberto} onClose={fecharUpdate} nota={nota} />
+      
+      {/* Indicador de Download Global — persiste entre mudanças de rota */}
+      <DownloadProgress 
+        isDownloading={baixandoZip}
+        onClose={() => setBaixandoZip(false)}
+      />
     </div>
   )
 }

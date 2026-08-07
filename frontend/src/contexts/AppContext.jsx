@@ -16,6 +16,9 @@ export function AppProvider({ children }) {
   const [errorCategorias, setErrorCategorias] = useState(null)
   const [errorPedidos, setErrorPedidos] = useState(null)
   const [errorPedidosAtivos, setErrorPedidosAtivos] = useState(null)
+  
+  // Estado global de download ZIP
+  const [baixandoZip, setBaixandoZip] = useState(false)
 
   // —— Fetch ——————————————————————————————————————————————————
   const carregarCategorias = useCallback(async () => {
@@ -251,6 +254,9 @@ export function AppProvider({ children }) {
     finalizarPedido,
     cancelarPedido,
     excluirPedido,
+    // Estado global de download
+    baixandoZip,
+    setBaixandoZip,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
