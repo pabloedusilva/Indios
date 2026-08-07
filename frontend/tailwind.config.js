@@ -61,8 +61,10 @@ export default {
         'pulse-ring-red': 'pulseRingRed 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'bounce-slow': 'bounceSlow 2s ease-in-out infinite',
         'scale-check': 'scaleCheck 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
-        'shimmer': 'shimmer 2s linear infinite',
+        'shimmer': 'shimmer 1.5s ease-in-out infinite',
         'float-subtle': 'floatSubtle 2.5s ease-in-out infinite',
+        'progress-fill': 'progressFill 2s ease-in-out infinite',
+        'progress-flash': 'progressFlash 1.8s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -135,12 +137,32 @@ export default {
           '100%': { transform: 'scale(1)', opacity: '1' },
         },
         shimmer: {
-          '0%': { transform: 'translateX(-100%)' },
-          '100%': { transform: 'translateX(200%)' },
+          '0%': { transform: 'translateX(-100%)', opacity: '0' },
+          '50%': { opacity: '1' },
+          '100%': { transform: 'translateX(200%)', opacity: '0' },
         },
         floatSubtle: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-6px)' },
+        },
+        progressFill: {
+          '0%': { 
+            width: '0%',
+          },
+          '50%': { 
+            width: '70%',
+          },
+          '100%': { 
+            width: '0%',
+          },
+        },
+        progressFlash: {
+          '0%': { 
+            transform: 'translateX(-100%)',
+          },
+          '100%': { 
+            transform: 'translateX(400%)',
+          },
         },
       },
     },

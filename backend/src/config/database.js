@@ -7,19 +7,22 @@ require('dotenv').config()
 
 const { Pool } = require('pg')
 
-// Configuração do Supabase Pooler com application_name para debug
+// Configuração otimizada para conexão direta Supabase (melhor performance)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
   },
   application_name: 'indios_backend',
-  max: 20, // Aumentado de 10 para 20 conexões
-  min: 2, // Mantém 2 conexões sempre ativas
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 30000, // Aumentado de 10s para 30s
-  query_timeout: 60000, // Aumentado de 30s para 60s
-  allowExitOnIdle: false, // Previne que o pool feche as conexões prematuramente
+  max: 10, // Conexões diretas: menor pool é mais eficiente
+  min: 1, // Mantém 1 conexão sempre ativa
+  idleTimeoutMillis: 30000, // 30s antes de fechar conexão ociosa
+  connectionTimeoutMillis: 10000, // 10s para estabelecer conexão (direto é mais rápido)
+  query_timeout: 30000, // 30s timeout por query
+  allowExitOnIdle: false,
+  // Otimizações para conexão direta
+  keepAlive: true, // Mantém conexão alive
+  keepAliveInitialDelayMillis: 10000, // Delay inicial do keepalive
 })
 
 // Testa a conexão na inicialização e exibe status no terminal

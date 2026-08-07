@@ -96,9 +96,14 @@ export default function DownloadProgress({ isDownloading, onClose }) {
                 Gerando arquivo ZIP das notas fiscais
               </p>
               
-              {/* Barra de Progresso Indeterminada */}
-              <div className="relative h-1.5 bg-gray-200 dark:bg-[#2d2420] rounded-full overflow-hidden">
-                <div className="absolute inset-0 w-1/3 bg-gradient-to-r from-brand-orange via-brand-gold to-brand-orange animate-shimmer" />
+              {/* Barra de Progresso - Preenchimento Contínuo */}
+              <div className="relative h-1 bg-gray-200/50 dark:bg-[#2d2420]/50 rounded-full overflow-hidden">
+                {/* Barra de preenchimento */}
+                <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-brand-orange to-brand-orange-light dark:from-brand-orange-light dark:to-brand-orange rounded-full animate-progress-fill" 
+                     style={{ transformOrigin: 'left' }} />
+                {/* Flash de luz bem visível */}
+                <div className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-white/0 via-white/70 to-white/0 animate-progress-flash" 
+                     style={{ filter: 'blur(2px)' }} />
               </div>
             </>
           )}
