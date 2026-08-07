@@ -60,9 +60,6 @@ app.use('/api/categorias', require('./routes/categorias'))
 // Rotas de pedidos
 app.use('/api/pedidos', require('./routes/pedidos'))
 
-// Rotas de pagamentos
-app.use('/api/pagamentos', require('./routes/pagamentos'))
-
 // Rotas de notas fiscais
 app.use('/api/notas-fiscais', require('./routes/notasFiscais'))
 
