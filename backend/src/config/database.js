@@ -14,10 +14,12 @@ const pool = new Pool({
     rejectUnauthorized: false
   },
   application_name: 'indios_backend',
-  max: 10,
+  max: 20, // Aumentado de 10 para 20 conexões
+  min: 2, // Mantém 2 conexões sempre ativas
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
-  query_timeout: 30000,
+  connectionTimeoutMillis: 30000, // Aumentado de 10s para 30s
+  query_timeout: 60000, // Aumentado de 30s para 60s
+  allowExitOnIdle: false, // Previne que o pool feche as conexões prematuramente
 })
 
 // Testa a conexão na inicialização e exibe status no terminal
@@ -36,12 +38,67 @@ pool.connect()
     // process.exit(1)
   })
 
+// Event listeners para monitorar o pool
+pool.on('error', (err, client) => {
+  console.error('❌ Erro inesperado no pool de conexões:', err.message)
+})
+
+pool.on('connect', () => {
+  // console.log('🔌 Nova conexão estabelecida no pool')
+})
+
+pool.on('acquire', () => {
+  // console.log('📥 Conexão adquirida do pool')
+})
+
+pool.on('remove', () => {
+  // console.log('📤 Conexão removida do pool')
+})
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Encerrando pool de conexões...')
+  await pool.end()
+  console.log('✅ Pool encerrado')
+  process.exit(0)
+})
+
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 Encerrando pool de conexões...')
+  await pool.end()
+  console.log('✅ Pool encerrado')
+  process.exit(0)
+})
+
 // Wrapper para manter compatibilidade com código existente que usa pool.execute()
 // PostgreSQL usa pool.query() ao invés de pool.execute()
 pool.execute = async function(sql, params) {
-  const result = await this.query(sql, params)
-  // Retorna no formato [rows, fields] para compatibilidade com mysql2
-  return [result.rows, result.fields]
+  let retries = 3
+  let lastError
+  
+  while (retries > 0) {
+    try {
+      const result = await this.query(sql, params)
+      // Retorna no formato [rows, fields] para compatibilidade com mysql2
+      return [result.rows, result.fields]
+    } catch (error) {
+      lastError = error
+      retries--
+      
+      // Se for timeout e ainda tiver retries, aguarda e tenta novamente
+      if ((error.message?.includes('timeout') || error.code === 'ETIMEDOUT') && retries > 0) {
+        console.warn(`⚠️  Timeout na query, tentando novamente (${3 - retries}/3)...`)
+        await new Promise(resolve => setTimeout(resolve, 1000)) // Aguarda 1s antes de retry
+        continue
+      }
+      
+      // Se for outro erro ou acabaram os retries, lança o erro
+      throw error
+    }
+  }
+  
+  // Se chegou aqui, todas as tentativas falhar
+  throw lastError
 }
 
 module.exports = pool
