@@ -1,8 +1,8 @@
-// ════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // controllers/notasFiscaisController.js — Controlador de Notas Fiscais
-// ════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // Gerencia requisições HTTP relacionadas a notas fiscais eletrônicas.
-// ════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 const NotaFiscalService = require('../services/NotaFiscalService')
 const NotaFiscalModel = require('../models/NotaFiscalModel')
@@ -326,18 +326,50 @@ async function downloadXML(req, res) {
       })
     }
     
+    // Buscar nota antes do download para pegar a chave de acesso
+    let nota = await NotaFiscalModel.buscarPorId(id)
+    
+    if (!nota) {
+      return res.status(404).json({
+        success: false,
+        message: 'Nota fiscal não encontrada'
+      })
+    }
+    
+    // Se a nota não tiver chave de acesso, tentar consultar o status para obtê-la
+    if (!nota.chaveAcesso && nota.providerRef) {
+      try {
+        await NotaFiscalService.consultarStatus(id)
+        nota = await NotaFiscalModel.buscarPorId(id)
+      } catch (err) {
+        // Continuar mesmo se a consulta falhar
+      }
+    }
+    
+    // Download do XML
     const xml = await NotaFiscalService.downloadXML(id)
     
-    // Buscar nota para nome do arquivo
-    const nota = await NotaFiscalModel.buscarPorId(id)
-    const nomeArquivo = `NFe_${nota.numero.toString().padStart(9, '0')}.xml`
+    // Definir nome do arquivo baseado na chave de acesso
+    let nomeArquivo = 'NFe_sem_chave.xml'
+    
+    if (nota.chaveAcesso && nota.chaveAcesso.trim()) {
+      nomeArquivo = `${nota.chaveAcesso.trim()}.xml`
+    } else if (nota.numero && Number.isInteger(nota.numero)) {
+      nomeArquivo = `NFe_${nota.numero.toString().padStart(9, '0')}.xml`
+    } else if (nota.providerRef && nota.providerRef.trim()) {
+      nomeArquivo = `NFe_${nota.providerRef.trim()}.xml`
+    }
     
     res.set({
-      'Content-Type': 'application/xml',
-      'Content-Disposition': `attachment; filename="${nomeArquivo}"`
+      'Content-Type': 'application/xml; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${nomeArquivo}"`,
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
     })
     res.send(xml)
   } catch (error) {
+    console.error('[downloadXML] Erro:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao baixar XML',
@@ -461,6 +493,7 @@ async function downloadMesZip(req, res) {
         
         notasComXml.push({
           numero: nota.numero,
+          chaveAcesso: nota.chaveAcesso, // Incluir chave de acesso para o nome do arquivo
           xml
         })
         sucessos++
@@ -476,12 +509,10 @@ async function downloadMesZip(req, res) {
       } catch (error) {
         falhas++
         
-        // Verificar tipo de erro pela mensagem (FocusNFeClient lança erros com mensagens específicas)
         const errorMsg = error.message.toLowerCase()
         
-        // Se for rate limit (429)
+        // Rate limit (429): oferecer ZIP parcial se houver notas baixadas
         if (errorMsg.includes('rate limit') || errorMsg.includes('too many requests') || error.status === 429) {
-          // Se já baixou algumas, oferecer ZIP parcial
           if (notasComXml.length > 0) {
             const { criarZipNotas, formatarNomeArquivoZip } = require('../utils/zipHelper')
             const zipBuffer = await criarZipNotas(notasComXml, periodo)
@@ -510,7 +541,7 @@ async function downloadMesZip(req, res) {
           })
         }
         
-        // Se for erro de autenticação (401, 403)
+        // Erro de autenticação (401/403)
         if (errorMsg.includes('token') || errorMsg.includes('unauthorized') || 
             errorMsg.includes('forbidden') || error.status === 401 || error.status === 403) {
           return res.status(401).json({

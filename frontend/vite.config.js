@@ -19,15 +19,43 @@ function cleanLogger() {
     configureServer(server) {
       server.httpServer?.once('listening', () => {
         setTimeout(async () => {
-          console.clear()
-          console.log('Frontend: ✅ ONLINE')
-          try {
-            const r = await fetch('http://localhost:3333/api/health')
-            if (r.ok) console.log('Backend:  ✅ CONECTADO')
-            else console.log('Backend:  ❌ OFFLINE')
-          } catch {
-            console.log('Backend:  ❌ OFFLINE')
+          // Descobrir endereço real do servidor
+          const address  = server.httpServer.address()
+          const port     = address?.port ?? 5173
+          const host     = 'localhost'
+          const url      = `http://${host}:${port}`
+          const env      = process.env.NODE_ENV || 'development'
+          const apiUrl   = 'http://localhost:3333'
+          const W        = 52 // largura interna da caixa
+
+          const line = (label, value) => {
+            const content = `  ${label.padEnd(12)}: ${value}`
+            return `| ${content.padEnd(W)} |`
           }
+
+          const divider   = `+${'-'.repeat(W + 2)}+`
+          const title     = 'INDIOS CHURRASCO GOURMET  -  FRONTEND'
+          const titleLine = `| ${title.padStart(Math.floor((W + title.length) / 2)).padEnd(W)} |`
+
+          // Verificar status do backend
+          let backendStatus = 'offline'
+          try {
+            const r = await fetch(`${apiUrl}/api/health`, { signal: AbortSignal.timeout(3000) })
+            backendStatus = r.ok ? `${apiUrl} -- conectado` : `${apiUrl} -- sem resposta`
+          } catch {
+            backendStatus = `${apiUrl} -- offline`
+          }
+
+          console.clear()
+          console.log('')
+          console.log(divider)
+          console.log(titleLine)
+          console.log(divider)
+          console.log(line('Local',        url))
+          console.log(line('Ambiente',     env))
+          console.log(line('Backend(API)', backendStatus))
+          console.log(divider)
+          console.log('')
         }, 300)
       })
     },

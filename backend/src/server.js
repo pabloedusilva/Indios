@@ -18,7 +18,8 @@ const PORT = process.env.PORT || 3333
 // CORS
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['Content-Disposition', 'X-Partial-Download', 'X-Downloaded-Count', 'X-Total-Count', 'X-Partial-Success', 'X-Failed-Count']
 }))
 
 // Parsers
@@ -99,23 +100,65 @@ app.use((err, req, res, next) => {
 //  INICIALIZAÇÃO DO SERVIDOR
 // =============================================================
 
-app.listen(PORT, () => {
-  console.log('\n═══════════════════════════════════════════════════════════')
-  console.log('🚀 Índios Churrasco Gourmet - Backend API')
-  console.log('═══════════════════════════════════════════════════════════')
-  console.log(`🌐 Servidor rodando em: http://localhost:${PORT}`)
-  console.log(`📅 Ambiente: ${process.env.NODE_ENV || 'development'}`)
-  console.log(`🔗 Cliente permitido: ${process.env.CLIENT_URL || 'http://localhost:5173'}`)
-  console.log('═══════════════════════════════════════════════════════════\n')
+app.listen(PORT, async () => {
+  const env    = process.env.NODE_ENV || 'development'
+  const client = process.env.CLIENT_URL || 'http://localhost:5173'
+  const W      = 52 // largura interna da caixa
+
+  const line = (label, value) => {
+    const content = `  ${label.padEnd(10)}: ${value}`
+    return `| ${content.padEnd(W)} |`
+  }
+
+  const divider   = `+${'-'.repeat(W + 2)}+`
+  const title     = 'INDIOS CHURRASCO GOURMET  -  API'
+  const titleLine = `| ${title.padStart(Math.floor((W + title.length) / 2)).padEnd(W)} |`
+
+  // Verificar banco de dados
+  let dbStatus = 'FALHA'
+  try {
+    const pool = require('./config/database')
+    const conn = await pool.connect()
+    conn.release()
+    dbStatus = 'PostgreSQL/Supabase -- conectado'
+  } catch (err) {
+    dbStatus = `FALHA -- ${err.message.substring(0, 28)}`
+  }
+
+  // Verificar API Focus NFe
+  let focusStatus = 'nao configurado'
+  try {
+    const fiscalConfig = require('./config/fiscal')
+    const focusClient  = require('./services/FocusNFeClient')
+    focusClient.setToken(fiscalConfig.API_TOKEN)
+    const ok = await focusClient.ping()
+    focusStatus = ok
+      ? `${fiscalConfig.ENV} -- acessivel`
+      : `${fiscalConfig.ENV} -- sem resposta`
+  } catch {
+    focusStatus = 'FALHA -- token ou configuracao ausente'
+  }
+
+  console.log('')
+  console.log(divider)
+  console.log(titleLine)
+  console.log(divider)
+  console.log(line('Porta',    String(PORT)))
+  console.log(line('Ambiente', env))
+  console.log(line('Cliente',  client))
+  console.log(line('Database', dbStatus))
+  console.log(line('Focus NFe', focusStatus))
+  console.log(divider)
+  console.log('')
 })
 
-// Tratamento gracioso de encerramento
+// Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('\n⚠️  SIGTERM recebido. Encerrando servidor...')
+  console.log('[Server] SIGTERM recebido. Encerrando servidor')
   process.exit(0)
 })
 
 process.on('SIGINT', () => {
-  console.log('\n⚠️  SIGINT recebido. Encerrando servidor...')
+  console.log('[Server] SIGINT recebido. Encerrando servidor')
   process.exit(0)
 })

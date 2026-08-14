@@ -109,7 +109,6 @@ export async function consultarStatus(id) {
  */
 export async function downloadXML(id) {
   try {
-    // Para download, fazemos fetch direto sem o wrapper api
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333'
     const url = `${API_URL}/api${BASE_PATH}/${id}/xml`
     
@@ -122,11 +121,32 @@ export async function downloadXML(id) {
       throw new Error('Erro ao baixar XML')
     }
 
+    // Extrair nome do arquivo do header Content-Disposition
+    const contentDisposition = response.headers.get('Content-Disposition')
+    let nomeArquivo = 'NFe_download.xml'
+    
+    if (contentDisposition) {
+      const patterns = [
+        /filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i,
+        /filename[^;=\n]*=\s*"([^"]+)"/i,
+        /filename[^;=\n]*=\s*'([^']+)'/i,
+        /filename[^;=\n]*=\s*([^;\s]+)/i,
+      ]
+      
+      for (const pattern of patterns) {
+        const matches = contentDisposition.match(pattern)
+        if (matches && matches[1]) {
+          nomeArquivo = decodeURIComponent(matches[1]).trim()
+          break
+        }
+      }
+    }
+
     const blob = await response.blob()
     const downloadUrl = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = downloadUrl
-    a.download = `NFe_${id}.xml`
+    a.download = nomeArquivo
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)

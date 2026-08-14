@@ -1,6 +1,6 @@
-// ════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // services/NotaFiscalService.js — Lógica de Negócio de Notas Fiscais
-// ════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // Orquestra a emissão, consulta e cancelamento de notas fiscais:
 // - Validações de negócio
 // - Comunicação com SEFAZ via Focus NFe
@@ -8,7 +8,7 @@
 // - Audit log
 // 
 // SEGURANÇA: Configurações fiscais vêm APENAS do .env.fiscal
-// ════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 const NotaFiscalModel = require('../models/NotaFiscalModel')
 const fiscalConfig = require('../config/fiscal')
@@ -21,6 +21,7 @@ class NotaFiscalService {
   /**
    * Emitir nova nota fiscal eletrônica
    */
+  // eslint-disable-next-line no-unused-vars
   static async emitir(pedidoId, usuarioId, dadosAdicionais = {}) {
     try {
       // 1. Buscar pedido com itens
@@ -60,15 +61,11 @@ class NotaFiscalService {
       
       // 4. Montar payload da NFC-e (Modelo 65 - SEM dados do cliente)
       const payload = {
-        // ═══════════════════════════════════════════════════════════
-        // DADOS DO EMITENTE (EMPRESA) - DO .env.fiscal
-        // ═══════════════════════════════════════════════════════════
-        cnpj_emitente: String(fiscalConfig.EMPRESA_CONFIG.cnpj).replace(/\D/g, ''), // Remove formatação
+        // Dados do emitente (empresa) - do .env.fiscal
+        cnpj_emitente: String(fiscalConfig.EMPRESA_CONFIG.cnpj).replace(/\D/g, ''),
         
-        // ═══════════════════════════════════════════════════════════
-        // DADOS DA OPERAÇÃO (OBRIGATÓRIOS)
-        // ═══════════════════════════════════════════════════════════
-        data_emissao: new Date().toISOString(), // Data e hora atual
+        // Dados da operação
+        data_emissao: new Date().toISOString(),
         indicador_inscricao_estadual_destinatario: "9", // Não contribuinte
         modalidade_frete: "9", // Sem frete
         local_destino: "1", // Operação interna
@@ -103,6 +100,14 @@ class NotaFiscalService {
                           pedido.forma_pagamento === 'cartao_debito' ? '04' : '99',
           valor_pagamento: parseFloat(pedido.total)
         }]
+      }
+      
+      // Log do payload apenas em modo debug
+      if (fiscalConfig.DEBUG) {
+        console.log('[NotaFiscalService] Payload enviado para Focus NFe:')
+        console.log(JSON.stringify(payload, null, 2))
+        console.log('[NotaFiscalService] Ambiente:', fiscalConfig.ENV)
+        console.log('[NotaFiscalService] API URL:', fiscalConfig.API_BASE_URL)
       }
       
       // Adicionar troco se houver (para pagamento em dinheiro)
@@ -151,12 +156,9 @@ class NotaFiscalService {
         
         console.log(`[NotaFiscalService] Status inicial: ${statusInicial}`)
         
-        // 9. Se status é "processando_autorizacao", aguardar autorização (polling otimizado)
+        // 9. Se status é "processando_autorizacao", aguardar autorização com polling
         if (statusInicial === 'processando_autorizacao' || statusInicial === 'emitindo') {
-          console.log('[NotaFiscalService] Aguardando autorização da SEFAZ (polling otimizado a cada 500ms)...')
-          
-          // Polling otimizado: consultar status até obter resposta definitiva (max 15 segundos)
-          // Se demorar mais, continua em background sem bloquear a resposta
+          console.log('[NotaFiscalService] Aguardando autorizacao da SEFAZ (polling a cada 500ms)')
           const notaFinal = await this._aguardarAutorizacao(referencia, notaId, 15000)
           return notaFinal
         }
@@ -186,6 +188,7 @@ class NotaFiscalService {
   /**
    * Consultar status de uma nota na SEFAZ
    */
+  // eslint-disable-next-line no-unused-vars
   static async consultarStatus(notaId, usuarioId) {
     try {
       const nota = await NotaFiscalModel.buscarPorId(notaId)
@@ -246,6 +249,9 @@ class NotaFiscalService {
   
   /**
    * Cancelar nota fiscal (prazo de 24h)
+   * 
+   * IMPORTANTE: Cancelamento é enviado para Focus NFe PRIMEIRO,
+   * só depois atualiza o banco. Isso garante sincronização perfeita.
    */
   static async cancelar(notaId, motivo, usuarioId, userIp) {
     const client = await pool.connect()
@@ -269,12 +275,12 @@ class NotaFiscalService {
       const nota = notaResult.rows[0]
       
       // 3. Validar status
-      if (nota.status !== 'autorizada') {
-        throw new Error('Apenas notas autorizadas podem ser canceladas')
+      if (nota.status === 'cancelada') {
+        throw new Error('Esta nota já foi cancelada anteriormente')
       }
       
-      if (nota.status === 'cancelada') {
-        throw new Error('Esta nota já foi cancelada')
+      if (nota.status !== 'autorizada') {
+        throw new Error(`Apenas notas autorizadas podem ser canceladas. Status atual: ${nota.status}`)
       }
       
       // 4. Validar prazo de 24 horas
@@ -293,24 +299,29 @@ class NotaFiscalService {
         throw new Error('O motivo do cancelamento deve ter no máximo 255 caracteres')
       }
       
-      console.log(`[cancelar] Cancelando nota ${notaId}. Prazo restante: ${horasRestantes.toFixed(1)}h`)
-      
-      const inicioProcessamento = Date.now()
-      
-      // 6. Usar a referência armazenada no banco
       const referencia = nota.provider_ref
       
       if (!referencia) {
         throw new Error('Referência da nota não encontrada. Não é possível cancelar.')
       }
       
-      // 7. Enviar cancelamento para SEFAZ via Focus NFe
+      const inicioProcessamento = Date.now()
+      
+      // -----------------------------------------------------------------------------
+      // 6. ENVIAR CANCELAMENTO PARA FOCUS NFE **PRIMEIRO**
+      // -----------------------------------------------------------------------------
+      // IMPORTANTE: Só atualizamos o banco DEPOIS que o Focus NFe confirmar!
+      // Isso garante que o status no app sempre reflete o status real na SEFAZ
+      // -----------------------------------------------------------------------------
+      
       try {
         const respostaCancelamento = await focusClient.cancelarNFCe(referencia, motivo)
         
         const tempoProcessamento = Date.now() - inicioProcessamento
         
-        // 8. Atualizar nota no banco
+        console.log(`[NotaFiscalService] Nota ${nota.numero} cancelada em ${tempoProcessamento}ms | status: ${respostaCancelamento.data?.status}`)
+        
+        // 7. Atualizar nota no banco (após confirmação do Focus NFe)
         await client.query(`
           UPDATE notas_fiscais 
           SET 
@@ -328,13 +339,14 @@ class NotaFiscalService {
               protocolo: respostaCancelamento.data?.protocolo || respostaCancelamento.data?.protocolo_cancelamento,
               data_cancelamento: new Date().toISOString(),
               tempo_processamento_ms: tempoProcessamento,
-              resposta_sefaz: respostaCancelamento.data
+              resposta_sefaz: respostaCancelamento.data,
+              sincronizado_focus_nfe: true
             }
           }),
           notaId
         ])
         
-        // 9. Registrar em audit log
+        // 8. Registrar em audit log
         await client.query(`
           INSERT INTO audit_log_fiscal (
             operacao, entidade, entidade_id, usuario_id, ip_address,
@@ -355,18 +367,18 @@ class NotaFiscalService {
             tempo_processamento_ms: tempoProcessamento
           }),
           'sucesso',
-          'Nota fiscal cancelada com sucesso'
+          'Nota fiscal cancelada com sucesso na SEFAZ e sincronizada'
         ])
         
         await client.query('COMMIT')
         
-        console.log(`[cancelar] Nota ${notaId} cancelada com sucesso (${tempoProcessamento}ms)`)
-        
-        // Retornar nota atualizada
         return await NotaFiscalModel.buscarPorId(notaId)
         
       } catch (error) {
+        // ROLLBACK: o banco não é atualizado, nota continua como "autorizada"
         await client.query('ROLLBACK')
+        
+        console.error(`[NotaFiscalService.cancelar] Erro ao cancelar no Focus NFe: ${error.message}`)
         
         // Registrar erro no audit log
         await pool.query(`
@@ -380,7 +392,12 @@ class NotaFiscalService {
           notaId,
           usuarioId,
           userIp,
-          JSON.stringify({ erro: error.message, stack: error.stack }),
+          JSON.stringify({ 
+            erro: error.message,
+            status: error.status,
+            codigo: error.code,
+            data: error.data
+          }),
           'erro',
           error.message
         ])
@@ -421,7 +438,7 @@ class NotaFiscalService {
       // Se já temos o caminho do XML salvo, usar ele
       if (nota.xmlNfe) {
         try {
-          const xml = await focusClient.downloadXMLPorCaminho(nota.xmlNfe)
+          const xml = focusClient.downloadXMLPorCaminho(nota.xmlNfe)
           return xml
         } catch (error) {
           console.warn('[downloadXML] Erro ao baixar via caminho salvo, tentando via referência:', error.message)
@@ -439,7 +456,7 @@ class NotaFiscalService {
       const resultado = await focusClient.consultarNFCe(referencia)
       
       if (resultado.data.caminho_xml_nota_fiscal) {
-        const xml = await focusClient.downloadXMLPorCaminho(resultado.data.caminho_xml_nota_fiscal)
+        const xml = focusClient.downloadXMLPorCaminho(resultado.data.caminho_xml_nota_fiscal)
         
         // Atualizar o caminho no banco para próximas consultas
         await NotaFiscalModel.atualizar(notaId, {
@@ -458,31 +475,28 @@ class NotaFiscalService {
   }
   
   /**
-   * Aguarda autorização da SEFAZ com polling otimizado
+   * Aguarda autorização da SEFAZ com polling
    * @private
    */
   static async _aguardarAutorizacao(referencia, notaId, timeoutMs = 15000) {
     const startTime = Date.now()
-    const intervalo = 500 // Consultar a cada 500ms (mais rápido!)
-    const maxTentativas = 30 // Máximo 30 tentativas (15 segundos)
+    const intervalo = 500 // Consultar a cada 500ms
+    const maxTentativas = 30
     let tentativa = 0
     
     while (Date.now() - startTime < timeoutMs && tentativa < maxTentativas) {
       tentativa++
       
-      // Aguardar intervalo (exceto na primeira tentativa)
       if (tentativa > 1) {
         await new Promise(resolve => setTimeout(resolve, intervalo))
       }
       
       try {
-        // Consultar status na Focus NFe
         const respostaConsulta = await focusClient.consultarNFCe(referencia)
         const statusAtual = respostaConsulta.data.status
         
-        console.log(`[_aguardarAutorizacao] Tentativa ${tentativa}: ${statusAtual}`)
+        console.log(`[NotaFiscalService] Polling tentativa ${tentativa}: ${statusAtual}`)
         
-        // Status definitivos (parar polling)
         if (statusAtual === 'autorizado') {
           await NotaFiscalModel.atualizar(notaId, {
             status: 'autorizada',
@@ -496,7 +510,7 @@ class NotaFiscalService {
             metadados: respostaConsulta.data
           })
           
-          console.log(`[_aguardarAutorizacao] ✓ Nota AUTORIZADA em ${Date.now() - startTime}ms`)
+          console.log(`[NotaFiscalService] Nota autorizada em ${Date.now() - startTime}ms`)
           return await NotaFiscalModel.buscarPorId(notaId)
         }
         
@@ -506,62 +520,55 @@ class NotaFiscalService {
             metadados: respostaConsulta.data
           })
           
-          throw new Error(`Erro na autorização: ${respostaConsulta.data.mensagem_sefaz || statusAtual}`)
+          throw new Error(`Erro na autorizacao: ${respostaConsulta.data.mensagem_sefaz || statusAtual}`)
         }
         
-        // Se ainda está processando, continuar polling
-        
       } catch (error) {
-        // Se for erro de autorização, propagar
-        if (error.message.includes('Erro na autorização')) {
+        if (error.message.includes('Erro na autorizacao')) {
           throw error
         }
         
-        console.error(`[_aguardarAutorizacao] Erro na tentativa ${tentativa}:`, error.message)
+        console.error(`[NotaFiscalService] Polling erro tentativa ${tentativa}:`, error.message)
         
-        // Se for erro de comunicação e ainda há tempo, continuar tentando
         if (Date.now() - startTime >= timeoutMs || tentativa >= maxTentativas) {
           throw error
         }
       }
     }
     
-    // Timeout atingido - iniciar polling em background
-    console.warn(`[_aguardarAutorizacao] ⚠️  Timeout de ${timeoutMs}ms atingido. Iniciando polling em background...`)
+    // Timeout atingido — continuar em background sem bloquear resposta
+    console.warn(`[NotaFiscalService] Timeout de ${timeoutMs}ms atingido. Iniciando polling em background`)
     
-    // Polling em background (não bloqueia resposta)
     this._pollingBackgroundAutorizacao(referencia, notaId).catch(err => {
-      console.error('[_pollingBackgroundAutorizacao] Erro:', err)
+      console.error('[NotaFiscalService] Erro no polling em background:', err)
     })
     
     return await NotaFiscalModel.buscarPorId(notaId)
   }
   
   /**
-   * Polling em background para notas que demoraram mais que o esperado
+   * Polling em background para notas que ultrapassaram o timeout
    * @private
    */
   static async _pollingBackgroundAutorizacao(referencia, notaId) {
-    const maxTentativasBackground = 60 // 60 tentativas x 2s = 2 minutos
-    const intervaloBackground = 2000 // A cada 2 segundos
+    const maxTentativas = 60 // 60 tentativas x 2s = 2 minutos
+    const intervalo = 2000
     
-    for (let i = 0; i < maxTentativasBackground; i++) {
-      await new Promise(resolve => setTimeout(resolve, intervaloBackground))
+    for (let i = 0; i < maxTentativas; i++) {
+      await new Promise(resolve => setTimeout(resolve, intervalo))
       
       try {
         const nota = await NotaFiscalModel.buscarPorId(notaId)
         
-        // Se já foi atualizada, parar
         if (nota.status !== 'emitindo') {
-          console.log(`[_pollingBackgroundAutorizacao] Nota ${notaId} já atualizada para: ${nota.status}`)
+          console.log(`[NotaFiscalService] Background: nota ${notaId} atualizada para: ${nota.status}`)
           return
         }
         
-        // Consultar status
         const respostaConsulta = await focusClient.consultarNFCe(referencia)
         const statusAtual = respostaConsulta.data.status
         
-        console.log(`[_pollingBackgroundAutorizacao] Background check ${i + 1}: ${statusAtual}`)
+        console.log(`[NotaFiscalService] Background check ${i + 1}: ${statusAtual}`)
         
         if (statusAtual === 'autorizado') {
           await NotaFiscalModel.atualizar(notaId, {
@@ -576,7 +583,7 @@ class NotaFiscalService {
             metadados: respostaConsulta.data
           })
           
-          console.log(`[_pollingBackgroundAutorizacao] ✓ Nota autorizada em background`)
+          console.log(`[NotaFiscalService] Background: nota ${notaId} autorizada`)
           return
         }
         
@@ -586,16 +593,16 @@ class NotaFiscalService {
             metadados: respostaConsulta.data
           })
           
-          console.log(`[_pollingBackgroundAutorizacao] ✗ Nota com erro: ${statusAtual}`)
+          console.log(`[NotaFiscalService] Background: nota ${notaId} com erro: ${statusAtual}`)
           return
         }
         
       } catch (error) {
-        console.error(`[_pollingBackgroundAutorizacao] Erro na tentativa ${i + 1}:`, error.message)
+        console.error(`[NotaFiscalService] Background erro tentativa ${i + 1}:`, error.message)
       }
     }
     
-    console.warn(`[_pollingBackgroundAutorizacao] ⚠️  Polling em background finalizado sem resolução para nota ${notaId}`)
+    console.warn(`[NotaFiscalService] Background: polling finalizado sem resolucao para nota ${notaId}`)
   }
   
   /**

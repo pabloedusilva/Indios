@@ -1,12 +1,13 @@
-// ════════════════════════════════════════════════════════════════════════════
-// config/fiscal.js — Configuração centralizada para integração Focus NFe
-// ════════════════════════════════════════════════════════════════════════════
+// =============================================================================
+// config/fiscal.js — Configuração Focus NFe
+// =============================================================================
+// Configuração centralizada para integração com API Focus NFe (emissão NFC-e)
+//
 // SEGURANÇA:
 // - Tokens nunca devem ser expostos em logs ou respostas
 // - Usar HTTPS em produção
 // - Validar certificados SSL
 // - Implementar rate limiting
-// ════════════════════════════════════════════════════════════════════════════
 
 require('dotenv').config()
 
@@ -15,10 +16,12 @@ const path = require('path')
 try {
   require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env.fiscal') })
 } catch (err) {
-  console.warn('⚠️  Arquivo .env.fiscal não encontrado. Usando apenas .env')
+  console.warn('[Fiscal Config] Arquivo .env.fiscal não encontrado. Usando apenas .env')
 }
 
-// ── Configuração baseada no ambiente ─────────────────────────────────────
+// -----------------------------------------------------------------------------
+// Configuração baseada no ambiente
+// -----------------------------------------------------------------------------
 const ENV = process.env.FOCUS_NFE_ENV || 'homologacao'
 const IS_PRODUCAO = ENV === 'producao'
 
@@ -38,7 +41,9 @@ if (!API_TOKEN) {
   throw new Error('FOCUS_NFE_TOKEN não configurado no .env ou .env.fiscal')
 }
 
-// ── Configuração da empresa ──────────────────────────────────────────────
+// -----------------------------------------------------------------------------
+// Configuração da empresa
+// -----------------------------------------------------------------------------
 const EMPRESA_CONFIG = {
   cnpj: process.env.EMPRESA_CNPJ || '66614685000174',
   ie: process.env.EMPRESA_IE || '005520547.00-62',
@@ -59,7 +64,9 @@ const EMPRESA_CONFIG = {
   }
 }
 
-// ── Configurações NFe ────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
+// Configurações NFe
+// -----------------------------------------------------------------------------
 const NFE_CONFIG = {
   serie: parseInt(process.env.NFE_SERIE || '1'),
   proximoNumero: parseInt(process.env.NFE_PROXIMO_NUMERO || '1'),
@@ -70,14 +77,20 @@ const NFE_CONFIG = {
   indicadorFinal: '1', // 1=Consumidor final
 }
 
-// ── Timeout e Retry ──────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
+// Timeout e Retry
+// -----------------------------------------------------------------------------
 const TIMEOUT_MS = parseInt(process.env.FOCUS_NFE_TIMEOUT || '30000')
 const MAX_RETRIES = parseInt(process.env.FOCUS_NFE_MAX_RETRIES || '3')
 
-// ── Debug ────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
+// Debug
+// -----------------------------------------------------------------------------
 const DEBUG = process.env.FISCAL_DEBUG === 'true'
 
-// ── Tabela NCM e Tributação (do documento fornecido) ─────────────────────
+// -----------------------------------------------------------------------------
+// Tabela NCM e Tributação
+// -----------------------------------------------------------------------------
 const TABELA_NCM = {
   // Produtos com Substituição Tributária (ST)
   '1602.50.00': { tipo: 'ST', descricao: 'Carnes e miudezas preparadas' },
@@ -98,7 +111,9 @@ const TABELA_NCM = {
   '2004.10.00': { tipo: 'TRIBUTADO', descricao: 'Batatas fritas' },
 }
 
-// ── CFOP (Código Fiscal de Operações e Prestações) ──────────────────────
+// -----------------------------------------------------------------------------
+// CFOP (Código Fiscal de Operações e Prestações)
+// -----------------------------------------------------------------------------
 const CFOP_CONFIG = {
   // Produtos Tributados
   TRIBUTADO: {
@@ -116,17 +131,23 @@ const CFOP_CONFIG = {
   }
 }
 
-// ── CSOSN (Código de Situação da Operação Simples Nacional) ─────────────
+// -----------------------------------------------------------------------------
+// CSOSN (Código de Situação da Operação Simples Nacional)
+// -----------------------------------------------------------------------------
 const CSOSN_CONFIG = {
   TRIBUTADO: '102',  // Tributação pelo Simples Nacional sem permissão de crédito
   ST: '500',         // ICMS cobrado anteriormente por substituição tributária
   DEVOLUCAO: '900'   // Outros (devolução)
 }
 
-// ── CST PIS/COFINS ───────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
+// CST PIS/COFINS
+// -----------------------------------------------------------------------------
 const CST_PIS_COFINS = '49' // Outras operações de saída
 
-// ── Exportar configuração ────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
+// Exportar configuração
+// -----------------------------------------------------------------------------
 module.exports = {
   // Ambiente
   ENV,
@@ -179,46 +200,41 @@ module.exports = {
     if (!EMPRESA_CONFIG.ie) errors.push('EMPRESA_IE não configurado')
     
     if (IS_PRODUCAO) {
-      console.warn('')
-      console.warn('═'.repeat(70))
-      console.warn('⚠️  ⚠️  ⚠️  ATENÇÃO: AMBIENTE DE PRODUÇÃO ATIVO ⚠️  ⚠️  ⚠️')
-      console.warn('⚠️  Notas emitidas terão validade fiscal!')
-      console.warn('⚠️  Serão enviadas para a SEFAZ (Receita Federal)!')
-      console.warn('⚠️  NÃO podem ser excluídas, apenas canceladas!')
-      console.warn('⚠️  Você será cobrado por cada nota emitida!')
-      console.warn('═'.repeat(70))
-      console.warn('')
+      console.warn('[Fiscal Config] ATENCAO: AMBIENTE DE PRODUCAO ATIVO')
+      console.warn('[Fiscal Config] Notas emitidas terao validade fiscal')
+      console.warn('[Fiscal Config] Serao enviadas para a SEFAZ (Receita Federal)')
+      console.warn('[Fiscal Config] NAO podem ser excluidas, apenas canceladas')
+      console.warn('[Fiscal Config] Voce sera cobrado por cada nota emitida')
+      console.warn('[Fiscal Config] CSC: Configurado no painel Focus NFe')
     } else {
-      console.log('ℹ️  Ambiente: HOMOLOGAÇÃO (testes - sem validade fiscal)')
+      console.log('[Fiscal Config] Ambiente: HOMOLOGACAO (testes - sem validade fiscal)')
     }
     
     if (errors.length > 0) {
-      throw new Error(`Configuração fiscal inválida:\n- ${errors.join('\n- ')}`)
+      throw new Error(`Configuracao fiscal invalida:\n- ${errors.join('\n- ')}`)
     }
     
-    console.log('✅ Configuração fiscal validada')
-    console.log(`   Ambiente: ${ENV}`)
-    console.log(`   API: ${API_BASE_URL}`)
-    console.log(`   CNPJ: ${EMPRESA_CONFIG.cnpj}`)
+    console.log('[Fiscal Config] Configuracao fiscal validada')
+    console.log(`[Fiscal Config] Ambiente: ${ENV}`)
+    console.log(`[Fiscal Config] API: ${API_BASE_URL}`)
+    console.log(`[Fiscal Config] CNPJ: ${EMPRESA_CONFIG.cnpj}`)
     
     return true
   }
 }
 
+// -----------------------------------------------------------------------------
 // Validar configuração ao carregar
+// -----------------------------------------------------------------------------
 if (DEBUG) {
-  console.log('\n🔧 Configuração Fiscal:')
-  console.log(`   Ambiente: ${ENV}`)
-  console.log(`   API: ${API_BASE_URL}`)
-  console.log(`   CNPJ: ${EMPRESA_CONFIG.cnpj}`)
-  console.log(`   Token: ${API_TOKEN.substring(0, 10)}...`)
+  console.log('[Fiscal Config] Configuracao Fiscal:')
+  console.log(`[Fiscal Config] Ambiente: ${ENV}`)
+  console.log(`[Fiscal Config] API: ${API_BASE_URL}`)
+  console.log(`[Fiscal Config] CNPJ: ${EMPRESA_CONFIG.cnpj}`)
+  console.log(`[Fiscal Config] Token: ${API_TOKEN.substring(0, 10)}***`)
   
   if (IS_PRODUCAO) {
-    console.log('')
-    console.log('⚠️  ═════════════════════════════════════════════════════')
-    console.log('⚠️  MODO PRODUÇÃO: Notas terão validade fiscal real!')
-    console.log('⚠️  ═════════════════════════════════════════════════════')
+    console.log('[Fiscal Config] MODO PRODUCAO: Notas terao validade fiscal real!')
+    console.log('[Fiscal Config] CSC: Configurado no painel Focus NFe')
   }
-  
-  console.log('')
 }
