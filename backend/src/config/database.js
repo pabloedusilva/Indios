@@ -25,51 +25,27 @@ const pool = new Pool({
   keepAliveInitialDelayMillis: 10000, // Delay inicial do keepalive
 })
 
-// Testa a conexão na inicialização e exibe status no terminal
 pool.connect()
-  .then(async (client) => {
-    // Mantém timezone UTC (padrão do Supabase) para armazenamento correto
-    // A conversão para America/Sao_Paulo é feita apenas no frontend
-    console.log('Banco de dados: ✅ CONECTADO (PostgreSQL/Supabase)')
-    client.release()
-  })
-  .catch((err) => {
-    console.error('Banco de dados: ❌ FALHA —', err.message)
-    console.error('⚠️  O servidor continuará rodando, mas as operações de banco falharão.')
-    console.error('⚠️  Verifique sua conexão com a internet e a URL do banco de dados.')
-    // Não encerra o processo para permitir que o servidor continue rodando
-    // process.exit(1)
+  .then(client => client.release())
+  .catch(err => {
+    console.error('[Database] Falha na conexao inicial:', err.message)
   })
 
-// Event listeners para monitorar o pool
-pool.on('error', (err, client) => {
-  console.error('❌ Erro inesperado no pool de conexões:', err.message)
-})
-
-pool.on('connect', () => {
-  // console.log('🔌 Nova conexão estabelecida no pool')
-})
-
-pool.on('acquire', () => {
-  // console.log('📥 Conexão adquirida do pool')
-})
-
-pool.on('remove', () => {
-  // console.log('📤 Conexão removida do pool')
+// Monitorar erros inesperados no pool
+pool.on('error', (err) => {
+  console.error('[Database] Erro inesperado no pool de conexões:', err.message)
 })
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\n🛑 Encerrando pool de conexões...')
+  console.log('[Database] Encerrando pool de conexoes')
   await pool.end()
-  console.log('✅ Pool encerrado')
   process.exit(0)
 })
 
 process.on('SIGTERM', async () => {
-  console.log('\n🛑 Encerrando pool de conexões...')
+  console.log('[Database] Encerrando pool de conexoes')
   await pool.end()
-  console.log('✅ Pool encerrado')
   process.exit(0)
 })
 
@@ -90,8 +66,8 @@ pool.execute = async function(sql, params) {
       
       // Se for timeout e ainda tiver retries, aguarda e tenta novamente
       if ((error.message?.includes('timeout') || error.code === 'ETIMEDOUT') && retries > 0) {
-        console.warn(`⚠️  Timeout na query, tentando novamente (${3 - retries}/3)...`)
-        await new Promise(resolve => setTimeout(resolve, 1000)) // Aguarda 1s antes de retry
+        console.warn(`[Database] Timeout na query, tentando novamente (${3 - retries}/3)`)
+        await new Promise(resolve => setTimeout(resolve, 1000))
         continue
       }
       

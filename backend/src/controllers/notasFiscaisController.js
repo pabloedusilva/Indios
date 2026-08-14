@@ -1,8 +1,8 @@
-// ════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // controllers/notasFiscaisController.js — Controlador de Notas Fiscais
-// ════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // Gerencia requisições HTTP relacionadas a notas fiscais eletrônicas.
-// ════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 const NotaFiscalService = require('../services/NotaFiscalService')
 const NotaFiscalModel = require('../models/NotaFiscalModel')
@@ -509,12 +509,10 @@ async function downloadMesZip(req, res) {
       } catch (error) {
         falhas++
         
-        // Verificar tipo de erro pela mensagem (FocusNFeClient lança erros com mensagens específicas)
         const errorMsg = error.message.toLowerCase()
         
-        // Se for rate limit (429)
+        // Rate limit (429): oferecer ZIP parcial se houver notas baixadas
         if (errorMsg.includes('rate limit') || errorMsg.includes('too many requests') || error.status === 429) {
-          // Se já baixou algumas, oferecer ZIP parcial
           if (notasComXml.length > 0) {
             const { criarZipNotas, formatarNomeArquivoZip } = require('../utils/zipHelper')
             const zipBuffer = await criarZipNotas(notasComXml, periodo)
@@ -543,7 +541,7 @@ async function downloadMesZip(req, res) {
           })
         }
         
-        // Se for erro de autenticação (401, 403)
+        // Erro de autenticação (401/403)
         if (errorMsg.includes('token') || errorMsg.includes('unauthorized') || 
             errorMsg.includes('forbidden') || error.status === 401 || error.status === 403) {
           return res.status(401).json({

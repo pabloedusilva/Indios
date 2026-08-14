@@ -83,29 +83,23 @@ const finalizar = async (req, res, next) => {
     })
     if (!pedido) return res.status(404).json({ success: false, message: 'Pedido não encontrado.' })
     
-    // ═══════════════════════════════════════════════════════════════════
-    // EMISSÃO AUTOMÁTICA DE NFe (AMBIENTE DE HOMOLOGAÇÃO)
-    // ═══════════════════════════════════════════════════════════════════
-    // Emite NFe automaticamente após finalizar pedido
-    // Se falhar, apenas registra o erro e não bloqueia a finalização
-    // ═══════════════════════════════════════════════════════════════════
+    // ─── Emissão automática de NFe após finalização ───────────────────────
+    // Se falhar, não bloqueia a finalização do pedido
     try {
       const NotaFiscalService = require('../services/NotaFiscalService')
       
-      // Tenta emitir a NFe automaticamente
       const nota = await NotaFiscalService.emitir(
         req.params.id,
-        req.usuario?.id || 1, // ID do usuário autenticado
+        req.usuario?.id || 1,
         {
           cpfDestinatario: req.body.cpfCliente || null,
-          ufDestinatario: 'MG', // Padrão Minas Gerais
+          ufDestinatario: 'MG',
           observacoes: req.body.observacoes || null
         }
       )
       
-      console.log(`[Pedido] ✅ NFe emitida automaticamente - Pedido #${pedido.numero}, Nota #${nota.numero}`)
+      console.log(`[PedidosController] NFe emitida - Pedido #${pedido.numero}, Nota #${nota.numero}`)
       
-      // Retorna sucesso com informação da nota
       return res.json({ 
         success: true, 
         data: pedido,
@@ -118,10 +112,8 @@ const finalizar = async (req, res, next) => {
       })
       
     } catch (nfeError) {
-      // Erro ao emitir NFe - NÃO bloqueia a finalização do pedido
-      console.error(`[Pedido] ⚠️ Erro ao emitir NFe automaticamente para pedido #${pedido.numero}:`, nfeError.message)
+      console.error(`[PedidosController] Erro ao emitir NFe - Pedido #${pedido.numero}: ${nfeError.message}`)
       
-      // Retorna sucesso do pedido mas informa que NFe falhou
       return res.json({ 
         success: true, 
         data: pedido,

@@ -1,30 +1,29 @@
 // =============================================================
 //  components/ui/DownloadProgress.jsx — Indicador de Download
-//
-//  Componente flutuante que mostra o progresso de downloads
-//  com animações modernas e feedback visual.
 // =============================================================
 
 import { useEffect, useState } from 'react'
-import { MdDownload, MdCheckCircle, MdClose } from 'react-icons/md'
 
 export default function DownloadProgress({ isDownloading, onClose }) {
+  const [mounted, setMounted]         = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
-  const [mounted, setMounted] = useState(false)
+  const [visible, setVisible]         = useState(false)
 
   useEffect(() => {
     if (isDownloading) {
       setMounted(true)
       setShowSuccess(false)
+      requestAnimationFrame(() => setVisible(true))
     } else if (mounted && !isDownloading) {
-      // Mostrar sucesso quando download terminar
       setShowSuccess(true)
-      // Fechar automaticamente após 3 segundos
       const timer = setTimeout(() => {
-        setMounted(false)
-        setShowSuccess(false)
-        if (onClose) onClose()
-      }, 3000)
+        setVisible(false)
+        setTimeout(() => {
+          setMounted(false)
+          setShowSuccess(false)
+          if (onClose) onClose()
+        }, 300)
+      }, 2500)
       return () => clearTimeout(timer)
     }
   }, [isDownloading, mounted, onClose])
@@ -35,79 +34,106 @@ export default function DownloadProgress({ isDownloading, onClose }) {
     <div
       className={`
         fixed bottom-6 right-6 z-50
-        bg-white dark:bg-[#1a1410]
-        border border-gray-200 dark:border-[#2d2420]
-        rounded-xl shadow-2xl
-        p-4 w-[280px]
+        w-64
+        bg-white dark:bg-[#141414]
+        border border-gray-200/80 dark:border-white/[0.07]
+        rounded-2xl shadow-lg
+        overflow-hidden
         transition-all duration-300 ease-out
-        ${mounted ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95'}
+        ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}
       `}
     >
-      {/* Botão Fechar */}
-      <button
-        onClick={() => {
-          setMounted(false)
-          if (onClose) onClose()
-        }}
-        className="absolute top-2 right-2 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-[#2d2420] transition-colors"
-        aria-label="Fechar"
-      >
-        <MdClose size={16} className="text-gray-500 dark:text-gray-400" />
-      </button>
+      {/* Barra de progresso indeterminada — topo */}
+      {!showSuccess && (
+        <div className="h-[2px] w-full bg-gray-100 dark:bg-white/[0.05] overflow-hidden">
+          <div className="h-full bg-brand-orange/80 animate-indeterminate" />
+        </div>
+      )}
 
-      <div className="flex items-start gap-3">
-        {/* Ícone Animado */}
-        <div className="flex-shrink-0 pt-0.5">
+      <div className="px-4 py-3.5 flex items-center gap-3">
+
+        {/* Indicador */}
+        <div className="flex-shrink-0">
           {showSuccess ? (
-            <div className="relative">
-              <MdCheckCircle 
-                size={32} 
-                className="text-green-500 dark:text-green-400 animate-scale-check"
+            // Checkmark minimalista
+            <svg
+              viewBox="0 0 20 20"
+              fill="none"
+              className="w-4 h-4 text-emerald-500 dark:text-emerald-400"
+            >
+              <path
+                d="M4 10.5l4 4 8-8"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
-              <div className="absolute inset-0 rounded-full bg-green-500/20 dark:bg-green-400/10 animate-ping" />
-            </div>
+            </svg>
           ) : (
-            <div className="relative animate-float-subtle">
-              <MdDownload 
-                size={32} 
-                className="text-brand-orange dark:text-brand-orange-light"
+            // Spinner fino
+            <svg
+              viewBox="0 0 20 20"
+              fill="none"
+              className="w-4 h-4 animate-spin text-brand-orange/70 dark:text-brand-orange-light/70"
+            >
+              <circle
+                cx="10" cy="10" r="7"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeOpacity="0.2"
               />
-            </div>
+              <path
+                d="M10 3a7 7 0 0 1 7 7"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
           )}
         </div>
 
-        {/* Conteúdo */}
-        <div className="flex-1 min-w-0 pr-6">
+        {/* Texto */}
+        <div className="min-w-0">
           {showSuccess ? (
-            <>
-              <h3 className="text-sm font-bold text-green-600 dark:text-green-400 mb-0.5">
-                Download Concluído!
-              </h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                Arquivo baixado com sucesso
-              </p>
-            </>
+            <p className="text-[13px] font-medium text-emerald-600 dark:text-emerald-400 leading-snug">
+              Download concluído
+            </p>
           ) : (
             <>
-              <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-0.5">
-                Preparando Download...
-              </h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+              <p className="text-[13px] font-medium text-gray-800 dark:text-gray-100 leading-snug">
+                Preparando download
+              </p>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">
                 Gerando arquivo ZIP das notas fiscais
               </p>
-              
-              {/* Barra de Progresso - Preenchimento Contínuo */}
-              <div className="relative h-1 bg-gray-200/50 dark:bg-[#2d2420]/50 rounded-full overflow-hidden">
-                {/* Barra de preenchimento */}
-                <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-brand-orange to-brand-orange-light dark:from-brand-orange-light dark:to-brand-orange rounded-full animate-progress-fill" 
-                     style={{ transformOrigin: 'left' }} />
-                {/* Flash de luz bem visível */}
-                <div className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-white/0 via-white/70 to-white/0 animate-progress-flash" 
-                     style={{ filter: 'blur(2px)' }} />
-              </div>
             </>
           )}
         </div>
+
+        {/* Fechar */}
+        <button
+          onClick={() => {
+            setVisible(false)
+            setTimeout(() => {
+              setMounted(false)
+              if (onClose) onClose()
+            }, 300)
+          }}
+          className="flex-shrink-0 ml-auto p-1 rounded-lg
+            text-gray-300 dark:text-white/20
+            hover:text-gray-500 dark:hover:text-white/50
+            transition-colors"
+          aria-label="Fechar"
+        >
+          <svg viewBox="0 0 16 16" fill="none" className="w-3.5 h-3.5">
+            <path
+              d="M4 4l8 8M12 4l-8 8"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
       </div>
     </div>
   )

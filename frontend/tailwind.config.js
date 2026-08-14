@@ -65,6 +65,7 @@ export default {
         'float-subtle': 'floatSubtle 2.5s ease-in-out infinite',
         'progress-fill': 'progressFill 2s ease-in-out infinite',
         'progress-flash': 'progressFlash 1.8s ease-in-out infinite',
+        'indeterminate': 'indeterminate 1.4s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -163,6 +164,12 @@ export default {
           '100%': { 
             transform: 'translateX(400%)',
           },
+        },
+        indeterminate: {
+          '0%':   { transform: 'translateX(-100%) scaleX(0.4)' },
+          '40%':  { transform: 'translateX(0%)    scaleX(0.6)' },
+          '70%':  { transform: 'translateX(60%)   scaleX(0.4)' },
+          '100%': { transform: 'translateX(100%)  scaleX(0.2)' },
         },
       },
     },

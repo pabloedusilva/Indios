@@ -1,13 +1,13 @@
-// ════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // services/FocusNFeClient.js — Cliente HTTP para API Focus NFe
-// ════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 // Gerencia todas as chamadas à API Focus NFe com:
 // - Autenticação HTTP Basic
 // - Retry automático
 // - Tratamento de erros
 // - Logs de auditoria
 // - Timeout configurável
-// ════════════════════════════════════════════════════════════════════════════
+// =============================================================================
 
 const axios = require('axios')
 const fiscalConfig = require('../config/fiscal')
@@ -40,19 +40,18 @@ class FocusNFeClient {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      // Não rejeitar em erros HTTP (tratar manualmente)
       validateStatus: () => true
     })
     
     // Interceptor para logs (apenas em debug)
     if (this.debug) {
       this.client.interceptors.request.use((config) => {
-        console.log(`[FocusNFe Request] ${config.method.toUpperCase()} ${config.url}`)
+        console.log(`[FocusNFe] Request: ${config.method.toUpperCase()} ${config.url}`)
         return config
       })
       
       this.client.interceptors.response.use((response) => {
-        console.log(`[FocusNFe Response] ${response.status} ${response.config.url}`)
+        console.log(`[FocusNFe] Response: ${response.status} ${response.config.url}`)
         return response
       })
     }
@@ -70,7 +69,9 @@ class FocusNFeClient {
     this._createAxiosClient() // Recria o cliente com o novo token
   }
   
-  // ── Métodos privados de retry ──────────────────────────────────────────
+  // -----------------------------------------------------------------------------
+  // Métodos privados de retry
+  // -----------------------------------------------------------------------------
   
   /**
    * Executa uma chamada com retry automático
@@ -81,7 +82,7 @@ class FocusNFeClient {
       return await fn()
     } catch (error) {
       if (retries > 0 && this._isRetryable(error)) {
-        console.warn(`⚠️  Tentativa falhou. Tentando novamente... (${retries} restantes)`)
+        console.warn(`[FocusNFe] Tentativa falhou. Tentando novamente (${retries} restantes)`)
         await this._sleep(1000 * (this.maxRetries - retries + 1)) // Backoff exponencial
         return await this._callWithRetry(fn, retries - 1)
       }
@@ -129,15 +130,24 @@ class FocusNFeClient {
     }
     
     // Erro (4xx ou 5xx)
-    const error = new Error(data.mensagem || data.message || 'Erro desconhecido')
+    const mensagem = data.mensagem || data.message || data.erros?.[0]?.mensagem || 'Erro desconhecido'
+    const error = new Error(mensagem)
     error.status = status
     error.data = data
     error.code = data.codigo || data.code
     
+    // Log detalhado de erro
+    console.error('[FocusNFe] ERRO NA RESPOSTA DA API')
+    console.error(`[FocusNFe] Status HTTP: ${status}`)
+    console.error(`[FocusNFe] Codigo: ${error.code || 'N/A'}`)
+    console.error(`[FocusNFe] Mensagem: ${mensagem}`)
+    
     throw error
   }
   
-  // ── Métodos públicos da API NFe ────────────────────────────────────────
+  // -----------------------------------------------------------------------------
+  // Métodos públicos da API NFe
+  // -----------------------------------------------------------------------------
   
   /**
    * Lista empresas cadastradas
@@ -156,10 +166,14 @@ class FocusNFeClient {
    * 
    * @param {string} referencia - Identificador único da nota
    * @param {object} dados - Dados da NFC-e conforme API Focus NFe
+   * 
+   * IMPORTANTE: O CSC é configurado no painel Focus NFe (não enviado na requisição)
    */
   async autorizarNFCe(referencia, dados) {
+    const url = `/v2/nfce?ref=${referencia}`
+    
     return this._callWithRetry(async () => {
-      const response = await this.client.post(`/v2/nfce?ref=${referencia}`, dados)
+      const response = await this.client.post(url, dados)
       
       return this._handleResponse(response)
     })
@@ -200,12 +214,24 @@ class FocusNFeClient {
       throw new Error('Justificativa deve ter no máximo 255 caracteres')
     }
     
+    console.log(`[FocusNFe] Cancelando NFC-e: ${referencia}`)
+    
     return this._callWithRetry(async () => {
-      // Timeout específico para cancelamento (45 segundos)
+      const tempoInicio = Date.now()
+      
       const response = await this.client.delete(`/v2/nfce/${referencia}`, {
         data: { justificativa: justificativaLimpa },
-        timeout: 45000 // 45 segundos
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        timeout: 45000
       })
+      
+      const tempoDecorrido = Date.now() - tempoInicio
+      
+      console.log(`[FocusNFe] Cancelamento respondido em ${tempoDecorrido}ms | status: ${response.data?.status || response.status}`)
+      
       return this._handleResponse(response)
     })
   }
@@ -265,10 +291,14 @@ class FocusNFeClient {
    * 
    * @param {string} referencia - Identificador único da nota
    * @param {object} dados - Dados da NFe conforme API Focus NFe
+   * 
+   * IMPORTANTE: O CSC é configurado no painel Focus NFe (não enviado na requisição)
    */
   async autorizarNFe(referencia, dados) {
+    const url = `/v2/nfe?ref=${referencia}`
+    
     return this._callWithRetry(async () => {
-      const response = await this.client.post(`/v2/nfe?ref=${referencia}`, dados)
+      const response = await this.client.post(url, dados)
       return this._handleResponse(response)
     })
   }
@@ -298,10 +328,22 @@ class FocusNFeClient {
       throw new Error('Justificativa deve ter no mínimo 15 caracteres')
     }
     
+    console.log(`[FocusNFe] Cancelando NFe: ${referencia}`)
+    console.log(`[FocusNFe] Motivo: ${justificativa.substring(0, 50)}...`)
+    
     return this._callWithRetry(async () => {
       const response = await this.client.delete(`/v2/nfe/${referencia}`, {
-        data: { justificativa }
+        data: { 
+          justificativa 
+        },
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: 45000 // 45 segundos
       })
+      
+      console.log(`[FocusNFe] Resposta cancelamento NFe:`, response.status, response.data?.status)
+      
       return this._handleResponse(response)
     })
   }
@@ -334,6 +376,19 @@ class FocusNFeClient {
     })
   }
   
+  /**
+   * Verifica conectividade com a API Focus NFe
+   * Usado no startup do servidor para exibir status nos logs
+   */
+  async ping() {
+    try {
+      const response = await this.client.get('/v2/nfe/status', { timeout: 5000 })
+      return response.status >= 200 && response.status < 500
+    } catch {
+      return false
+    }
+  }
+
   /**
    * Consulta status do serviço SEFAZ
    * GET /v2/nfe/status
