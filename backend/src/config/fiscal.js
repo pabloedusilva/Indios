@@ -8,16 +8,11 @@
 // - Usar HTTPS em produção
 // - Validar certificados SSL
 // - Implementar rate limiting
+//
+// VARIÁVEIS: Todas as configurações são lidas do arquivo .env principal
+// =============================================================================
 
 require('dotenv').config()
-
-// Carregar variáveis do .env.fiscal se existir
-const path = require('path')
-try {
-  require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env.fiscal') })
-} catch (err) {
-  console.warn('[Fiscal Config] Arquivo .env.fiscal não encontrado. Usando apenas .env')
-}
 
 // -----------------------------------------------------------------------------
 // Configuração baseada no ambiente
@@ -38,7 +33,7 @@ const API_TOKEN = process.env.FOCUS_NFE_TOKEN
 
 // Validação obrigatória
 if (!API_TOKEN) {
-  throw new Error('FOCUS_NFE_TOKEN não configurado no .env ou .env.fiscal')
+  throw new Error('FOCUS_NFE_TOKEN não configurado no .env')
 }
 
 // -----------------------------------------------------------------------------

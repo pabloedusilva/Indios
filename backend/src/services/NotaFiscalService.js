@@ -6,8 +6,8 @@
 // - Comunicação com SEFAZ via Focus NFe
 // - Persistência no banco de dados
 // - Audit log
-// 
-// SEGURANÇA: Configurações fiscais vêm APENAS do .env.fiscal
+//
+// SEGURANÇA: Configurações fiscais vêm do arquivo .env
 // =============================================================================
 
 const NotaFiscalModel = require('../models/NotaFiscalModel')
@@ -56,12 +56,12 @@ class NotaFiscalService {
         throw new Error('Já existe uma nota fiscal para este pedido')
       }
       
-      // 3. Validar configuração fiscal (do .env.fiscal)
+      // 3. Validar configuração fiscal (do .env)
       fiscalConfig.validate()
       
       // 4. Montar payload da NFC-e (Modelo 65 - SEM dados do cliente)
       const payload = {
-        // Dados do emitente (empresa) - do .env.fiscal
+        // Dados do emitente (empresa) - do .env
         cnpj_emitente: String(fiscalConfig.EMPRESA_CONFIG.cnpj).replace(/\D/g, ''),
         
         // Dados da operação
@@ -132,7 +132,7 @@ class NotaFiscalService {
         emitido_em: new Date()
       })
       
-      // 6. Configurar token do Focus NFe (do .env.fiscal)
+      // 6. Configurar token do Focus NFe (do .env)
       focusClient.setToken(fiscalConfig.API_TOKEN)
       
       // 7. Enviar para SEFAZ via Focus NFe
@@ -259,7 +259,7 @@ class NotaFiscalService {
     try {
       await client.query('BEGIN')
       
-      // 1. Configurar token do Focus NFe (do .env.fiscal)
+      // 1. Configurar token do Focus NFe (do .env)
       focusClient.setToken(fiscalConfig.API_TOKEN)
       
       // 2. Buscar nota com lock (evita race conditions)

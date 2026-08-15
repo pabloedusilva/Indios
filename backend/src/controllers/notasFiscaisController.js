@@ -86,7 +86,7 @@ async function buscarPorId(req, res) {
     
     const pedido = pedidoResult.rows[0]
     
-    // Buscar configuração fiscal (do .env.fiscal)
+    // Buscar configuração fiscal (do .env)
     const fiscalConfig = require('../config/fiscal')
     
     // Enriquecer nota com dados completos
@@ -454,7 +454,7 @@ async function downloadMesZip(req, res) {
     if (!fiscalConfig.API_TOKEN) {
       return res.status(500).json({
         success: false,
-        message: 'Configuração fiscal não encontrada. Verifique o arquivo .env.fiscal'
+        message: 'Configuração fiscal não encontrada. Verifique o arquivo .env'
       })
     }
     
