@@ -425,7 +425,7 @@ export default function ModalNovoPedido({ isOpen, onClose }) {
                   {itens.length > 0 ? (
                     <p className="text-sm text-brand-text-2">
                       <span className="font-bold text-brand-text">{itens.reduce((a, i) => a + i.quantidade, 0)}</span> itens
-                      {' â€” '}<span className="font-bold text-brand-orange">{formatarMoeda(total)}</span>
+                      {' - '}<span className="font-bold text-brand-orange">{formatarMoeda(total)}</span>
                     </p>
                   ) : (
                     <p className="text-sm text-brand-text-3">Nenhum item adicionado</p>

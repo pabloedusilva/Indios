@@ -48,7 +48,7 @@ async function login(req, res, next) {
     }
 
     const token = jwt.sign(
-      { sub: user.id, usuario: user.usuario },
+      { sub: user.id, usuario: user.usuario, role: user.role },
       JWT_SECRET,
       { algorithm: 'HS256', expiresIn: JWT_EXPIRES_IN },
     )
@@ -58,7 +58,7 @@ async function login(req, res, next) {
     return res.json({
       success: true,
       message: 'Login realizado com sucesso.',
-      usuario: { id: user.id, usuario: user.usuario },
+      usuario: { id: user.id, usuario: user.usuario, role: user.role },
     })
   } catch (err) {
     next(err)
@@ -86,7 +86,7 @@ async function me(req, res, next) {
     }
     return res.json({
       success: true,
-      usuario: { id: user.id, usuario: user.usuario },
+      usuario: { id: user.id, usuario: user.usuario, role: user.role },
     })
   } catch (err) {
     next(err)
@@ -182,7 +182,7 @@ async function atualizarConfiguracoes(req, res, next) {
 
     // ── Re-emite o cookie JWT com os dados atualizados ─────
     const token = jwt.sign(
-      { sub: user.id, usuario: usuarioFinal },
+      { sub: user.id, usuario: usuarioFinal, role: user.role },
       JWT_SECRET,
       { algorithm: 'HS256', expiresIn: JWT_EXPIRES_IN },
     )
@@ -191,7 +191,7 @@ async function atualizarConfiguracoes(req, res, next) {
     return res.json({
       success: true,
       message: 'Configurações atualizadas com sucesso.',
-      usuario: { id: user.id, usuario: usuarioFinal },
+      usuario: { id: user.id, usuario: usuarioFinal, role: user.role },
     })
   } catch (err) {
     next(err)

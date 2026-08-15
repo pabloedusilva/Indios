@@ -7,6 +7,7 @@ const valoresIniciais = {
   nome: '',
   categoriaId: '',
   preco: '',
+  ncm: '',
   disponivel: true,
 }
 
@@ -22,6 +23,7 @@ export default function ModalProduto({ isOpen, onClose, produtoEditando, onSalva
         nome: produtoEditando.nome,
         categoriaId: produtoEditando.categoriaId || '',
         preco: String(produtoEditando.preco),
+        ncm: produtoEditando.ncm || '',
         disponivel: produtoEditando.disponivel,
       })
     } else {
@@ -46,6 +48,8 @@ export default function ModalProduto({ isOpen, onClose, produtoEditando, onSalva
     if (!form.nome.trim()) e.nome = 'Nome obrigatório'
     if (!form.preco || isNaN(parseFloat(form.preco)) || parseFloat(form.preco) <= 0)
       e.preco = 'Preço inválido'
+    if (!form.ncm.trim()) e.ncm = 'NCM obrigatório'
+    else if (!/^\d{8}$/.test(form.ncm.replace(/\D/g, ''))) e.ncm = 'NCM deve ter 8 dígitos'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -58,6 +62,7 @@ export default function ModalProduto({ isOpen, onClose, produtoEditando, onSalva
         nome: form.nome.trim(),
         categoriaId: form.categoriaId ? parseInt(form.categoriaId) : null,
         preco: parseFloat(form.preco),
+        ncm: form.ncm.replace(/\D/g, ''),
         disponivel: form.disponivel,
       })
       onClose()
@@ -91,6 +96,32 @@ export default function ModalProduto({ isOpen, onClose, produtoEditando, onSalva
             autoFocus
           />
           {errors.nome && <p className="text-red-500 text-xs mt-1">{errors.nome}</p>}
+        </div>
+
+        {/* NCM */}
+        <div>
+          <label className="block text-xs font-semibold text-brand-text-2 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+            NCM *
+            <div className="relative group">
+              <span className="inline-flex items-center justify-center w-3.5 h-3.5 text-[10px] text-brand-text-3 border border-brand-border-2 rounded-full cursor-help">ℹ</span>
+              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 w-64 p-2.5 bg-brand-surface border border-brand-border rounded-lg shadow-lg text-xs text-brand-text-2 leading-relaxed opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50">
+                Se não tiver o número do NCM do novo produto, peça o contador para gerar enviando o nome do novo produto
+              </div>
+            </div>
+          </label>
+          <input
+            type="text"
+            value={form.ncm}
+            onChange={(e) => {
+              const valor = e.target.value.replace(/\D/g, '').slice(0, 8)
+              set('ncm', valor)
+            }}
+            placeholder="Ex: 02109900"
+            maxLength="8"
+            className={`input-field ${errors.ncm ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : ''}`}
+          />
+          {errors.ncm && <p className="text-red-500 text-xs mt-1">{errors.ncm}</p>}
+          <p className="text-xs text-brand-text-3 mt-1">8 dígitos numéricos</p>
         </div>
 
         {/* Categoria + Preço */}

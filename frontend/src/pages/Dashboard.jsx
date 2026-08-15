@@ -32,15 +32,7 @@ export default function Dashboard() {
   } = useDashboard()
 
   const [pedidoSelecionado, setPedidoSelecionado] = useState(null)
-  const [refreshing, setRefreshing] = useState(false)
   const navigate = useNavigate()
-
-  const handleRefresh = async () => {
-    if (refreshing) return
-    setRefreshing(true)
-    await refetch()
-    setTimeout(() => setRefreshing(false), 600)
-  }
 
   const hoje = new Date().toLocaleDateString('pt-BR', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -232,11 +224,12 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleRefresh}
-              title="Atualizar dashboard"
-              className="p-2 rounded-xl text-brand-text-3 hover:text-brand-text hover:bg-brand-surface border border-brand-border transition-all active:scale-95"
+              onClick={refetch}
+              disabled={loading}
+              title="Atualizar"
+              className="p-2 rounded-xl text-brand-text-3 hover:text-brand-text hover:bg-brand-surface border border-brand-border transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <MdRefresh size={16} className={refreshing ? 'animate-spin' : ''} />
+              <MdRefresh size={16} className={loading ? 'animate-spin' : ''} />
             </button>
             <button onClick={() => navigate('/pedidos/novo')} className="btn-primary px-6 py-3 text-sm shadow-brand">
               <MdAdd size={20} />
@@ -246,10 +239,10 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Pedidos Hoje" value={totalPedidosHoje} icon={MdRestaurantMenu} color="red" sub={`${finalizados} finalizados`} />
-          <StatCard label="Faturamento Hoje" value={formatarMoeda(faturamentoHoje)} icon={MdAttachMoney} color="orange" />
-          <StatCard label="Na Fila" value={preparando} icon={MdHourglassBottom} color="gold" sub="aguardando preparo" />
-          <StatCard label="Prontos" value={prontos} icon={MdCheckCircle} color="green" sub={prontos > 0 ? 'Aguardando finalização' : 'Tudo em dia'} />
+          <StatCard label="Pedidos Hoje" value={totalPedidosHoje} icon={MdRestaurantMenu} color="red" sub={`${finalizados} finalizados`} type="number" />
+          <StatCard label="Faturamento Hoje" value={faturamentoHoje} icon={MdAttachMoney} color="orange" type="money" />
+          <StatCard label="Na Fila" value={preparando} icon={MdHourglassBottom} color="gold" sub="aguardando preparo" type="number" />
+          <StatCard label="Prontos" value={prontos} icon={MdCheckCircle} color="green" sub={prontos > 0 ? 'Aguardando finalização' : 'Tudo em dia'} type="number" />
         </div>
 
         <div className="card">
