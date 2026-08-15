@@ -281,12 +281,13 @@ const EstatisticasModel = {
       `),
       db.execute(`
         SELECT
-          COALESCE(forma_pagamento, 'nao_informado') AS forma,
-          COUNT(*)                                   AS qtd,
-          COALESCE(SUM(total), 0)                    AS total
+          forma_pagamento AS forma,
+          COUNT(*)        AS qtd,
+          COALESCE(SUM(total), 0) AS total
         FROM pedidos
         WHERE ${COND_C}
           AND status = 'finalizado'
+          AND forma_pagamento IS NOT NULL
         GROUP BY forma_pagamento
         ORDER BY qtd DESC
       `),

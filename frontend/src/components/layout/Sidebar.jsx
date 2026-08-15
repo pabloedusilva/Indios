@@ -2,22 +2,23 @@ import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   MdDashboard, MdRestaurantMenu, MdInventory2,
-  MdHistory, MdClose, MdLogout, MdBarChart, MdSettings, MdPayment, MdRocketLaunch,
+  MdHistory, MdClose, MdLogout, MdBarChart, MdSettings, MdRocketLaunch,
+  MdReceipt,
 } from 'react-icons/md'
 import { useApp } from '../../contexts/AppContext'
 import { useAuth } from '../../contexts/AuthContext'
 import ModalConfiguracoes from '../ui/ModalConfiguracoes'
-import ModalPagamentos from '../ui/ModalPagamentos'
 import ModalUpdateNotes from '../ui/ModalUpdateNotes'
 import { APP_VERSION } from '../../utils/version'
 import { api } from '../../services/api'
 
 const navItems = [
-  { to: '/dashboard',    label: 'Dashboard',    icon: MdDashboard,      exact: true },
-  { to: '/pedidos',      label: 'Pedidos',      icon: MdRestaurantMenu },
-  { to: '/produtos',     label: 'Produtos',     icon: MdInventory2 },
-  { to: '/historico',    label: 'Histórico',    icon: MdHistory },
-  { to: '/estatisticas', label: 'Estatísticas', icon: MdBarChart },
+  { to: '/dashboard',      label: 'Dashboard',      icon: MdDashboard,      exact: true },
+  { to: '/pedidos',        label: 'Pedidos',         icon: MdRestaurantMenu },
+  { to: '/produtos',       label: 'Produtos',        icon: MdInventory2 },
+  { to: '/historico',      label: 'Histórico',       icon: MdHistory },
+  { to: '/estatisticas',   label: 'Estatísticas',    icon: MdBarChart },
+  { to: '/contabilidade',  label: 'Contabilidade',   icon: MdReceipt },
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -26,7 +27,6 @@ export default function Sidebar({ isOpen, onClose }) {
   const navigate = useNavigate()
   const pendentes = pedidosAtivos.filter((p) => p.status === 'preparando').length
   const [modalConfigOpen,    setModalConfigOpen]    = useState(false)
-  const [modalPagamentosOpen, setModalPagamentosOpen] = useState(false)
   const [modalUpdateOpen,     setModalUpdateOpen]     = useState(false)
   const [updateNote,          setUpdateNote]          = useState(null)
   const [isMajor,             setIsMajor]             = useState(false)
@@ -115,14 +115,6 @@ export default function Sidebar({ isOpen, onClose }) {
               v{APP_VERSION}
             </button>
 
-            {/* Botão de pagamentos */}
-            <button
-              onClick={() => setModalPagamentosOpen(true)}
-              title="Pagamentos"
-              className="absolute bottom-2 right-9 text-black/40 dark:text-white/50 hover:text-brand-orange dark:hover:text-brand-orange transition-colors p-0.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10"
-            >
-              <MdPayment size={15} />
-            </button>
             {/* Engrenagem de configurações */}
             <button
               onClick={() => setModalConfigOpen(true)}
@@ -179,10 +171,6 @@ export default function Sidebar({ isOpen, onClose }) {
       <ModalConfiguracoes
         isOpen={modalConfigOpen}
         onClose={() => setModalConfigOpen(false)}
-      />
-      <ModalPagamentos
-        isOpen={modalPagamentosOpen}
-        onClose={() => setModalPagamentosOpen(false)}
       />
       <ModalUpdateNotes
         isOpen={modalUpdateOpen}

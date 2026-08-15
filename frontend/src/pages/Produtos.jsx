@@ -164,8 +164,9 @@ export default function Produtos() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
-              title="Atualizar produtos"
-              className="p-2 rounded-xl text-brand-text-3 hover:text-brand-text hover:bg-brand-surface border border-brand-border transition-all active:scale-95"
+              disabled={refreshing}
+              title="Atualizar"
+              className="p-2 rounded-xl text-brand-text-3 hover:text-brand-text hover:bg-brand-surface border border-brand-border transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <MdRefresh size={16} className={refreshing ? 'animate-spin' : ''} />
             </button>

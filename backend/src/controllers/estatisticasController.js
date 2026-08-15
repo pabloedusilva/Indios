@@ -47,7 +47,6 @@ function nomePagamento(forma) {
     credito:      'Cartao Credito',
     debito:       'Cartao Debito',
     dinheiro:     'Dinheiro',
-    sem_pagamento:'Sem Pagamento',
   }
   return map[forma] || n(forma)
 }
