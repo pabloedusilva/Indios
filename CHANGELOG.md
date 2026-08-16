@@ -5,6 +5,38 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.3.0](https://github.com/pabloedusilva/Indios/compare/v2.2.0...v2.3.0) (2026-08-16)
+
+### Novas Funcionalidades
+
+* **notas-fiscais:** adicionar chave de acesso aos nomes dos XMLs ([5cba3f6](https://github.com/pabloedusilva/Indios/commit/5cba3f68357538fa5946eedc53d245621d8a4c86))
+* **pagamento:** adicionar cobrança mensal via InfinitePay e otimizar pool de conexões ([f1ffd1c](https://github.com/pabloedusilva/Indios/commit/f1ffd1cfaad786114983e58016c2c2046124219f))
+* **notas-fiscais:** adicionar emissão automática via API do Focus NFe ([8fc2e84](https://github.com/pabloedusilva/Indios/commit/8fc2e84bff3d9097ed6a01fec8c3d7c42e14e3d8))
+* **download:** adicionar progresso global para downloads ([fb1125b](https://github.com/pabloedusilva/Indios/commit/fb1125bd5503def5f3640f6a8871faf5373db055))
+
+### Correções de Bugs
+
+* **release:** corrigir automação do processo de release ([2b8a2bd](https://github.com/pabloedusilva/Indios/commit/2b8a2bd6d7a79422d14a2d8c1ab219e19c2fb8dc))
+* **fiscal:** corrigir emissão e cancelamento de notas e ajustes na interface ([7f6f084](https://github.com/pabloedusilva/Indios/commit/7f6f08451684cbee1e06dc42e5e82cc372e1bca8))
+* **ci:** restaura script test:run para evitar falhas no pipeline de CI/CD ([8ebff41](https://github.com/pabloedusilva/Indios/commit/8ebff41b18fbecece6072fa55426440873c99e08))
+
+### Refatorações
+
+* **ui:** melhorar interface e ajustar conexão com banco de dados ([2b07d46](https://github.com/pabloedusilva/Indios/commit/2b07d46ba100d4f6de1c2926eb5c8b02ec47fc0a))
+* **config:** remove dependência do .env.fiscal e centraliza configurações no .env ([dacce78](https://github.com/pabloedusilva/Indios/commit/dacce7878cd7b64fd2a84ee89501d0c1aa69beda))
+* **pedidos:** remover botão de marcar todos como concluído, finalização em massa e exigir pagamento ([98f687c](https://github.com/pabloedusilva/Indios/commit/98f687c3b3de019be1d44b21a89cb6cc1e61d3ab))
+* **pagamento:** remover integração de cobrança mensal do Mercado Pago ([cea459c](https://github.com/pabloedusilva/Indios/commit/cea459ce5871faf6175fefd490b4a844a6ae9b1d))
+
+### Documentação
+
+* **readme:** atualizar descrição com emissão de notas fiscais pela SEFAZ ([77bfd3b](https://github.com/pabloedusilva/Indios/commit/77bfd3b8ec6bdce504da758a21330a569820aa79))
+* sincronizar CHANGELOG.md com releases do GitHub [skip ci] ([d08eade](https://github.com/pabloedusilva/Indios/commit/d08eade7e6f9532e5dff92c945adc7751c72c7bf))
+
+### Manutenção
+
+* sincronizar versões dos package.json para v2.1.1 [skip ci] ([9eb0de4](https://github.com/pabloedusilva/Indios/commit/9eb0de454b78bb272a93e4a4e0d5318d07ca19e4))
+* sincronizar versões dos package.json para v2.2.0 [skip ci] ([0b82ba8](https://github.com/pabloedusilva/Indios/commit/0b82ba86b562dbb65fcca274c5462479cfb5a1ba))
+
 Histórico completo de releases do projeto.
 
 ## v2.2.0 (24/05/2026)
