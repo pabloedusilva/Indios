@@ -133,6 +133,35 @@ async function detectMigrationsSinceLastRelease() {
 // =============================================================
 // Parsear Release Notes do GitHub
 // =============================================================
+
+/**
+ * Limpa o texto de um item de release note, removendo:
+ * - Markdown bold (**texto**)
+ * - Scope prefixes (release:, fiscal:, ci:, fix:, feat:, etc.)
+ * - Links de commit ([hash](url))
+ * - Hashes de commit no final (abcdef1)
+ */
+function cleanReleaseItem(item) {
+  let clean = item.trim();
+  
+  // Remover markdown bold
+  clean = clean.replace(/\*\*(.+?)\*\*/g, '$1');
+  
+  // Remover links completos de commit: [hash](url)
+  clean = clean.replace(/\s*\[([a-f0-9]{7})\]\(https?:\/\/[^\)]+\)/gi, '');
+  
+  // Remover hashes de commit no final: (abcdef1)
+  clean = clean.replace(/\s*\([a-f0-9]{7,}\)$/i, '');
+  
+  // Remover scope prefixes comuns: release:, fiscal:, ci:, fix:, feat:, docs:, etc.
+  clean = clean.replace(/^(release|fiscal|ci|fix|feat|docs|test|refactor|perf|style|chore|build):\s*/i, '');
+  
+  // Remover espaços extras
+  clean = clean.trim();
+  
+  return clean;
+}
+
 function parseReleaseNotes(body) {
   const melhorias = [];
   const correcoes = [];
@@ -160,10 +189,10 @@ function parseReleaseNotes(body) {
       for (const line of lines.slice(1)) {
         const match = line.match(/^\s*[-*]\s+(.+)/);
         if (match) {
-          const item = match[1].trim();
-          // Remover links e hash de commit do final
-          const cleanItem = item.replace(/\s*\([a-f0-9]{7,}\)$/i, '').trim();
-          melhorias.push(cleanItem);
+          const cleanItem = cleanReleaseItem(match[1]);
+          if (cleanItem) {
+            melhorias.push(cleanItem);
+          }
         }
       }
     }
@@ -173,9 +202,10 @@ function parseReleaseNotes(body) {
       for (const line of lines.slice(1)) {
         const match = line.match(/^\s*[-*]\s+(.+)/);
         if (match) {
-          const item = match[1].trim();
-          const cleanItem = item.replace(/\s*\([a-f0-9]{7,}\)$/i, '').trim();
-          correcoes.push(cleanItem);
+          const cleanItem = cleanReleaseItem(match[1]);
+          if (cleanItem) {
+            correcoes.push(cleanItem);
+          }
         }
       }
     }
@@ -185,7 +215,10 @@ function parseReleaseNotes(body) {
       for (const line of lines.slice(1)) {
         const match = line.match(/^\s*[-*]\s+(.+)/);
         if (match) {
-          migracoes.push(match[1].trim());
+          const cleanItem = cleanReleaseItem(match[1]);
+          if (cleanItem) {
+            migracoes.push(cleanItem);
+          }
         }
       }
     }
@@ -222,8 +255,8 @@ async function saveUpdateNote(release, migrations) {
   // Combinar todas as melhorias
   const allMelhorias = [...melhorias];
   
-  // Adicionar migrações detectadas automaticamente
-  const migrationItems = migrations.map(m => `🗄️ Banco de Dados: ${m.description}`);
+  // Adicionar migrações detectadas automaticamente (sem emoji)
+  const migrationItems = migrations.map(m => m.description);
   allMelhorias.push(...migrationItems);
   
   // Adicionar migrações da seção do release notes (se houver)
