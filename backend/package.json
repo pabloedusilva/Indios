@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "cross-env NODE_OPTIONS='--dns-result-order=ipv4first' nodemon src/server.js",
     "start": "node src/server.js",
-    "sync:release": "node scripts/sync-release-to-db.js"
+    "sync:release": "node scripts/sync-release-to-db.js",
+    "test:run": "echo 'No tests configured' && exit 0"
   },
   "dependencies": {
     "axios": "^1.15.0",
