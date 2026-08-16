@@ -5,67 +5,134 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+Histórico completo de releases do projeto.
+
+## v2.2.0 (24/05/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v2.2.0)
+
+[2.2.0](https://github.com/pabloedusilva/Indios/compare/v2.1.1...v2.2.0) (2026-05-24)
+
 ## [2.2.0](https://github.com/pabloedusilva/Indios/compare/v2.1.1...v2.2.0) (2026-05-24)
+
 
 ### Novas Funcionalidades
 
 * implementar pedidos sem nome com geração automática de cliente temporário e remover cross-env dos scripts de produção ([c0b682a](https://github.com/pabloedusilva/Indios/commit/c0b682a66fde3d555ab9f81ebe7034cb7e02d9f4))
 
+
 ### Correções de Bugs
 
 * remover dependência desnecessária do cross-env no Render ([65dc121](https://github.com/pabloedusilva/Indios/commit/65dc121a3cc43ec778cf7e85a007b9184953d312))
 
+## v2.1.1 (24/05/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v2.1.1)
+
+[2.1.1](https://github.com/pabloedusilva/Indios/compare/v2.1.0...v2.1.1) (2026-05-24)
+
 ## [2.1.1](https://github.com/pabloedusilva/Indios/compare/v2.1.0...v2.1.1) (2026-05-24)
+
 
 ### Correções de Bugs
 
 * corrigir execução do cross-env em produção ([375498d](https://github.com/pabloedusilva/Indios/commit/375498dcc82a25410cc1ca3cda2a0147223adbbe))
 * corrigir execução do cross-env em produção ([c3c9ba1](https://github.com/pabloedusilva/Indios/commit/c3c9ba1c57a2611c6ef9d97ad8f82df4f2bef448))
 
+## v2.1.0 (24/05/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v2.1.0)
+
+[2.1.0](https://github.com/pabloedusilva/Indios/compare/v2.0.0...v2.1.0) (2026-05-24)
+
 ## [2.1.0](https://github.com/pabloedusilva/Indios/compare/v2.0.0...v2.1.0) (2026-05-24)
+
 
 ### Novas Funcionalidades
 
 * migração para PostgreSQL, correções e suporte a pedidos anônimos ([33f2e4a](https://github.com/pabloedusilva/Indios/commit/33f2e4adfdc1af238c700042337a9ffcd209bb29))
 
+## v2.0.0 (19/05/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v2.0.0)
+
+[2.0.0](https://github.com/pabloedusilva/Indios/compare/v1.12.0...v2.0.0) (2026-05-19)
+
 ## [2.0.0](https://github.com/pabloedusilva/Indios/compare/v1.12.0...v2.0.0) (2026-05-19)
+
 
 ### ⚠ BREAKING CHANGES
 
 * lançamento oficial da versão 2.0.0
 
+
 ### Novas Funcionalidades
 
 * lançamento oficial da versão 2.0.0 ([68b4aa9](https://github.com/pabloedusilva/Indios/commit/68b4aa91732d8fcd689eda690e1e77efce712122))
 
+## v1.12.0 (17/05/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.12.0)
+
+[1.12.0](https://github.com/pabloedusilva/Indios/compare/v1.11.2...v1.12.0) (2026-05-17)
+
 ## [1.12.0](https://github.com/pabloedusilva/Indios/compare/v1.11.2...v1.12.0) (2026-05-17)
+
 
 ### Novas Funcionalidades
 
 * **ui:** melhorias no badge de versão ([880161f](https://github.com/pabloedusilva/Indios/commit/880161fe956a41220d0f399a8bf60ae15e170103))
 
+## v1.11.2 (17/05/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.11.2)
+
+[1.11.2](https://github.com/pabloedusilva/Indios/compare/v1.11.1...v1.11.2) (2026-05-17)
+
 ## [1.11.2](https://github.com/pabloedusilva/Indios/compare/v1.11.1...v1.11.2) (2026-05-17)
+
 
 ### Correções de Bugs
 
 * **ci:** adicionar token de autenticação em todos os checkouts ([6720cf0](https://github.com/pabloedusilva/Indios/commit/6720cf047fc3c05bc13ced59c9019b40d553583d))
 
+## v1.11.1 (17/05/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.11.1)
+
+[1.11.1](https://github.com/pabloedusilva/Indios/compare/v1.11.0...v1.11.1) (2026-05-17)
+
 ## [1.11.1](https://github.com/pabloedusilva/Indios/compare/v1.11.0...v1.11.1) (2026-05-17)
+
 
 ### Correções de Bugs
 
 * **ci:** adicionar token de autenticação em todos os checkouts ([e5ea527](https://github.com/pabloedusilva/Indios/commit/e5ea5276c24b81577bfae9986a3a9c8e3a60b03c))
 
+
 ### Documentação
 
 * sincronizar CHANGELOG.md com releases do GitHub [skip ci] ([3c310ff](https://github.com/pabloedusilva/Indios/commit/3c310ff1fc7ffab207087ab0ee33f448acb3bc31))
 
+## v1.11.0 (17/05/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.11.0)
+
+[1.11.0](https://github.com/pabloedusilva/Indios/compare/v1.10.0...v1.11.0) (2026-05-17)
+
 ## [1.11.0](https://github.com/pabloedusilva/Indios/compare/v1.10.0...v1.11.0) (2026-05-17)
+
 
 ### Novas Funcionalidades
 
 * corrigir autenticação do workflow ([b717b1a](https://github.com/pabloedusilva/Indios/commit/b717b1a3bc09988742b0753dd5d888079f1f77d1))
 * testar release automática ([b482a28](https://github.com/pabloedusilva/Indios/commit/b482a283b007434b9796f9ee57a6ca8f21d1e7fe))
+
+## v1.10.0 (17/05/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.10.0)
+
+[1.10.0](https://github.com/pabloedusilva/Indios/compare/v1.9.0...v1.10.0) (2026-05-17)
 
 ## [1.10.0](https://github.com/pabloedusilva/Indios/compare/v1.9.0...v1.10.0) (2026-05-17)
 
