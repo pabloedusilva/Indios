@@ -5,6 +5,12 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.4.0](https://github.com/pabloedusilva/Indios/compare/v2.3.1...v2.4.0) (2026-08-17)
+
+### Novas Funcionalidades
+
+* **pedidos:** implementa edição de pedidos com adição de itens ([a4f34f9](https://github.com/pabloedusilva/Indios/commit/a4f34f97f863fbe55b308f9e2e1103569f27e3f2))
+
 ## [2.3.1](https://github.com/pabloedusilva/Indios/compare/v2.3.0...v2.3.1) (2026-08-16)
 
 ### Correções de Bugs
