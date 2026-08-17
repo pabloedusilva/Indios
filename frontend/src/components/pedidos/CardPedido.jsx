@@ -4,10 +4,11 @@ import StatusBadge from '../ui/StatusBadge'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import ModalPedido from './ModalPedido'
 import ModalPagamento from './ModalPagamento'
+import ModalAdicionarItens from './ModalAdicionarItens'
 import { formatarMoeda, formatarHora } from '../../utils/formatters'
 import {
   MdVisibility, MdCancel, MdKitchen, MdPayment,
-  MdMoreVert, MdAccessTime,
+  MdMoreVert, MdAccessTime, MdAdd,
 } from 'react-icons/md'
 
 const accentMap = {
@@ -21,6 +22,7 @@ export default function CardPedido({ pedido }) {
   const { marcarPronto, cancelarPedido } = useApp()
   const [showPedido, setShowPedido] = useState(false)
   const [showPagamento, setShowPagamento] = useState(false)
+  const [showAdicionarItens, setShowAdicionarItens] = useState(false)
   const [showConfirmCancelar, setShowConfirmCancelar] = useState(false)
   const [menuAberto, setMenuAberto] = useState(false)
 
@@ -65,6 +67,12 @@ export default function CardPedido({ pedido }) {
                       className="w-full text-left px-3 py-2 text-xs text-brand-text-2 hover:text-brand-text hover:bg-brand-bg flex items-center gap-2 transition-colors"
                     >
                       <MdVisibility size={14} /> Ver Pedido
+                    </button>
+                    <button
+                      onClick={() => { setShowAdicionarItens(true); setMenuAberto(false) }}
+                      className="w-full text-left px-3 py-2 text-xs text-brand-text-2 hover:text-brand-text hover:bg-brand-bg flex items-center gap-2 transition-colors"
+                    >
+                      <MdAdd size={14} /> Adicionar Itens
                     </button>
                     <button
                       onClick={() => { setShowConfirmCancelar(true); setMenuAberto(false) }}
@@ -129,6 +137,7 @@ export default function CardPedido({ pedido }) {
 
       <ModalPedido isOpen={showPedido} onClose={() => setShowPedido(false)} pedido={pedido} />
       <ModalPagamento isOpen={showPagamento} onClose={() => setShowPagamento(false)} pedido={pedido} />
+      <ModalAdicionarItens isOpen={showAdicionarItens} onClose={() => setShowAdicionarItens(false)} pedido={pedido} />
       <ConfirmDialog
         isOpen={showConfirmCancelar}
         title="Cancelar Pedido"
