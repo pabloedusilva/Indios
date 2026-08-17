@@ -57,6 +57,45 @@ const criar = async (req, res, next) => {
   }
 }
 
+// PATCH /api/pedidos/:id/adicionar-itens
+// Body: { itens: [{ produtoId, nomeProduto, quantidade, precoUnitario }] }
+// Adiciona novos itens ao pedido existente e recalcula o total
+const adicionarItens = async (req, res, next) => {
+  try {
+    const { itens } = req.body
+    
+    if (!itens || !Array.isArray(itens) || itens.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'É necessário informar pelo menos um item para adicionar' 
+      })
+    }
+
+    const pedido = await PedidoModel.adicionarItens(req.params.id, itens)
+    
+    if (!pedido) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Pedido não encontrado' 
+      })
+    }
+    
+    res.json({ 
+      success: true, 
+      data: pedido,
+      message: `${itens.length} item(ns) adicionado(s) com sucesso` 
+    })
+  } catch (err) {
+    if (err.message === 'Pedido não encontrado') {
+      return res.status(404).json({ success: false, message: err.message })
+    }
+    if (err.message.includes('finalizado ou cancelado')) {
+      return res.status(400).json({ success: false, message: err.message })
+    }
+    next(err)
+  }
+}
+
 // PATCH /api/pedidos/:id/pronto
 // Muda status para 'pronto' e registra prontoEm
 const marcarPronto = async (req, res, next) => {
@@ -156,4 +195,4 @@ const excluir = async (req, res, next) => {
   }
 }
 
-module.exports = { listar, listarAtivos, buscarPorId, criar, marcarPronto, finalizar, cancelar, excluir }
+module.exports = { listar, listarAtivos, buscarPorId, criar, adicionarItens, marcarPronto, finalizar, cancelar, excluir }
