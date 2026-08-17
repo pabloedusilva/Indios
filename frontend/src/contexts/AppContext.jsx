@@ -164,6 +164,20 @@ export function AppProvider({ children }) {
     }
   }, [carregarPedidosAtivos, carregarPedidos])
 
+  const adicionarItensPedido = useCallback(async (id, itens) => {
+    try {
+      const pedidoAtualizado = await api.patch(`/pedidos/${id}/adicionar-itens`, { itens })
+      carregarPedidosAtivos()
+      carregarPedidos()
+      notificarDashboard()
+      toast.success(`${itens.length} item(ns) adicionado(s) ao pedido!`)
+      return pedidoAtualizado
+    } catch (err) {
+      toast.error(err.message || 'Erro ao adicionar itens ao pedido.')
+      throw err
+    }
+  }, [carregarPedidosAtivos, carregarPedidos])
+
   const marcarPronto = useCallback(async (id) => {
     try {
       await api.patch(`/pedidos/${id}/pronto`)
@@ -250,6 +264,7 @@ export function AppProvider({ children }) {
     toggleDisponibilidadeProduto,
     // Actions: Pedidos
     criarPedido,
+    adicionarItensPedido,
     marcarPronto,
     finalizarPedido,
     cancelarPedido,

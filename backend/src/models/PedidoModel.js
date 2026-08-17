@@ -173,6 +173,63 @@ const PedidoModel = {
     }
   },
 
+  // Adiciona novos itens ao pedido existente e recalcula o total
+  // novosItens: [{ produtoId, nomeProduto, quantidade, precoUnitario }]
+  async adicionarItens(id, novosItens) {
+    const client = await db.connect()
+    try {
+      await client.query('BEGIN')
+
+      // Verifica se o pedido existe e não está finalizado/cancelado
+      const pedidoResult = await client.query(
+        `SELECT id, status FROM pedidos WHERE id = $1`,
+        [id]
+      )
+      
+      if (pedidoResult.rows.length === 0) {
+        throw new Error('Pedido não encontrado')
+      }
+      
+      const pedido = pedidoResult.rows[0]
+      if (['finalizado', 'cancelado'].includes(pedido.status)) {
+        throw new Error('Não é possível adicionar itens a um pedido finalizado ou cancelado')
+      }
+
+      // Adiciona os novos itens
+      for (const item of novosItens) {
+        const subtotal = item.quantidade * item.precoUnitario
+        await client.query(
+          `INSERT INTO itens_pedido (pedido_id, produto_id, nome_produto, preco_unitario, quantidade, subtotal)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [id, item.produtoId, item.nomeProduto, item.precoUnitario, item.quantidade, subtotal]
+        )
+      }
+
+      // Recalcula o total do pedido
+      const totalResult = await client.query(
+        `SELECT COALESCE(SUM(subtotal), 0) AS novo_total 
+         FROM itens_pedido 
+         WHERE pedido_id = $1`,
+        [id]
+      )
+      const novoTotal = totalResult.rows[0].novo_total
+
+      // Atualiza o total do pedido
+      await client.query(
+        `UPDATE pedidos SET total = $1 WHERE id = $2`,
+        [novoTotal, id]
+      )
+
+      await client.query('COMMIT')
+      client.release()
+      return this.findById(id)
+    } catch (err) {
+      await client.query('ROLLBACK')
+      client.release()
+      throw err
+    }
+  },
+
   // Muda status → 'pronto' e registra pronto_em
   async marcarPronto(id) {
     await db.execute(
