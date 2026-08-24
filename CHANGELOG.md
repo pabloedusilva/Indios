@@ -5,23 +5,47 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+Histórico completo de releases do projeto.
+
+## v2.4.0 (17/08/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v2.4.0)
+
+[2.4.0](https://github.com/pabloedusilva/Indios/compare/v2.3.1...v2.4.0) (2026-08-17)
+
 ## [2.4.0](https://github.com/pabloedusilva/Indios/compare/v2.3.1...v2.4.0) (2026-08-17)
+
 
 ### Novas Funcionalidades
 
 * **pedidos:** implementa edição de pedidos com adição de itens ([a4f34f9](https://github.com/pabloedusilva/Indios/commit/a4f34f97f863fbe55b308f9e2e1103569f27e3f2))
 
+## v2.3.1 (16/08/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v2.3.1)
+
+[2.3.1](https://github.com/pabloedusilva/Indios/compare/v2.3.0...v2.3.1) (2026-08-16)
+
 ## [2.3.1](https://github.com/pabloedusilva/Indios/compare/v2.3.0...v2.3.1) (2026-08-16)
+
 
 ### Correções de Bugs
 
 * **release:** remove metadados técnicos das notas de atualização ([42ab3d9](https://github.com/pabloedusilva/Indios/commit/42ab3d9e9cbad3e3b104226c7e4b0cd71b651e48))
 
+
 ### Manutenção
 
 * sincronizar versões dos package.json para v2.3.0 [skip ci] ([9179be9](https://github.com/pabloedusilva/Indios/commit/9179be933fbc9515ec41454b76435c977e6a74e7))
 
+## v2.3.0 (16/08/2026)
+
+[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v2.3.0)
+
+[2.3.0](https://github.com/pabloedusilva/Indios/compare/v2.2.0...v2.3.0) (2026-08-16)
+
 ## [2.3.0](https://github.com/pabloedusilva/Indios/compare/v2.2.0...v2.3.0) (2026-08-16)
+
 
 ### Novas Funcionalidades
 
@@ -30,11 +54,13 @@ e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 * **notas-fiscais:** adicionar emissão automática via API do Focus NFe ([8fc2e84](https://github.com/pabloedusilva/Indios/commit/8fc2e84bff3d9097ed6a01fec8c3d7c42e14e3d8))
 * **download:** adicionar progresso global para downloads ([fb1125b](https://github.com/pabloedusilva/Indios/commit/fb1125bd5503def5f3640f6a8871faf5373db055))
 
+
 ### Correções de Bugs
 
 * **release:** corrigir automação do processo de release ([2b8a2bd](https://github.com/pabloedusilva/Indios/commit/2b8a2bd6d7a79422d14a2d8c1ab219e19c2fb8dc))
 * **fiscal:** corrigir emissão e cancelamento de notas e ajustes na interface ([7f6f084](https://github.com/pabloedusilva/Indios/commit/7f6f08451684cbee1e06dc42e5e82cc372e1bca8))
 * **ci:** restaura script test:run para evitar falhas no pipeline de CI/CD ([8ebff41](https://github.com/pabloedusilva/Indios/commit/8ebff41b18fbecece6072fa55426440873c99e08))
+
 
 ### Refatorações
 
@@ -43,17 +69,17 @@ e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 * **pedidos:** remover botão de marcar todos como concluído, finalização em massa e exigir pagamento ([98f687c](https://github.com/pabloedusilva/Indios/commit/98f687c3b3de019be1d44b21a89cb6cc1e61d3ab))
 * **pagamento:** remover integração de cobrança mensal do Mercado Pago ([cea459c](https://github.com/pabloedusilva/Indios/commit/cea459ce5871faf6175fefd490b4a844a6ae9b1d))
 
+
 ### Documentação
 
 * **readme:** atualizar descrição com emissão de notas fiscais pela SEFAZ ([77bfd3b](https://github.com/pabloedusilva/Indios/commit/77bfd3b8ec6bdce504da758a21330a569820aa79))
 * sincronizar CHANGELOG.md com releases do GitHub [skip ci] ([d08eade](https://github.com/pabloedusilva/Indios/commit/d08eade7e6f9532e5dff92c945adc7751c72c7bf))
 
+
 ### Manutenção
 
 * sincronizar versões dos package.json para v2.1.1 [skip ci] ([9eb0de4](https://github.com/pabloedusilva/Indios/commit/9eb0de454b78bb272a93e4a4e0d5318d07ca19e4))
 * sincronizar versões dos package.json para v2.2.0 [skip ci] ([0b82ba8](https://github.com/pabloedusilva/Indios/commit/0b82ba86b562dbb65fcca274c5462479cfb5a1ba))
-
-Histórico completo de releases do projeto.
 
 ## v2.2.0 (24/05/2026)
 
@@ -270,7 +296,7 @@ Histórico completo de releases do projeto.
 
 ### Novas Funcionalidades
 
-* **ci:** adiciona sistema automático de versionamento, sincronização de package.json e deploy com GitHub Actions e semantic-release ([7cb333d](https://github.com/pabloedusilva/Indios/commit/7cb333d94d00adaacae713418fe98c73f49f6bcf))
+* **ci:** adiciona sistema automático de versionamento, sincronizaç��o de package.json e deploy com GitHub Actions e semantic-release ([7cb333d](https://github.com/pabloedusilva/Indios/commit/7cb333d94d00adaacae713418fe98c73f49f6bcf))
 
 
 ### Documentação
