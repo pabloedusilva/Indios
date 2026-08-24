@@ -296,7 +296,7 @@ Histórico completo de releases do projeto.
 
 ### Novas Funcionalidades
 
-* **ci:** adiciona sistema automático de versionamento, sincronização de package.json e deploy com GitHub Actions e semantic-release ([7cb333d](https://github.com/pabloedusilva/Indios/commit/7cb333d94d00adaacae713418fe98c73f49f6bcf))
+* **ci:** adiciona sistema automático de versionamento, sincronizaç��o de package.json e deploy com GitHub Actions e semantic-release ([7cb333d](https://github.com/pabloedusilva/Indios/commit/7cb333d94d00adaacae713418fe98c73f49f6bcf))
 
 
 ### Documentação
