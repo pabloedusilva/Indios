@@ -1,3 +1,4 @@
-Indios Churrasco Gourmet <img src="https://github.com/user-attachments/assets/6dcfd3b3-11d5-44fa-8118-ff78a06ce7b9" width="200" align="right"/>
+Indios Manager <img src="https://github.com/user-attachments/assets/1410be34-6ef0-4736-8ace-79bed362e216" width="200" align="right"/>
+
 
 Sistema de dashboard desenvolvido para a empresa Indios Churrasco Gourmet, focado no gerenciamento de pedidos em tempo real e na impressão de cupons fiscais, proporcionando mais agilidade e organização no atendimento. O sistema também conta com emissão de notas fiscais eletrônicas em tempo real, integradas à SEFAZ e autorizadas conforme as exigências fiscais, garantindo maior segurança, confiabilidade e praticidade no processo de emissão fiscal.
