@@ -16,7 +16,8 @@
     "lint:commits:ci": "commitlint --from origin/main --to HEAD --verbose",
     "sync:versions": "node scripts/sync-versions.js",
     "sync:changelog": "node scripts/sync-changelog-from-github.js",
-    "clean:cache": "node -e \"const fs=require('fs');const p='frontend/node_modules/.vite';if(fs.existsSync(p)){fs.rmSync(p,{recursive:true});console.log('[OK] Cache limpo com sucesso')}else{console.log('[INFO] Cache já estava limpo')}\""
+    "clean:cache": "node -e \"const fs=require('fs');const p='frontend/node_modules/.vite';if(fs.existsSync(p)){fs.rmSync(p,{recursive:true});console.log('[OK] Cache limpo com sucesso')}else{console.log('[INFO] Cache já estava limpo')}\"",
+    "generate-icons": "node scripts/generate-icons.js"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.3.0",
@@ -30,7 +31,8 @@
     "conventional-changelog-conventionalcommits": "^8.0.0",
     "cz-conventional-changelog": "^3.3.0",
     "husky": "^9.1.4",
-    "semantic-release": "^24.0.0"
+    "semantic-release": "^24.0.0",
+    "sharp": "^0.33.5"
   },
   "config": {
     "commitizen": {
