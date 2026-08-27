@@ -23,7 +23,8 @@ export default function ModalProduto({ isOpen, onClose, produtoEditando, onSalva
         nome: produtoEditando.nome,
         categoriaId: produtoEditando.categoriaId || '',
         preco: String(produtoEditando.preco),
-        ncm: produtoEditando.ncm || '',
+        // Remove pontos e espaços do NCM ao carregar para edição
+        ncm: (produtoEditando.ncm || '').replace(/\D/g, ''),
         disponivel: produtoEditando.disponivel,
       })
     } else {
@@ -111,17 +112,26 @@ export default function ModalProduto({ isOpen, onClose, produtoEditando, onSalva
           </label>
           <input
             type="text"
+            inputMode="numeric"
             value={form.ncm}
             onChange={(e) => {
+              // Remove tudo que não é número e limita a 8 dígitos
               const valor = e.target.value.replace(/\D/g, '').slice(0, 8)
+              set('ncm', valor)
+            }}
+            onPaste={(e) => {
+              // Permite colar e limpa automaticamente
+              e.preventDefault()
+              const texto = e.clipboardData.getData('text')
+              const valor = texto.replace(/\D/g, '').slice(0, 8)
               set('ncm', valor)
             }}
             placeholder="Ex: 02109900"
             maxLength="8"
-            className={`input-field ${errors.ncm ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : ''}`}
+            className={`input-field font-mono ${errors.ncm ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : ''}`}
           />
           {errors.ncm && <p className="text-red-500 text-xs mt-1">{errors.ncm}</p>}
-          <p className="text-xs text-brand-text-3 mt-1">8 dígitos numéricos</p>
+          <p className="text-xs text-brand-text-3 mt-1">Apenas 8 dígitos numéricos (sem pontos ou espaços)</p>
         </div>
 
         {/* Categoria + Preço */}
