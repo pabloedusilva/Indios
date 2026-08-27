@@ -9,9 +9,9 @@ Histórico completo de releases do projeto.
 
 ## v2.4.0 (17/08/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v2.4.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v2.4.0)
 
-[2.4.0](https://github.com/pabloedusilva/Indios/compare/v2.3.1...v2.4.0) (2026-08-17)
+[2.4.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.3.1...v2.4.0) (2026-08-17)
 
 ## [2.4.0](https://github.com/pabloedusilva/Indios/compare/v2.3.1...v2.4.0) (2026-08-17)
 
@@ -22,9 +22,9 @@ Histórico completo de releases do projeto.
 
 ## v2.3.1 (16/08/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v2.3.1)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v2.3.1)
 
-[2.3.1](https://github.com/pabloedusilva/Indios/compare/v2.3.0...v2.3.1) (2026-08-16)
+[2.3.1](https://github.com/pabloedusilva/IndiosManager/compare/v2.3.0...v2.3.1) (2026-08-16)
 
 ## [2.3.1](https://github.com/pabloedusilva/Indios/compare/v2.3.0...v2.3.1) (2026-08-16)
 
@@ -40,9 +40,9 @@ Histórico completo de releases do projeto.
 
 ## v2.3.0 (16/08/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v2.3.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v2.3.0)
 
-[2.3.0](https://github.com/pabloedusilva/Indios/compare/v2.2.0...v2.3.0) (2026-08-16)
+[2.3.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.2.0...v2.3.0) (2026-08-16)
 
 ## [2.3.0](https://github.com/pabloedusilva/Indios/compare/v2.2.0...v2.3.0) (2026-08-16)
 
@@ -83,9 +83,9 @@ Histórico completo de releases do projeto.
 
 ## v2.2.0 (24/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v2.2.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v2.2.0)
 
-[2.2.0](https://github.com/pabloedusilva/Indios/compare/v2.1.1...v2.2.0) (2026-05-24)
+[2.2.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.1.1...v2.2.0) (2026-05-24)
 
 ## [2.2.0](https://github.com/pabloedusilva/Indios/compare/v2.1.1...v2.2.0) (2026-05-24)
 
@@ -101,9 +101,9 @@ Histórico completo de releases do projeto.
 
 ## v2.1.1 (24/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v2.1.1)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v2.1.1)
 
-[2.1.1](https://github.com/pabloedusilva/Indios/compare/v2.1.0...v2.1.1) (2026-05-24)
+[2.1.1](https://github.com/pabloedusilva/IndiosManager/compare/v2.1.0...v2.1.1) (2026-05-24)
 
 ## [2.1.1](https://github.com/pabloedusilva/Indios/compare/v2.1.0...v2.1.1) (2026-05-24)
 
@@ -115,9 +115,9 @@ Histórico completo de releases do projeto.
 
 ## v2.1.0 (24/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v2.1.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v2.1.0)
 
-[2.1.0](https://github.com/pabloedusilva/Indios/compare/v2.0.0...v2.1.0) (2026-05-24)
+[2.1.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.0.0...v2.1.0) (2026-05-24)
 
 ## [2.1.0](https://github.com/pabloedusilva/Indios/compare/v2.0.0...v2.1.0) (2026-05-24)
 
@@ -128,9 +128,9 @@ Histórico completo de releases do projeto.
 
 ## v2.0.0 (19/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v2.0.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v2.0.0)
 
-[2.0.0](https://github.com/pabloedusilva/Indios/compare/v1.12.0...v2.0.0) (2026-05-19)
+[2.0.0](https://github.com/pabloedusilva/IndiosManager/compare/v1.12.0...v2.0.0) (2026-05-19)
 
 ## [2.0.0](https://github.com/pabloedusilva/Indios/compare/v1.12.0...v2.0.0) (2026-05-19)
 
@@ -146,9 +146,9 @@ Histórico completo de releases do projeto.
 
 ## v1.12.0 (17/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.12.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.12.0)
 
-[1.12.0](https://github.com/pabloedusilva/Indios/compare/v1.11.2...v1.12.0) (2026-05-17)
+[1.12.0](https://github.com/pabloedusilva/IndiosManager/compare/v1.11.2...v1.12.0) (2026-05-17)
 
 ## [1.12.0](https://github.com/pabloedusilva/Indios/compare/v1.11.2...v1.12.0) (2026-05-17)
 
@@ -159,9 +159,9 @@ Histórico completo de releases do projeto.
 
 ## v1.11.2 (17/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.11.2)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.11.2)
 
-[1.11.2](https://github.com/pabloedusilva/Indios/compare/v1.11.1...v1.11.2) (2026-05-17)
+[1.11.2](https://github.com/pabloedusilva/IndiosManager/compare/v1.11.1...v1.11.2) (2026-05-17)
 
 ## [1.11.2](https://github.com/pabloedusilva/Indios/compare/v1.11.1...v1.11.2) (2026-05-17)
 
@@ -172,9 +172,9 @@ Histórico completo de releases do projeto.
 
 ## v1.11.1 (17/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.11.1)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.11.1)
 
-[1.11.1](https://github.com/pabloedusilva/Indios/compare/v1.11.0...v1.11.1) (2026-05-17)
+[1.11.1](https://github.com/pabloedusilva/IndiosManager/compare/v1.11.0...v1.11.1) (2026-05-17)
 
 ## [1.11.1](https://github.com/pabloedusilva/Indios/compare/v1.11.0...v1.11.1) (2026-05-17)
 
@@ -190,9 +190,9 @@ Histórico completo de releases do projeto.
 
 ## v1.11.0 (17/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.11.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.11.0)
 
-[1.11.0](https://github.com/pabloedusilva/Indios/compare/v1.10.0...v1.11.0) (2026-05-17)
+[1.11.0](https://github.com/pabloedusilva/IndiosManager/compare/v1.10.0...v1.11.0) (2026-05-17)
 
 ## [1.11.0](https://github.com/pabloedusilva/Indios/compare/v1.10.0...v1.11.0) (2026-05-17)
 
@@ -204,9 +204,9 @@ Histórico completo de releases do projeto.
 
 ## v1.10.0 (17/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.10.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.10.0)
 
-[1.10.0](https://github.com/pabloedusilva/Indios/compare/v1.9.0...v1.10.0) (2026-05-17)
+[1.10.0](https://github.com/pabloedusilva/IndiosManager/compare/v1.9.0...v1.10.0) (2026-05-17)
 
 ## [1.10.0](https://github.com/pabloedusilva/Indios/compare/v1.9.0...v1.10.0) (2026-05-17)
 
@@ -217,9 +217,9 @@ Histórico completo de releases do projeto.
 
 ## v1.9.0 (17/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.9.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.9.0)
 
-[1.9.0](https://github.com/pabloedusilva/Indios/compare/v1.8.1...v1.9.0) (2026-05-17)
+[1.9.0](https://github.com/pabloedusilva/IndiosManager/compare/v1.8.1...v1.9.0) (2026-05-17)
 
 ## [1.9.0](https://github.com/pabloedusilva/Indios/compare/v1.8.1...v1.9.0) (2026-05-17)
 
@@ -230,9 +230,9 @@ Histórico completo de releases do projeto.
 
 ## v1.8.1 (17/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.8.1)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.8.1)
 
-[1.8.1](https://github.com/pabloedusilva/Indios/compare/v1.8.0...v1.8.1) (2026-05-17)
+[1.8.1](https://github.com/pabloedusilva/IndiosManager/compare/v1.8.0...v1.8.1) (2026-05-17)
 
 ## [1.8.1](https://github.com/pabloedusilva/Indios/compare/v1.8.0...v1.8.1) (2026-05-17)
 
@@ -243,9 +243,9 @@ Histórico completo de releases do projeto.
 
 ## v1.8.0 (16/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.8.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.8.0)
 
-[1.8.0](https://github.com/pabloedusilva/Indios/compare/v1.7.0...v1.8.0) (2026-05-16)
+[1.8.0](https://github.com/pabloedusilva/IndiosManager/compare/v1.7.0...v1.8.0) (2026-05-16)
 
 ## [1.8.0](https://github.com/pabloedusilva/Indios/compare/v1.7.0...v1.8.0) (2026-05-16)
 
@@ -256,9 +256,9 @@ Histórico completo de releases do projeto.
 
 ## v1.7.0 (16/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.7.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.7.0)
 
-[1.7.0](https://github.com/pabloedusilva/Indios/compare/v1.6.0...v1.7.0) (2026-05-16)
+[1.7.0](https://github.com/pabloedusilva/IndiosManager/compare/v1.6.0...v1.7.0) (2026-05-16)
 
 ## [1.7.0](https://github.com/pabloedusilva/Indios/compare/v1.6.0...v1.7.0) (2026-05-16)
 
@@ -269,9 +269,9 @@ Histórico completo de releases do projeto.
 
 ## v1.6.0 (16/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.6.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.6.0)
 
-[1.6.0](https://github.com/pabloedusilva/Indios/compare/v1.5.0...v1.6.0) (2026-05-16)
+[1.6.0](https://github.com/pabloedusilva/IndiosManager/compare/v1.5.0...v1.6.0) (2026-05-16)
 
 ## [1.6.0](https://github.com/pabloedusilva/Indios/compare/v1.5.0...v1.6.0) (2026-05-16)
 
@@ -287,16 +287,16 @@ Histórico completo de releases do projeto.
 
 ## v1.5.0 (16/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.5.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.5.0)
 
-[1.5.0](https://github.com/pabloedusilva/Indios/compare/v1.4.0...v1.5.0) (2026-05-16)
+[1.5.0](https://github.com/pabloedusilva/IndiosManager/compare/v1.4.0...v1.5.0) (2026-05-16)
 
 ## [1.5.0](https://github.com/pabloedusilva/Indios/compare/v1.4.0...v1.5.0) (2026-05-16)
 
 
 ### Novas Funcionalidades
 
-* **ci:** adiciona sistema automático de versionamento, sincronizaç��o de package.json e deploy com GitHub Actions e semantic-release ([7cb333d](https://github.com/pabloedusilva/Indios/commit/7cb333d94d00adaacae713418fe98c73f49f6bcf))
+* **ci:** adiciona sistema automático de versionamento, sincronização de package.json e deploy com GitHub Actions e semantic-release ([7cb333d](https://github.com/pabloedusilva/Indios/commit/7cb333d94d00adaacae713418fe98c73f49f6bcf))
 
 
 ### Documentação
@@ -305,9 +305,9 @@ Histórico completo de releases do projeto.
 
 ## v1.4.0 (16/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.4.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.4.0)
 
-[1.4.0](https://github.com/pabloedusilva/Indios/compare/v1.3.0...v1.4.0) (2026-05-16)
+[1.4.0](https://github.com/pabloedusilva/IndiosManager/compare/v1.3.0...v1.4.0) (2026-05-16)
 
 ## [1.4.0](https://github.com/pabloedusilva/Indios/compare/v1.3.0...v1.4.0) (2026-05-16)
 
@@ -318,9 +318,9 @@ Histórico completo de releases do projeto.
 
 ## v1.3.0 (16/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.3.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.3.0)
 
-[1.3.0](https://github.com/pabloedusilva/Indios/compare/v1.2.5...v1.3.0) (2026-05-16)
+[1.3.0](https://github.com/pabloedusilva/IndiosManager/compare/v1.2.5...v1.3.0) (2026-05-16)
 
 ## [1.3.0](https://github.com/pabloedusilva/Indios/compare/v1.2.5...v1.3.0) (2026-05-16)
 
@@ -331,9 +331,9 @@ Histórico completo de releases do projeto.
 
 ## v1.2.5 (13/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.5)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.2.5)
 
-[1.2.5](https://github.com/pabloedusilva/Indios/compare/v1.2.4...v1.2.5) (2026-05-13)
+[1.2.5](https://github.com/pabloedusilva/IndiosManager/compare/v1.2.4...v1.2.5) (2026-05-13)
 
 ## [1.2.5](https://github.com/pabloedusilva/Indios/compare/v1.2.4...v1.2.5) (2026-05-13)
 
@@ -344,9 +344,9 @@ Histórico completo de releases do projeto.
 
 ## v1.2.4 (13/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.4)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.2.4)
 
-[1.2.4](https://github.com/pabloedusilva/Indios/compare/v1.2.3...v1.2.4) (2026-05-13)
+[1.2.4](https://github.com/pabloedusilva/IndiosManager/compare/v1.2.3...v1.2.4) (2026-05-13)
 
 ## [1.2.4](https://github.com/pabloedusilva/Indios/compare/v1.2.3...v1.2.4) (2026-05-13)
 
@@ -357,9 +357,9 @@ Histórico completo de releases do projeto.
 
 ## v1.2.3 (13/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.3)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.2.3)
 
-[1.2.3](https://github.com/pabloedusilva/Indios/compare/v1.2.2...v1.2.3) (2026-05-13)
+[1.2.3](https://github.com/pabloedusilva/IndiosManager/compare/v1.2.2...v1.2.3) (2026-05-13)
 
 ## [1.2.3](https://github.com/pabloedusilva/Indios/compare/v1.2.2...v1.2.3) (2026-05-13)
 
@@ -370,9 +370,9 @@ Histórico completo de releases do projeto.
 
 ## v1.2.2 (13/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.2)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.2.2)
 
-[1.2.2](https://github.com/pabloedusilva/Indios/compare/v1.2.1...v1.2.2) (2026-05-13)
+[1.2.2](https://github.com/pabloedusilva/IndiosManager/compare/v1.2.1...v1.2.2) (2026-05-13)
 
 ## [1.2.2](https://github.com/pabloedusilva/Indios/compare/v1.2.1...v1.2.2) (2026-05-13)
 
@@ -383,9 +383,9 @@ Histórico completo de releases do projeto.
 
 ## v1.2.1 (13/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.1)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.2.1)
 
-[1.2.1](https://github.com/pabloedusilva/Indios/compare/v1.2.0...v1.2.1) (2026-05-13)
+[1.2.1](https://github.com/pabloedusilva/IndiosManager/compare/v1.2.0...v1.2.1) (2026-05-13)
 
 ## [1.2.1](https://github.com/pabloedusilva/Indios/compare/v1.2.0...v1.2.1) (2026-05-13)
 
@@ -396,9 +396,9 @@ Histórico completo de releases do projeto.
 
 ## v1.2.0 (13/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.2.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.2.0)
 
-[1.2.0](https://github.com/pabloedusilva/Indios/compare/v1.1.0...v1.2.0) (2026-05-13)
+[1.2.0](https://github.com/pabloedusilva/IndiosManager/compare/v1.1.0...v1.2.0) (2026-05-13)
 
 ## [1.2.0](https://github.com/pabloedusilva/Indios/compare/v1.1.0...v1.2.0) (2026-05-13)
 
@@ -409,9 +409,9 @@ Histórico completo de releases do projeto.
 
 ## v1.1.0 (12/05/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.1.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.1.0)
 
-[1.1.0](https://github.com/pabloedusilva/Indios/compare/v1.0.0...v1.1.0) (2026-05-12)
+[1.1.0](https://github.com/pabloedusilva/IndiosManager/compare/v1.0.0...v1.1.0) (2026-05-12)
 
 ## [1.1.0](https://github.com/pabloedusilva/Indios/compare/v1.0.0...v1.1.0) (2026-05-12)
 
@@ -483,9 +483,9 @@ Histórico completo de releases do projeto.
 
 ## v1.0.0 (19/04/2026)
 
-[Ver release](https://github.com/pabloedusilva/Indios/releases/tag/v1.0.0)
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.0.0)
 
-[1.0.0](https://github.com/pabloedusilva/Indios/releases/tag/v1.0.0) (2026-04-19)
+[1.0.0](https://github.com/pabloedusilva/IndiosManager/releases/tag/v1.0.0) (2026-04-19)
 
 ## [1.0.0](https://github.com/pabloedusilva/Indios/releases/tag/v1.0.0) (2026-05-11)
 
@@ -562,11 +562,11 @@ Para adicionar uma entrada ao changelog:
 
 ## Links Úteis
 
-- [Repositório](https://github.com/pabloedusilva/Indios)
-- [Issues](https://github.com/pabloedusilva/Indios/issues)
-- [Pull Requests](https://github.com/pabloedusilva/Indios/pulls)
-- [Releases](https://github.com/pabloedusilva/Indios/releases)
-- [Documentação](https://github.com/pabloedusilva/Indios#readme)
+- [Repositório](https://github.com/pabloedusilva/IndiosManager)
+- [Issues](https://github.com/pabloedusilva/IndiosManager/issues)
+- [Pull Requests](https://github.com/pabloedusilva/IndiosManager/pulls)
+- [Releases](https://github.com/pabloedusilva/IndiosManager/releases)
+- [Documentação](https://github.com/pabloedusilva/IndiosManager#readme)
 
 ---
 
