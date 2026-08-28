@@ -4,29 +4,35 @@
 
 import { useEffect, useState } from 'react'
 
-export default function DownloadProgress({ isDownloading, onClose }) {
+export default function DownloadProgress({ isDownloading, hasError, onClose }) {
   const [mounted, setMounted]         = useState(false)
-  const [showSuccess, setShowSuccess] = useState(false)
+  const [showResult, setShowResult]   = useState(false)
   const [visible, setVisible]         = useState(false)
+  const [error, setError]             = useState(false)
 
   useEffect(() => {
     if (isDownloading) {
       setMounted(true)
-      setShowSuccess(false)
+      setShowResult(false)
+      setError(false)
       requestAnimationFrame(() => setVisible(true))
     } else if (mounted && !isDownloading) {
-      setShowSuccess(true)
+      // Detectar se houve erro
+      setError(hasError || false)
+      setShowResult(true)
+      
       const timer = setTimeout(() => {
         setVisible(false)
         setTimeout(() => {
           setMounted(false)
-          setShowSuccess(false)
+          setShowResult(false)
+          setError(false)
           if (onClose) onClose()
         }, 300)
       }, 2500)
       return () => clearTimeout(timer)
     }
-  }, [isDownloading, mounted, onClose])
+  }, [isDownloading, mounted, hasError, onClose])
 
   if (!mounted) return null
 
@@ -44,7 +50,7 @@ export default function DownloadProgress({ isDownloading, onClose }) {
       `}
     >
       {/* Barra de progresso indeterminada — topo */}
-      {!showSuccess && (
+      {!showResult && (
         <div className="h-[2px] w-full bg-gray-100 dark:bg-white/[0.05] overflow-hidden">
           <div className="h-full bg-brand-orange/80 animate-indeterminate" />
         </div>
@@ -54,21 +60,38 @@ export default function DownloadProgress({ isDownloading, onClose }) {
 
         {/* Indicador */}
         <div className="flex-shrink-0">
-          {showSuccess ? (
-            // Checkmark minimalista
-            <svg
-              viewBox="0 0 20 20"
-              fill="none"
-              className="w-4 h-4 text-emerald-500 dark:text-emerald-400"
-            >
-              <path
-                d="M4 10.5l4 4 8-8"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+          {showResult ? (
+            error ? (
+              // X para erro
+              <svg
+                viewBox="0 0 20 20"
+                fill="none"
+                className="w-4 h-4 text-red-500 dark:text-red-400"
+              >
+                <path
+                  d="M6 6l8 8M14 6l-8 8"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            ) : (
+              // Checkmark para sucesso
+              <svg
+                viewBox="0 0 20 20"
+                fill="none"
+                className="w-4 h-4 text-emerald-500 dark:text-emerald-400"
+              >
+                <path
+                  d="M4 10.5l4 4 8-8"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )
           ) : (
             // Spinner fino
             <svg
@@ -94,10 +117,16 @@ export default function DownloadProgress({ isDownloading, onClose }) {
 
         {/* Texto */}
         <div className="min-w-0">
-          {showSuccess ? (
-            <p className="text-[13px] font-medium text-emerald-600 dark:text-emerald-400 leading-snug">
-              Download concluído
-            </p>
+          {showResult ? (
+            error ? (
+              <p className="text-[13px] font-medium text-red-600 dark:text-red-400 leading-snug">
+                Erro ao baixar
+              </p>
+            ) : (
+              <p className="text-[13px] font-medium text-emerald-600 dark:text-emerald-400 leading-snug">
+                Download concluído
+              </p>
+            )
           ) : (
             <>
               <p className="text-[13px] font-medium text-gray-800 dark:text-gray-100 leading-snug">

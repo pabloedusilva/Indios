@@ -2,9 +2,10 @@
 // HOOK: useNotasFiscais
 // ════════════════════════════════════════════════════════════════════════════
 // Hook customizado para gerenciar estado e operações de notas fiscais.
+// Inclui polling automático para notas com status "emitindo".
 // ════════════════════════════════════════════════════════════════════════════
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import * as notasFiscaisService from '../services/notasFiscaisService'
 
 export function useNotasFiscais(filtrosIniciais = {}) {
@@ -12,6 +13,7 @@ export function useNotasFiscais(filtrosIniciais = {}) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filtros, setFiltros] = useState(filtrosIniciais)
+  const pollingIntervalRef = useRef(null)
 
   // Carregar notas
   const carregarNotas = useCallback(async () => {
@@ -30,6 +32,69 @@ export function useNotasFiscais(filtrosIniciais = {}) {
   useEffect(() => {
     carregarNotas()
   }, [carregarNotas])
+
+  // ─── Polling automático para notas com status "emitindo" ───────────────────
+  useEffect(() => {
+    // Limpar intervalo anterior
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
+
+    // Encontrar notas que estão "emitindo"
+    const notasEmitindo = notas.filter(n => n.status === 'emitindo')
+
+    if (notasEmitindo.length === 0) {
+      return // Nada para fazer
+    }
+
+    console.log(`[useNotasFiscais] Iniciando polling para ${notasEmitindo.length} nota(s) com status "emitindo"`)
+
+    // Consultar status a cada 3 segundos
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const idsParaConsultar = notasEmitindo.map(n => n.id).slice(0, 10) // Máximo 10 por vez
+
+        const resultados = await notasFiscaisService.consultarStatusBatch(idsParaConsultar)
+
+        // Atualizar notas com os novos status
+        setNotas(prev => {
+          const novasNotas = [...prev]
+          
+          resultados.forEach(resultado => {
+            if (resultado.success && resultado.nota) {
+              const index = novasNotas.findIndex(n => n.id === resultado.notaId)
+              if (index !== -1) {
+                novasNotas[index] = {
+                  ...novasNotas[index],
+                  ...resultado.nota,
+                  id: novasNotas[index].id, // Garantir ID
+                }
+                
+                // Log de mudança de status
+                if (novasNotas[index].status !== prev[index]?.status) {
+                  console.log(`[useNotasFiscais] Nota ${resultado.notaId} atualizada: ${prev[index]?.status} → ${novasNotas[index].status}`)
+                }
+              }
+            }
+          })
+          
+          return novasNotas
+        })
+
+      } catch (err) {
+        console.error('[useNotasFiscais] Erro no polling:', err)
+      }
+    }, 3000) // 3 segundos
+
+    // Cleanup
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+    }
+  }, [notas])
 
   // Refetch manual
   const refetch = useCallback(() => {
@@ -79,20 +144,19 @@ export function useNotasFiscais(filtrosIniciais = {}) {
   // Consultar status
   const consultarStatus = useCallback(async (notaId) => {
     try {
-      const statusAtualizado = await notasFiscaisService.consultarStatus(notaId)
+      const notaAtualizada = await notasFiscaisService.consultarStatus(notaId)
       
-      // Atualizar apenas o status na nota existente, mantendo todos os outros dados
+      // Atualizar a nota com status real da SEFAZ
       setNotas(prev => prev.map(n => {
         if (n.id === notaId) {
-          // Se statusAtualizado é um objeto com campos da nota, fazer merge
-          if (typeof statusAtualizado === 'object' && statusAtualizado !== null) {
+          if (typeof notaAtualizada === 'object' && notaAtualizada !== null) {
             return {
               ...n,
-              ...statusAtualizado,
+              ...notaAtualizada,
               // Garantir que dados essenciais não sejam sobrescritos com undefined
               id: n.id,
-              criadoEm: statusAtualizado.criadoEm || n.criadoEm,
-              emitidoEm: statusAtualizado.emitidoEm || n.emitidoEm,
+              criadoEm: notaAtualizada.criadoEm || n.criadoEm,
+              emitidoEm: notaAtualizada.emitidoEm || n.emitidoEm,
             }
           }
           return n
@@ -100,7 +164,7 @@ export function useNotasFiscais(filtrosIniciais = {}) {
         return n
       }))
       
-      return statusAtualizado
+      return notaAtualizada
     } catch (err) {
       throw new Error(err.message || 'Erro ao consultar status')
     }
