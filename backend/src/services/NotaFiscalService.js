@@ -98,8 +98,18 @@ class NotaFiscalService {
                           pedido.forma_pagamento === 'pix' ? '17' : 
                           pedido.forma_pagamento === 'cartao_credito' ? '03' :
                           pedido.forma_pagamento === 'cartao_debito' ? '04' : '99',
-          valor_pagamento: parseFloat(pedido.total)
+          valor_pagamento: parseFloat(pedido.total) // Valor inicial (será ajustado para dinheiro abaixo)
         }]
+      }
+      
+      // ─── TROCO: Apenas para pagamento em DINHEIRO ───────────────────────────
+      // PIX, Cartão de Crédito e Cartão de Débito SEMPRE usam valor exato (sem troco)
+      // Dinheiro pode ter valor_recebido > total, gerando troco
+      if (pedido.forma_pagamento === 'dinheiro' && pedido.valor_recebido && 
+          parseFloat(pedido.valor_recebido) > parseFloat(pedido.total)) {
+        const troco = parseFloat(pedido.valor_recebido) - parseFloat(pedido.total)
+        payload.valor_troco = troco
+        payload.formas_pagamento[0].valor_pagamento = parseFloat(pedido.valor_recebido)
       }
       
       // Log do payload apenas em modo debug
@@ -108,14 +118,6 @@ class NotaFiscalService {
         console.log(JSON.stringify(payload, null, 2))
         console.log('[NotaFiscalService] Ambiente:', fiscalConfig.ENV)
         console.log('[NotaFiscalService] API URL:', fiscalConfig.API_BASE_URL)
-      }
-      
-      // Adicionar troco se houver (para pagamento em dinheiro)
-      if (pedido.forma_pagamento === 'dinheiro' && pedido.valor_recebido && 
-          parseFloat(pedido.valor_recebido) > parseFloat(pedido.total)) {
-        const troco = parseFloat(pedido.valor_recebido) - parseFloat(pedido.total)
-        payload.valor_troco = troco
-        payload.formas_pagamento[0].valor_pagamento = parseFloat(pedido.valor_recebido)
       }
       
       // 5. Criar registro inicial no banco (status: emitindo)
