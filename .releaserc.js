@@ -16,7 +16,7 @@ module.exports = {
   branches: ['main'],
 
   // URL do repositório (inferido automaticamente, mas explicitado para CI)
-  repositoryUrl: 'https://github.com/pabloedusilva/Indios.git',
+  repositoryUrl: 'https://github.com/pabloedusilva/IndiosManager.git',
 
   // Plugins executados em sequência
   plugins: [
