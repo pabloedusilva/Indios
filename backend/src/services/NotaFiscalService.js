@@ -98,8 +98,18 @@ class NotaFiscalService {
                           pedido.forma_pagamento === 'pix' ? '17' : 
                           pedido.forma_pagamento === 'cartao_credito' ? '03' :
                           pedido.forma_pagamento === 'cartao_debito' ? '04' : '99',
-          valor_pagamento: parseFloat(pedido.total)
+          valor_pagamento: parseFloat(pedido.total) // Valor inicial (será ajustado para dinheiro abaixo)
         }]
+      }
+      
+      // ─── TROCO: Apenas para pagamento em DINHEIRO ───────────────────────────
+      // PIX, Cartão de Crédito e Cartão de Débito SEMPRE usam valor exato (sem troco)
+      // Dinheiro pode ter valor_recebido > total, gerando troco
+      if (pedido.forma_pagamento === 'dinheiro' && pedido.valor_recebido && 
+          parseFloat(pedido.valor_recebido) > parseFloat(pedido.total)) {
+        const troco = parseFloat(pedido.valor_recebido) - parseFloat(pedido.total)
+        payload.valor_troco = troco
+        payload.formas_pagamento[0].valor_pagamento = parseFloat(pedido.valor_recebido)
       }
       
       // Log do payload apenas em modo debug
@@ -108,14 +118,6 @@ class NotaFiscalService {
         console.log(JSON.stringify(payload, null, 2))
         console.log('[NotaFiscalService] Ambiente:', fiscalConfig.ENV)
         console.log('[NotaFiscalService] API URL:', fiscalConfig.API_BASE_URL)
-      }
-      
-      // Adicionar troco se houver (para pagamento em dinheiro)
-      if (pedido.forma_pagamento === 'dinheiro' && pedido.valor_recebido && 
-          parseFloat(pedido.valor_recebido) > parseFloat(pedido.total)) {
-        const troco = parseFloat(pedido.valor_recebido) - parseFloat(pedido.total)
-        payload.valor_troco = troco
-        payload.formas_pagamento[0].valor_pagamento = parseFloat(pedido.valor_recebido)
       }
       
       // 5. Criar registro inicial no banco (status: emitindo)
@@ -197,16 +199,6 @@ class NotaFiscalService {
         throw new Error('Nota fiscal não encontrada')
       }
       
-      // Se já está autorizada ou cancelada, retornar status atual
-      if (nota.status === 'autorizada' || nota.status === 'cancelada') {
-        return {
-          status: nota.status,
-          chave: nota.chaveAcesso,
-          protocolo: nota.protocolo,
-          mensagem: `Nota fiscal ${nota.status}`
-        }
-      }
-      
       // Usar a referência armazenada no banco
       const referencia = nota.providerRef
       
@@ -214,13 +206,33 @@ class NotaFiscalService {
         throw new Error('Referência da nota não encontrada. Não é possível consultar o status.')
       }
       
+      // Configurar token do Focus NFe
+      focusClient.setToken(fiscalConfig.API_TOKEN)
+      
+      // Consultar sempre na SEFAZ para ter status real
       const resultado = await focusClient.consultarNFCe(referencia)
       const statusAtual = resultado.data.status
       
-      // Atualizar nota com novo status
+      console.log(`[NotaFiscalService.consultarStatus] Nota ${notaId} - Status na SEFAZ: ${statusAtual}`)
+      
+      // Mapear status do Focus NFe para status do sistema
+      let novoStatus = 'emitindo'
+      
+      if (statusAtual === 'autorizado') {
+        novoStatus = 'autorizada'
+      } else if (statusAtual === 'erro_autorizacao' || statusAtual === 'denegado') {
+        novoStatus = 'erro'
+      } else if (statusAtual === 'cancelado') {
+        novoStatus = 'cancelada'
+      } else if (statusAtual === 'processando_autorizacao') {
+        novoStatus = 'emitindo'
+      }
+      
+      // Atualizar nota com status real da SEFAZ
       await NotaFiscalModel.atualizar(notaId, {
-        status: statusAtual === 'autorizado' ? 'autorizada' : 
-                statusAtual === 'erro_autorizacao' ? 'erro' : 'emitindo',
+        status: novoStatus,
+        numero: resultado.data.numero || nota.numero,
+        serie: resultado.data.serie || nota.serie,
         chave_acesso: resultado.data.chave_nfe || nota.chaveAcesso,
         protocolo: resultado.data.protocolo || nota.protocolo,
         autorizado_em: statusAtual === 'autorizado' && !nota.autorizadoEm ? new Date() : nota.autorizadoEm,
@@ -229,17 +241,16 @@ class NotaFiscalService {
         metadados: {
           ...nota.metadados,
           mensagem_sefaz: resultado.data.mensagem_sefaz || null,
+          codigo_sefaz: resultado.data.codigo || resultado.data.codigo_sefaz || null,
           ultima_consulta: new Date(),
           resultado_consulta: resultado.data
         }
       })
       
-      return {
-        status: statusAtual,
-        chave: resultado.data.chave_nfe,
-        protocolo: resultado.data.protocolo,
-        mensagem: resultado.data.mensagem_sefaz
-      }
+      // Buscar nota atualizada
+      const notaAtualizada = await NotaFiscalModel.buscarPorId(notaId)
+      
+      return notaAtualizada
       
     } catch (error) {
       console.error('[NotaFiscalService.consultarStatus] Erro:', error)

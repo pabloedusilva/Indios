@@ -232,17 +232,74 @@ async function consultarStatus(req, res) {
       })
     }
     
-    const resultado = await NotaFiscalService.consultarStatus(id, usuarioId)
+    const notaAtualizada = await NotaFiscalService.consultarStatus(id, usuarioId)
     
     res.json({
       success: true,
       message: 'Status consultado com sucesso',
-      status: resultado
+      nota: notaAtualizada
     })
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Erro ao consultar status',
+      error: error.message
+    })
+  }
+}
+
+/**
+ * Consultar status de múltiplas notas em batch
+ * POST /api/notas-fiscais/consultar-status-batch
+ * Body: { notasIds: [1, 2, 3] }
+ */
+async function consultarStatusBatch(req, res) {
+  try {
+    const { notasIds } = req.body
+    const usuarioId = req.usuario.id
+    
+    if (!Array.isArray(notasIds) || notasIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Array de IDs é obrigatório'
+      })
+    }
+    
+    if (notasIds.length > 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Máximo de 10 notas por consulta'
+      })
+    }
+    
+    // Consultar status de todas as notas
+    const resultados = []
+    
+    for (const notaId of notasIds) {
+      try {
+        const notaAtualizada = await NotaFiscalService.consultarStatus(notaId, usuarioId)
+        resultados.push({
+          notaId,
+          success: true,
+          nota: notaAtualizada
+        })
+      } catch (error) {
+        resultados.push({
+          notaId,
+          success: false,
+          error: error.message
+        })
+      }
+    }
+    
+    res.json({
+      success: true,
+      resultados
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao consultar status em lote',
       error: error.message
     })
   }
@@ -431,176 +488,231 @@ async function obterEstatisticas(req, res) {
 }
 
 /**
- * Download de todas as notas do mês em ZIP
+ * Download de backup mensal diretamente do Focus NFe
  * GET /api/notas-fiscais/download-mes/:periodo
  * Params: periodo (formato YYYY-MM)
+ * 
+ * SEGURANÇA:
+ * - Validação de formato do período
+ * - Autenticação obrigatória
+ * - Token do Focus NFe validado
+ * - Logs de auditoria
  */
 async function downloadMesZip(req, res) {
   try {
     const { periodo } = req.params
+    const usuarioId = req.usuario?.id
     
-    // Validar formato do período
+    // ═══════════════════════════════════════════════════════════════════════
+    // 1. VALIDAÇÕES DE SEGURANÇA
+    // ═══════════════════════════════════════════════════════════════════════
+    
+    // Validar formato do período (YYYY-MM)
     if (!/^\d{4}-\d{2}$/.test(periodo)) {
       return res.status(400).json({
         success: false,
         message: 'Formato de período inválido. Use YYYY-MM (ex: 2024-01)'
       })
     }
-
-    // 1. Configurar token do Focus NFe ANTES de tudo
+    
+    // Validar se o período não é futuro
+    const [ano, mes] = periodo.split('-').map(Number)
+    const periodoDate = new Date(ano, mes - 1, 1)
+    const hoje = new Date()
+    
+    const hojeSemDia = new Date(hoje)
+    hojeSemDia.setDate(1) // Comparar apenas ano e mês
+    
+    if (periodoDate > hojeSemDia) {
+      console.warn(`[downloadMesZip] Período futuro solicitado: ${periodo}`)
+      return res.status(400).json({
+        success: false,
+        message: 'Não é possível baixar backup de períodos futuros'
+      })
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // 2. VALIDAÇÃO DE DATA DE LIBERAÇÃO (DIA 2 DO MÊS SEGUINTE)
+    // ═══════════════════════════════════════════════════════════════════════
+    // Backup do mês X só está disponível a partir do dia 2 do mês X+1
+    // Exemplo: Backup de Janeiro/2024 disponível a partir de 02/Fevereiro/2024
+    
+    const dataLiberacao = new Date(ano, mes, 2) // Mês seguinte, dia 2
+    
+    if (hoje < dataLiberacao) {
+      console.warn(`[downloadMesZip] Tentativa de download antes da data de liberação`)
+      console.warn(`[downloadMesZip] Período: ${periodo}, Liberação: ${dataLiberacao.toISOString().split('T')[0]}`)
+      
+      return res.status(403).json({
+        success: false,
+        message: 'Backup estará disponível a partir do dia 2 do próximo mês',
+        detalhes: {
+          periodo,
+          dataLiberacao: dataLiberacao.toISOString().split('T')[0],
+          observacao: 'O Focus NFe gera backups mensais no dia 1º de cada mês. Recomenda-se fazer o download a partir do dia 2.'
+        }
+      })
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // 2. CONFIGURAÇÃO E AUTENTICAÇÃO FOCUS NFE
+    // ═══════════════════════════════════════════════════════════════════════
+    
     const fiscalConfig = require('../config/fiscal')
-    const focusClient = require('../services/FocusNFeClient')
     
     if (!fiscalConfig.API_TOKEN) {
+      console.error('[downloadMesZip] Token do Focus NFe não configurado')
       return res.status(500).json({
         success: false,
         message: 'Configuração fiscal não encontrada. Verifique o arquivo .env'
       })
     }
     
-    focusClient.setToken(fiscalConfig.API_TOKEN)
-
-    // 2. Buscar todas as notas autorizadas do período
-    const resultado = await NotaFiscalModel.listar({
-      status: 'autorizada',
-      periodo,
-      limite: 1000
-    })
-
-    if (!resultado.notas || resultado.notas.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Nenhuma nota autorizada encontrada para este período'
-      })
-    }
-
-    // 3. Baixar XMLs de todas as notas (com delay progressivo para evitar rate limit)
-    const notasComXml = []
-    let sucessos = 0
-    let falhas = 0
-    const totalNotas = resultado.notas.length
+    // ═══════════════════════════════════════════════════════════════════════
+    // 3. DOWNLOAD DO BACKUP DIRETAMENTE DO FOCUS NFE
+    // ═══════════════════════════════════════════════════════════════════════
     
-    // Configurar delays inteligentes baseados na quantidade
-    const DELAY_BASE = 500 // 500ms base
-    const DELAY_EXTRA = totalNotas > 20 ? 200 : 0 // +200ms se > 20 notas
-
-    for (let i = 0; i < resultado.notas.length; i++) {
-      const nota = resultado.notas[i]
-      
-      try {
-        // Passar false para não reconfigurar token a cada chamada (já configuramos uma vez)
-        const xml = await NotaFiscalService.downloadXML(nota.id, false)
-        
-        notasComXml.push({
-          numero: nota.numero,
-          chaveAcesso: nota.chaveAcesso, // Incluir chave de acesso para o nome do arquivo
-          xml
-        })
-        sucessos++
-        
-        // Delay progressivo: aumenta conforme avançamos (evita rate limit acumulado)
-        const delayAtual = DELAY_BASE + DELAY_EXTRA + (i > 10 ? 100 : 0)
-        
-        // Não aplicar delay após a última nota
-        if (i < resultado.notas.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, delayAtual))
-        }
-        
-      } catch (error) {
-        falhas++
-        
-        const errorMsg = error.message.toLowerCase()
-        
-        // Rate limit (429): oferecer ZIP parcial se houver notas baixadas
-        if (errorMsg.includes('rate limit') || errorMsg.includes('too many requests') || error.status === 429) {
-          if (notasComXml.length > 0) {
-            const { criarZipNotas, formatarNomeArquivoZip } = require('../utils/zipHelper')
-            const zipBuffer = await criarZipNotas(notasComXml, periodo)
-            const nomeArquivo = formatarNomeArquivoZip(periodo).replace('.zip', '_PARCIAL.zip')
-            
-            res.set({
-              'Content-Type': 'application/zip',
-              'Content-Disposition': `attachment; filename="${nomeArquivo}"`,
-              'Content-Length': zipBuffer.length,
-              'X-Partial-Download': 'true',
-              'X-Downloaded-Count': sucessos.toString(),
-              'X-Total-Count': totalNotas.toString()
-            })
-            
-            return res.send(zipBuffer)
-          }
-          
-          return res.status(429).json({
-            success: false,
-            message: `Limite de requisições atingido após ${sucessos} notas. Aguarde alguns minutos e tente novamente.`,
-            detalhes: {
-              baixadas: sucessos,
-              total: totalNotas,
-              mensagem: 'A API Focus NFe tem limite de requisições por minuto. Tente novamente em 5 minutos.'
-            }
-          })
-        }
-        
-        // Erro de autenticação (401/403)
-        if (errorMsg.includes('token') || errorMsg.includes('unauthorized') || 
-            errorMsg.includes('forbidden') || error.status === 401 || error.status === 403) {
-          return res.status(401).json({
-            success: false,
-            message: 'Erro de autenticação com a Focus NFe. Verifique o token nas configurações fiscais.',
-            detalhes: {
-              baixadas: sucessos,
-              total: totalNotas,
-              erro: error.message
-            }
-          })
-        }
-        
-        // Para outros erros, continuar tentando as próximas notas
-      }
+    const https = require('https')
+    const http = require('http')
+    
+    // Endpoint da API de backup do Focus NFe
+    // Documentação: https://doc.focusnfe.com.br/reference/backups
+    const baseUrl = fiscalConfig.IS_PRODUCAO 
+      ? 'https://api.focusnfe.com.br' 
+      : 'https://homologacao.focusnfe.com.br'
+    
+    const backupUrl = `${baseUrl}/v2/backups/nfce/${periodo}.zip`
+    
+    console.log(`[downloadMesZip] Usuário ${usuarioId} solicitando backup do período ${periodo}`)
+    console.log(`[downloadMesZip] Ambiente: ${fiscalConfig.ENV} (${fiscalConfig.IS_PRODUCAO ? 'PRODUÇÃO' : 'HOMOLOGAÇÃO'})`)
+    console.log(`[downloadMesZip] URL: ${backupUrl}`)
+    
+    // Fazer requisição para o Focus NFe
+    const protocolo = baseUrl.startsWith('https') ? https : http
+    const url = new URL(backupUrl)
+    
+    const options = {
+      hostname: url.hostname,
+      port: url.port || (url.protocol === 'https:' ? 443 : 80),
+      path: url.pathname,
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${Buffer.from(fiscalConfig.API_TOKEN + ':').toString('base64')}`,
+        'Accept': 'application/zip'
+      },
+      timeout: 60000 // 60 segundos
     }
-
-    // 4. Verificar se conseguiu algum XML
-    if (notasComXml.length === 0) {
+    
+    const proxyReq = protocolo.request(options, (proxyRes) => {
+      const statusCode = proxyRes.statusCode
+      
+      // ═══════════════════════════════════════════════════════════════════════
+      // 4. TRATAMENTO DE ERROS DA API
+      // ═══════════════════════════════════════════════════════════════════════
+      
+      if (statusCode === 404) {
+        console.warn(`[downloadMesZip] Backup não encontrado para o período ${periodo}`)
+        return res.status(404).json({
+          success: false,
+          message: 'Backup não disponível para este período. O backup pode ainda não ter sido gerado ou não há notas neste período.'
+        })
+      }
+      
+      if (statusCode === 401 || statusCode === 403) {
+        console.error(`[downloadMesZip] Erro de autenticação: ${statusCode}`)
+        return res.status(401).json({
+          success: false,
+          message: 'Erro de autenticação com a Focus NFe. Verifique o token nas configurações.'
+        })
+      }
+      
+      if (statusCode !== 200) {
+        console.error(`[downloadMesZip] Erro inesperado: ${statusCode}`)
+        
+        let errorData = ''
+        proxyRes.on('data', (chunk) => {
+          errorData += chunk.toString()
+        })
+        
+        proxyRes.on('end', () => {
+          return res.status(statusCode).json({
+            success: false,
+            message: `Erro ao baixar backup: ${errorData || 'Erro desconhecido'}`
+          })
+        })
+        
+        return
+      }
+      
+      // ═══════════════════════════════════════════════════════════════════════
+      // 5. SUCESSO - STREAM DO ARQUIVO ZIP
+      // ═══════════════════════════════════════════════════════════════════════
+      
+      console.log(`[downloadMesZip] Backup encontrado. Iniciando download...`)
+      
+      // Definir headers da resposta
+      const nomeArquivo = `Backup_NFCe_${periodo}.zip`
+      
+      res.set({
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="${nomeArquivo}"`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      })
+      
+      // Se o Focus NFe enviar Content-Length, repassar
+      if (proxyRes.headers['content-length']) {
+        res.set('Content-Length', proxyRes.headers['content-length'])
+      }
+      
+      // Fazer streaming do arquivo direto para o cliente
+      proxyRes.pipe(res)
+      
+      proxyRes.on('end', () => {
+        console.log(`[downloadMesZip] Download concluído para usuário ${usuarioId}`)
+      })
+      
+      proxyRes.on('error', (err) => {
+        console.error(`[downloadMesZip] Erro no streaming:`, err)
+      })
+    })
+    
+    proxyReq.on('error', (err) => {
+      console.error(`[downloadMesZip] Erro na requisição ao Focus NFe:`, err)
+      
+      if (!res.headersSent) {
+        return res.status(500).json({
+          success: false,
+          message: 'Erro ao conectar com o servidor do Focus NFe. Tente novamente.'
+        })
+      }
+    })
+    
+    proxyReq.on('timeout', () => {
+      console.error(`[downloadMesZip] Timeout na requisição ao Focus NFe`)
+      proxyReq.destroy()
+      
+      if (!res.headersSent) {
+        return res.status(504).json({
+          success: false,
+          message: 'Timeout ao baixar backup. O arquivo pode ser muito grande. Tente novamente.'
+        })
+      }
+    })
+    
+    proxyReq.end()
+    
+  } catch (error) {
+    console.error('[downloadMesZip] Erro inesperado:', error)
+    
+    if (!res.headersSent) {
       return res.status(500).json({
         success: false,
-        message: 'Não foi possível obter nenhum XML das notas fiscais',
-        detalhes: {
-          totalNotas,
-          falhas
-        }
+        message: 'Erro ao gerar arquivo de backup',
+        error: error.message
       })
     }
-
-    // 5. Criar arquivo ZIP
-    const { criarZipNotas, formatarNomeArquivoZip } = require('../utils/zipHelper')
-    const zipBuffer = await criarZipNotas(notasComXml, periodo)
-    const nomeArquivo = formatarNomeArquivoZip(periodo)
-
-    // 6. Enviar ZIP
-    res.set({
-      'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename="${nomeArquivo}"`,
-      'Content-Length': zipBuffer.length
-    })
-    
-    // Se houve falhas parciais, adicionar header informativo
-    if (falhas > 0) {
-      res.set({
-        'X-Partial-Success': 'true',
-        'X-Downloaded-Count': sucessos.toString(),
-        'X-Failed-Count': falhas.toString(),
-        'X-Total-Count': totalNotas.toString()
-      })
-    }
-    
-    res.send(zipBuffer)
-
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao gerar arquivo ZIP',
-      error: error.message
-    })
   }
 }
 
@@ -785,6 +897,7 @@ module.exports = {
   emitir,
   consultarStatusRapido,
   consultarStatus,
+  consultarStatusBatch,
   cancelar,
   downloadXML,
   downloadDANFE,

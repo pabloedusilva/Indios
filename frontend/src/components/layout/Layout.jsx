@@ -10,7 +10,7 @@ import { useApp } from '../../contexts/AppContext'
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { nota, modalAberto, fechar: fecharUpdate } = useUpdateNotes()
-  const { baixandoZip, setBaixandoZip } = useApp()
+  const { baixandoZip, setBaixandoZip, erroDownloadZip, setErroDownloadZip } = useApp()
 
   return (
     <div className="flex h-screen bg-brand-bg overflow-hidden">
@@ -33,7 +33,11 @@ export default function Layout({ children }) {
       {/* Indicador de Download Global — persiste entre mudanças de rota */}
       <DownloadProgress 
         isDownloading={baixandoZip}
-        onClose={() => setBaixandoZip(false)}
+        hasError={erroDownloadZip}
+        onClose={() => {
+          setBaixandoZip(false)
+          setErroDownloadZip(false)
+        }}
       />
     </div>
   )
