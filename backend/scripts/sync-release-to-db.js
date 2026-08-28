@@ -140,9 +140,34 @@ async function detectMigrationsSinceLastRelease() {
  * - Scope prefixes (release:, fiscal:, ci:, fix:, feat:, etc.)
  * - Links de commit ([hash](url))
  * - Hashes de commit no final (abcdef1)
+ * - Parênteses vazios ()
+ * - Textos genéricos e commits automáticos
+ * - Limita tamanho para não quebrar linhas
  */
 function cleanReleaseItem(item) {
   let clean = item.trim();
+  
+  // Ignorar itens genéricos e commits automáticos
+  const ignoredPhrases = [
+    'sincronizar changelog',
+    'skip ci',
+    'chore(release)',
+    'merge pull request',
+    'merge branch',
+    'merge remote',
+    'update package',
+    'bump version',
+    '[automated]',
+    '[bot]',
+    'github-actions',
+  ];
+  
+  const lowerClean = clean.toLowerCase();
+  for (const phrase of ignoredPhrases) {
+    if (lowerClean.includes(phrase)) {
+      return null; // Ignorar este item
+    }
+  }
   
   // Remover markdown bold
   clean = clean.replace(/\*\*(.+?)\*\*/g, '$1');
@@ -153,13 +178,29 @@ function cleanReleaseItem(item) {
   // Remover hashes de commit no final: (abcdef1)
   clean = clean.replace(/\s*\([a-f0-9]{7,}\)$/i, '');
   
+  // Remover parênteses vazios no final
+  clean = clean.replace(/\s*\(\s*\)$/g, '');
+  
   // Remover scope prefixes comuns: release:, fiscal:, ci:, fix:, feat:, docs:, etc.
   clean = clean.replace(/^(release|fiscal|ci|fix|feat|docs|test|refactor|perf|style|chore|build):\s*/i, '');
+  
+  // Remover "implementa" repetitivo e deixar mais conciso
+  clean = clean.replace(/^implementa\s+/i, '');
   
   // Remover espaços extras
   clean = clean.trim();
   
-  return clean;
+  // Limitar tamanho para não quebrar linha (máximo 70 caracteres)
+  if (clean.length > 70) {
+    clean = clean.substring(0, 67) + '...';
+  }
+  
+  // Capitalizar primeira letra
+  if (clean.length > 0) {
+    clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+  }
+  
+  return clean || null;
 }
 
 function parseReleaseNotes(body) {
@@ -224,7 +265,16 @@ function parseReleaseNotes(body) {
     }
   }
 
-  return { melhorias, correcoes, migracoes };
+  // Remover duplicatas
+  const uniqueMelhorias = [...new Set(melhorias)];
+  const uniqueCorrecoes = [...new Set(correcoes)];
+  const uniqueMigracoes = [...new Set(migracoes)];
+
+  return { 
+    melhorias: uniqueMelhorias, 
+    correcoes: uniqueCorrecoes, 
+    migracoes: uniqueMigracoes 
+  };
 }
 
 // =============================================================
