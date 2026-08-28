@@ -93,6 +93,14 @@ router.get('/:id/impostos', notasFiscaisController.calcularImpostosNota)
 router.post('/:id/consultar-status', notasFiscaisController.consultarStatus)
 
 /**
+ * @route   POST /api/notas-fiscais/consultar-status-batch
+ * @desc    Consultar status de múltiplas notas em batch
+ * @access  Private
+ * @body    { notasIds: [1, 2, 3] }
+ */
+router.post('/consultar-status-batch', notasFiscaisController.consultarStatusBatch)
+
+/**
  * @route   POST /api/notas-fiscais/:id/cancelar
  * @desc    Cancelar nota fiscal
  * @access  Private (Admin only)

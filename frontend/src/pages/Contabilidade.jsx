@@ -5,7 +5,7 @@
 // visualização por períodos (últimos 3 meses + seletor de período)
 // ════════════════════════════════════════════════════════════════════════════
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useNotasFiscais } from '../hooks/useNotasFiscais'
 import { useApp } from '../contexts/AppContext'
 import { formatarMoeda } from '../utils/formatters'
@@ -99,6 +99,7 @@ export default function Contabilidade() {
   const [loadingEstatisticas, setLoadingEstatisticas] = useState(false)
   const [impostosPeriodo, setImpostosPeriodo] = useState(null)
   const [loadingImpostos, setLoadingImpostos] = useState(false)
+  const [atualizandoTudo, setAtualizandoTudo] = useState(false)
 
   // Calcular períodos disponíveis (ordenados do mais recente para o mais antigo)
   const periodosDisponiveis = useMemo(() => {
@@ -125,36 +126,67 @@ export default function Contabilidade() {
   // Mês ativo (selecionado ou atual)
   const mesAtivo = mesSelecionado || mesAtual
 
-  // Buscar estatísticas do mês ativo
-  useEffect(() => {
-    const buscarDados = async () => {
-      if (!mesAtivo) return
-      
-      // Buscar estatísticas
-      setLoadingEstatisticas(true)
-      try {
-        const stats = await notasFiscaisService.obterEstatisticasPorPeriodo(mesAtivo)
-        setEstatisticasMes(stats)
-      } catch (error) {
-        setEstatisticasMes(null)
-      } finally {
-        setLoadingEstatisticas(false)
-      }
-
-      // Buscar cálculo de impostos
-      setLoadingImpostos(true)
-      try {
-        const impostos = await notasFiscaisService.calcularImpostosPeriodo(mesAtivo)
-        setImpostosPeriodo(impostos)
-      } catch (error) {
-        setImpostosPeriodo(null)
-      } finally {
-        setLoadingImpostos(false)
-      }
+  // Função para buscar estatísticas e impostos
+  const buscarDadosPeriodo = useCallback(async (periodo) => {
+    if (!periodo) return
+    
+    // Buscar estatísticas
+    setLoadingEstatisticas(true)
+    try {
+      const stats = await notasFiscaisService.obterEstatisticasPorPeriodo(periodo)
+      setEstatisticasMes(stats)
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas:', error)
+      setEstatisticasMes(null)
+    } finally {
+      setLoadingEstatisticas(false)
     }
 
-    buscarDados()
-  }, [mesAtivo])
+    // Buscar cálculo de impostos
+    setLoadingImpostos(true)
+    try {
+      const impostos = await notasFiscaisService.calcularImpostosPeriodo(periodo)
+      setImpostosPeriodo(impostos)
+    } catch (error) {
+      console.error('Erro ao buscar impostos:', error)
+      setImpostosPeriodo(null)
+    } finally {
+      setLoadingImpostos(false)
+    }
+  }, [])
+
+  // Buscar estatísticas do mês ativo quando ele muda
+  useEffect(() => {
+    buscarDadosPeriodo(mesAtivo)
+  }, [mesAtivo, buscarDadosPeriodo])
+
+  // Função para atualizar tudo
+  const atualizarTudo = useCallback(async () => {
+    setAtualizandoTudo(true)
+    try {
+      // 1. Recarregar todas as notas
+      await refetch()
+      
+      // 2. Recarregar estatísticas e impostos do período ativo
+      await buscarDadosPeriodo(mesAtivo)
+    } catch (error) {
+      console.error('Erro ao atualizar:', error)
+    } finally {
+      setAtualizandoTudo(false)
+    }
+  }, [refetch, mesAtivo, buscarDadosPeriodo])
+
+  // Atualizar automaticamente quando notas mudarem (ex: status atualizado via polling)
+  useEffect(() => {
+    // Debounce para evitar múltiplas atualizações consecutivas
+    const timeoutId = setTimeout(() => {
+      if (mesAtivo && !loading && !atualizandoTudo) {
+        buscarDadosPeriodo(mesAtivo)
+      }
+    }, 1000)
+
+    return () => clearTimeout(timeoutId)
+  }, [notas, mesAtivo, loading, atualizandoTudo, buscarDadosPeriodo, notasPorMes])
 
   // Notas filtradas pelo mês ativo
   const notasFiltradas = useMemo(() => {
@@ -230,8 +262,22 @@ export default function Contabilidade() {
       setModalCancelar(null)
       setModalVisualizar(null) // Fechar também o modal de visualização
       toast.success('Nota fiscal cancelada com sucesso!')
+      
+      // Atualizar tudo após cancelamento
+      await atualizarTudo()
     } catch (err) {
       throw err
+    }
+  }
+
+  const handleConsultarStatus = async (notaId) => {
+    try {
+      await consultarStatus(notaId)
+      
+      // Atualizar estatísticas e impostos após consulta
+      await buscarDadosPeriodo(mesAtivo)
+    } catch (error) {
+      toast.error(error.message || 'Erro ao consultar status')
     }
   }
 
@@ -386,12 +432,12 @@ export default function Contabilidade() {
 
         <div className="flex items-center gap-2 self-start flex-wrap">
           <button
-            onClick={refetch}
-            disabled={loading}
+            onClick={atualizarTudo}
+            disabled={atualizandoTudo}
             title="Atualizar"
             className="p-2 rounded-xl text-brand-text-3 hover:text-brand-text hover:bg-brand-surface border border-brand-border transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <MdRefresh size={16} className={loading ? 'animate-spin' : ''} />
+            <MdRefresh size={16} className={atualizandoTudo ? 'animate-spin' : ''} />
           </button>
 
           {/* Tabs dos últimos 3 meses */}
@@ -614,7 +660,7 @@ export default function Contabilidade() {
         onCancelar={handleCancelarNota}
         onDownloadXML={downloadXML}
         onDownloadDANFE={downloadDANFE}
-        onConsultarStatus={consultarStatus}
+        onConsultarStatus={handleConsultarStatus}
       />
 
       <ModalCancelarNota

@@ -97,8 +97,21 @@ export async function cancelar(id, motivo) {
 export async function consultarStatus(id) {
   try {
     const response = await api.post(`${BASE_PATH}/${id}/consultar-status`)
-    // Backend retorna: { success: true, message: '...', status: {...} }
-    return response?.status || response
+    // Backend retorna: { success: true, message: '...', nota: {...} }
+    return response?.nota || response
+  } catch (error) {
+    throw error
+  }
+}
+
+/**
+ * Consultar status de múltiplas notas em batch
+ */
+export async function consultarStatusBatch(notasIds) {
+  try {
+    const response = await api.post(`${BASE_PATH}/consultar-status-batch`, { notasIds })
+    // Backend retorna: { success: true, resultados: [{notaId, success, nota}] }
+    return response?.resultados || []
   } catch (error) {
     throw error
   }
@@ -288,6 +301,7 @@ export default {
   emitir,
   cancelar,
   consultarStatus,
+  consultarStatusBatch,
   downloadXML,
   downloadDANFE,
   downloadMesZip,

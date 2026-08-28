@@ -232,17 +232,74 @@ async function consultarStatus(req, res) {
       })
     }
     
-    const resultado = await NotaFiscalService.consultarStatus(id, usuarioId)
+    const notaAtualizada = await NotaFiscalService.consultarStatus(id, usuarioId)
     
     res.json({
       success: true,
       message: 'Status consultado com sucesso',
-      status: resultado
+      nota: notaAtualizada
     })
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Erro ao consultar status',
+      error: error.message
+    })
+  }
+}
+
+/**
+ * Consultar status de múltiplas notas em batch
+ * POST /api/notas-fiscais/consultar-status-batch
+ * Body: { notasIds: [1, 2, 3] }
+ */
+async function consultarStatusBatch(req, res) {
+  try {
+    const { notasIds } = req.body
+    const usuarioId = req.usuario.id
+    
+    if (!Array.isArray(notasIds) || notasIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Array de IDs é obrigatório'
+      })
+    }
+    
+    if (notasIds.length > 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Máximo de 10 notas por consulta'
+      })
+    }
+    
+    // Consultar status de todas as notas
+    const resultados = []
+    
+    for (const notaId of notasIds) {
+      try {
+        const notaAtualizada = await NotaFiscalService.consultarStatus(notaId, usuarioId)
+        resultados.push({
+          notaId,
+          success: true,
+          nota: notaAtualizada
+        })
+      } catch (error) {
+        resultados.push({
+          notaId,
+          success: false,
+          error: error.message
+        })
+      }
+    }
+    
+    res.json({
+      success: true,
+      resultados
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao consultar status em lote',
       error: error.message
     })
   }
@@ -785,6 +842,7 @@ module.exports = {
   emitir,
   consultarStatusRapido,
   consultarStatus,
+  consultarStatusBatch,
   cancelar,
   downloadXML,
   downloadDANFE,
