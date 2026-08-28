@@ -12,6 +12,21 @@ import { useBackendStatus } from '../hooks/useBackendStatus'
 
 const ConnectionContext = createContext(null)
 
+// ── Cor de fundo lida do localStorage antes do ThemeProvider ──
+// Espelha exatamente as variáveis CSS de --brand-bg do tema
+const THEME_BG = {
+  dark:  '#161210',
+  light: '#F7F5F2',
+}
+function getLoaderBg() {
+  try {
+    const saved = localStorage.getItem('theme')
+    return THEME_BG[saved] ?? THEME_BG.light
+  } catch {
+    return THEME_BG.light
+  }
+}
+
 // ── Hook de parallax com mouse ────────────────────────────────
 function useParallax() {
   const [offset, setOffset] = useState({ x: 0, y: 0 })
@@ -50,6 +65,7 @@ function useParallax() {
       rafRef.current = requestAnimationFrame(animate)
     }
     rafRef.current = requestAnimationFrame(animate)
+
 
     return () => {
       window.removeEventListener('mousemove', onMouseMove)
@@ -104,14 +120,14 @@ export function ConnectionProvider({ children }) {
   if (showLoader || error) {
     return (
       <ConnectionContext.Provider value={{ isOnline }}>
-        {/* Loader com fundo preto e transição suave */}
+        {/* Loader com fundo adaptado ao tema do usuário e transição suave */}
         <div 
           className={`fixed inset-0 flex flex-col z-[9999] ${
             isTransitioning 
               ? 'animate-loader-fade-out' 
               : 'opacity-100'
           }`}
-          style={{ backgroundColor: '#000000' }}
+          style={{ backgroundColor: getLoaderBg() }}
         >
           {/* ── Área central — cresce para empurrar footer para baixo ── */}
           <div className="flex-1 flex items-center justify-center">
@@ -120,7 +136,7 @@ export function ConnectionProvider({ children }) {
                 isTransitioning ? 'animate-content-fade-out' : 'opacity-100'
               }`}
             >
-              {/* ── Vídeo com parallax ─────────────────────────────── */}
+              {/* ── Logo com parallax ─────────────────────────────── */}
               <div
                 style={{
                   transform: `
@@ -134,14 +150,11 @@ export function ConnectionProvider({ children }) {
                   transformStyle: 'preserve-3d',
                 }}
               >
-                <video
-                  src="/loader.mp4"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
+                <img
+                  src="/logo.png"
+                  alt="Logo"
                   className="w-64 h-64 object-contain"
-                  aria-label="Carregando aplicação"
+                  style={{ imageRendering: 'crisp-edges' }}
                 />
               </div>
 
@@ -152,10 +165,10 @@ export function ConnectionProvider({ children }) {
                   aria-live="polite"
                   className={`absolute text-base font-medium whitespace-nowrap transition-all duration-300 ${
                     error 
-                      ? 'text-red-400' 
+                      ? 'text-red-500' 
                       : isOnline 
-                        ? 'text-white animate-pulse-soft' 
-                        : 'text-white/70'
+                        ? 'text-brand-text animate-pulse-soft' 
+                        : 'text-brand-text-3'
                   }`}
                 >
                   {error || (isOnline ? 'Conectado!' : 'Conectando ao servidor...')}
@@ -166,7 +179,7 @@ export function ConnectionProvider({ children }) {
               {error && (
                 <button
                   onClick={retry}
-                  className="mt-6 bg-white text-black font-semibold px-6 py-3 rounded-xl hover:bg-gray-100 transition-all duration-200 hover:scale-105 active:scale-95 animate-fade-in"
+                  className="mt-6 bg-brand-text text-brand-bg font-semibold px-6 py-3 rounded-xl hover:opacity-90 transition-all duration-200 hover:scale-105 active:scale-95 animate-fade-in"
                   aria-label="Tentar conectar novamente"
                 >
                   Tentar Novamente
@@ -176,7 +189,7 @@ export function ConnectionProvider({ children }) {
           </div>
 
           {/* ── Footer — idêntico ao da página de Login ────────────── */}
-          <p className="text-center text-xs text-white/30 pb-4">
+          <p className="text-center text-xs text-brand-text-3 pb-4">
             Desenvolvido por{' '}
             <a
               href="https://github.com/pabloedusilva"
