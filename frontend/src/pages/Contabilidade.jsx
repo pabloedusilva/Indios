@@ -24,6 +24,7 @@ import {
   MdClear,
   MdDownload,
   MdFilterList,
+  MdInfo,
 } from 'react-icons/md'
 
 // Importar componentes
@@ -86,7 +87,7 @@ export default function Contabilidade() {
   } = useNotasFiscais()
   
   // Estado global de download
-  const { baixandoZip, setBaixandoZip } = useApp()
+  const { baixandoZip, setBaixandoZip, erroDownloadZip, setErroDownloadZip } = useApp()
 
   // Estados
   const [modalVisualizar, setModalVisualizar] = useState(null)
@@ -298,34 +299,54 @@ export default function Contabilidade() {
       return
     }
 
+    // Validar se pode baixar (dia 2 ou posterior para o mês atual)
+    const podeBAixar = podeBaixarBackup(mesAtivo)
+    if (!podeBAixar.permitido) {
+      toast.error(podeBAixar.mensagem)
+      return
+    }
+
     setBaixandoZip(true)
+    setErroDownloadZip(false)
     try {
-      const resultado = await downloadMesZip(mesAtivo)
-      
-      // Verificar se foi download parcial
-      if (resultado?.isPartial) {
-        if (resultado.isPartialDownload) {
-          toast.warning(
-            `Download parcial: ${resultado.downloadedCount} de ${resultado.totalCount} notas foram baixadas. ` +
-            `Limite de requisições atingido. Aguarde alguns minutos para baixar o restante.`,
-            { duration: 8000 }
-          )
-        } else {
-          toast.warning(
-            `Download parcial: ${resultado.downloadedCount} de ${resultado.totalCount} notas foram incluídas. ` +
-            `Algumas notas falharam ao baixar.`,
-            { duration: 6000 }
-          )
-        }
-      } else {
-        toast.success('Download concluído com sucesso!')
-      }
+      await downloadMesZip(mesAtivo)
+      toast.success('Download concluído com sucesso!')
     } catch (error) {
-      toast.error(error.message || 'Erro ao gerar arquivo ZIP')
+      setErroDownloadZip(true)
+      toast.error(error.message || 'Erro ao baixar backup')
     } finally {
       setBaixandoZip(false)
     }
   }
+
+  // Verificar se pode baixar backup do período
+  const podeBaixarBackup = (periodo) => {
+    if (!periodo) return { permitido: false, mensagem: 'Período inválido' }
+    
+    const hoje = new Date()
+    const [ano, mes] = periodo.split('-').map(Number)
+    
+    // Criar data do período (dia 1)
+    const dataPeriodo = new Date(ano, mes - 1, 1)
+    
+    // Criar data do dia 2 do mês seguinte ao período
+    const dataLiberacao = new Date(ano, mes, 2) // mês seguinte, dia 2
+    
+    // Se hoje é antes da data de liberação, bloquear
+    if (hoje < dataLiberacao) {
+      return {
+        permitido: false,
+        mensagem: 'Backup estará disponível a partir do dia 2 do próximo mês'
+      }
+    }
+    
+    return { permitido: true, mensagem: '' }
+  }
+
+  // Verificar status do botão de download para o mês ativo
+  const statusDownloadMesAtivo = useMemo(() => {
+    return podeBaixarBackup(mesAtivo)
+  }, [mesAtivo])
 
   // Loading
   if (loading) {
@@ -592,11 +613,36 @@ export default function Contabilidade() {
 
       {/* Botão Download ZIP */}
       {mesAtivo && notasAutorizadasMes > 0 && (
-        <div className="flex justify-end animate-slide-down">
+        <div className="flex justify-end items-center gap-2 animate-slide-down">
+          {/* Tooltip informativo quando bloqueado */}
+          {!statusDownloadMesAtivo.permitido && (
+            <div className="group relative">
+              <button className="p-1.5 rounded-lg hover:bg-brand-bg transition-colors cursor-help">
+                <MdInfo className="text-brand-text-3" size={16} />
+              </button>
+              <div className="absolute right-0 bottom-full mb-2 w-64 p-3 bg-brand-surface border border-brand-border rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <div className="flex items-start gap-2">
+                  <MdWarning className="text-orange-500 flex-shrink-0 mt-0.5" size={16} />
+                  <div>
+                    <p className="text-xs font-bold text-brand-text mb-1">Backup Indisponível</p>
+                    <p className="text-xs text-brand-text-2 leading-relaxed">
+                      O backup estará disponível a partir do dia 2 do próximo mês. O Focus NFe gera os backups no dia 1º de cada mês.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <button
             onClick={handleDownloadZipMes}
-            disabled={baixandoZip}
-            className="btn-primary gap-2 disabled:opacity-60 disabled:cursor-not-allowed hover:shadow-brand-lg transition-smooth"
+            disabled={baixandoZip || !statusDownloadMesAtivo.permitido}
+            title={!statusDownloadMesAtivo.permitido ? statusDownloadMesAtivo.mensagem : 'Baixar backup mensal'}
+            className={`btn-primary gap-2 transition-smooth ${
+              !statusDownloadMesAtivo.permitido 
+                ? 'opacity-40 cursor-not-allowed hover:shadow-none' 
+                : 'hover:shadow-brand-lg disabled:opacity-60 disabled:cursor-not-allowed'
+            }`}
           >
             <MdDownload size={18} />
             {baixandoZip ? 'Gerando ZIP...' : 'Baixar Todas'}

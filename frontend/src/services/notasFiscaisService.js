@@ -186,7 +186,13 @@ export async function downloadDANFE(id) {
 }
 
 /**
- * Download ZIP com todas as notas autorizadas do mês
+ * Download ZIP com backup mensal do Focus NFe
+ * 
+ * SEGURANÇA:
+ * - Download direto do servidor Focus NFe
+ * - Validação de autenticação
+ * - Validação de data de liberação (dia 2)
+ * - Tratamento de erros específicos
  */
 export async function downloadMesZip(periodo) {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333'
@@ -201,17 +207,19 @@ export async function downloadMesZip(periodo) {
     const errorData = await response.json().catch(() => ({}))
     
     // Mensagens de erro específicas baseadas no status
-    let mensagem = errorData.message || 'Erro ao gerar ZIP'
+    let mensagem = errorData.message || 'Erro ao baixar backup'
     
-    if (response.status === 429) {
-      mensagem = 'Limite de requisições atingido. Aguarde alguns minutos e tente novamente.'
-      if (errorData.detalhes?.mensagem) {
-        mensagem += ` ${errorData.detalhes.mensagem}`
-      }
+    if (response.status === 403) {
+      // Bloqueio de data de liberação
+      mensagem = errorData.message || 'Backup estará disponível a partir do dia 2 do próximo mês'
+    } else if (response.status === 404) {
+      mensagem = 'Backup não disponível para este período. O backup pode ainda não ter sido gerado.'
     } else if (response.status === 401) {
       mensagem = 'Erro de autenticação. Verifique as configurações fiscais.'
-    } else if (response.status === 404) {
-      mensagem = 'Nenhuma nota autorizada encontrada para este período.'
+    } else if (response.status === 400) {
+      mensagem = errorData.message || 'Período inválido.'
+    } else if (response.status === 504) {
+      mensagem = 'Timeout ao baixar backup. O arquivo pode ser muito grande. Tente novamente.'
     }
     
     throw new Error(mensagem)
@@ -219,15 +227,9 @@ export async function downloadMesZip(periodo) {
 
   const blob = await response.blob()
   
-  // Verificar se é download parcial
-  const isPartial = response.headers.get('X-Partial-Success') === 'true'
-  const isPartialDownload = response.headers.get('X-Partial-Download') === 'true'
-  const downloadedCount = response.headers.get('X-Downloaded-Count')
-  const totalCount = response.headers.get('X-Total-Count')
-  
   // Extrair nome do arquivo do header Content-Disposition
   const contentDisposition = response.headers.get('Content-Disposition')
-  let nomeArquivo = `Notas_Fiscais_${periodo}.zip`
+  let nomeArquivo = `Backup_NFCe_${periodo}.zip`
   
   if (contentDisposition) {
     const matches = /filename="([^"]+)"/.exec(contentDisposition)
@@ -246,13 +248,9 @@ export async function downloadMesZip(periodo) {
   document.body.removeChild(a)
   window.URL.revokeObjectURL(downloadUrl)
   
-  // Retornar info sobre download parcial se houver
   return {
-    isPartial: isPartial || isPartialDownload,
-    isPartialDownload,
-    downloadedCount: downloadedCount ? parseInt(downloadedCount) : null,
-    totalCount: totalCount ? parseInt(totalCount) : null,
-    nomeArquivo
+    nomeArquivo,
+    success: true
   }
 }
 
