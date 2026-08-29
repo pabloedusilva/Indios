@@ -55,6 +55,7 @@ export default {
         'fade-in-up': 'fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
         'loader-fade-out': 'loaderFadeOut 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards',
         'content-fade-out': 'contentFadeOut 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+        'overlay-fade-in': 'overlayFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards',
         'pulse-ring-blue': 'pulseRingBlue 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'pulse-ring-orange': 'pulseRingOrange 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'pulse-ring-green': 'pulseRingGreen 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
@@ -95,6 +96,10 @@ export default {
         contentFadeOut: {
           '0%':   { opacity: '1', transform: 'scale(1) translateY(0)' },
           '100%': { opacity: '0', transform: 'scale(0.95) translateY(-10px)' },
+        },
+        overlayFadeIn: {
+          '0%':   { opacity: '0' },
+          '100%': { opacity: '1' },
         },
         pulseRingBlue: {
           '0%, 100%': { 
