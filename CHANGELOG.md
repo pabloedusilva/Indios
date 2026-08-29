@@ -5,13 +5,19 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
-Histórico completo de releases do projeto.
+## [2.6.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.5.0...v2.6.0) (2026-08-28)
 
-## v2.5.0 (28/08/2026)
+### Novas Funcionalidades
 
-[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v2.5.0)
+* **ui:** adapta loader ao tema do usuário ([c949b8a](https://github.com/pabloedusilva/IndiosManager/commit/c949b8a0f068f43df8478c42d237d912d323b1e3))
 
-[2.5.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.4.0...v2.5.0) (2026-08-28)
+### Refatorações
+
+* **release:** melhora limpeza e formatação das notas de atualização ([dfa75e6](https://github.com/pabloedusilva/IndiosManager/commit/dfa75e689647d5e77ed6f26ce140c0b502dae0c6))
+
+### Manutenção
+
+* sincronizar versões dos package.json para v2.5.0 [skip ci] ([085d7a8](https://github.com/pabloedusilva/IndiosManager/commit/085d7a8ef3eab5dfb2e47c904002d3990686b7f2))
 
 ## [2.5.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.4.0...v2.5.0) (2026-08-28)
 
