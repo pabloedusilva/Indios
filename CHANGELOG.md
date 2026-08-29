@@ -21,16 +21,19 @@ e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [2.5.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.4.0...v2.5.0) (2026-08-28)
 
+
 ### Novas Funcionalidades
 
 * **fiscal:** implementa download de backup de NFC-e via Focus NFe ([885c6c5](https://github.com/pabloedusilva/IndiosManager/commit/885c6c55f9476666fc4c4824433e95893bb989b1))
 * **contabilidade:** implementa sistema completo de atualização em tempo real ([4feece2](https://github.com/pabloedusilva/IndiosManager/commit/4feece2924c4157ad72e1400249a753507213445))
 * **produtos:** implementa validação e formatação automática do NCM ([cca6c1c](https://github.com/pabloedusilva/IndiosManager/commit/cca6c1caddbea0611deb2ae6c51b644006a187fa))
 
+
 ### Correções de Bugs
 
 * **nfce:** ajusta valores de pagamento e troco conforme forma de pagamento ([3f528a5](https://github.com/pabloedusilva/IndiosManager/commit/3f528a579b4e3275a7ed26426b70784ed43c0cc5))
 * corrigir URL do repositório GitHub para IndiosManager ([8714687](https://github.com/pabloedusilva/IndiosManager/commit/871468720b03bd1ac59c8e6806b789b57486d45a))
+
 
 ### Documentação
 
@@ -38,13 +41,12 @@ e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 * sincronizar CHANGELOG.md com releases do GitHub [skip ci] ([657e424](https://github.com/pabloedusilva/IndiosManager/commit/657e42430a78df6fb1a074df9e7d0514e8f13bff))
 * sincronizar CHANGELOG.md com releases do GitHub [skip ci] ([e530641](https://github.com/pabloedusilva/IndiosManager/commit/e530641c327e19baccd38d529702581c1f07b4f4))
 
+
 ### Manutenção
 
 * **branding:** atualiza logos e favicons ([d9c00ff](https://github.com/pabloedusilva/IndiosManager/commit/d9c00ff3f07c1064ec0daef8e448cfc4ed124e91))
 * sincronizar versões dos package.json para v2.3.1 [skip ci] ([0c79d44](https://github.com/pabloedusilva/IndiosManager/commit/0c79d4495a7a591fac7b36be0fe357f67232cabb))
 * sincronizar versões dos package.json para v2.4.0 [skip ci] ([5c5ec9d](https://github.com/pabloedusilva/IndiosManager/commit/5c5ec9da470d2304293587b862f76b303de563c1))
-
-Histórico completo de releases do projeto.
 
 ## v2.4.0 (17/08/2026)
 
