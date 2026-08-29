@@ -5,6 +5,12 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.8.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.7.0...v2.8.0) (2026-08-29)
+
+### Novas Funcionalidades
+
+* **ui:** aprimora loader, reprodução de vídeo e identificação de versão ([061bcf0](https://github.com/pabloedusilva/IndiosManager/commit/061bcf04fc95af41020b2a21abb9a8f15d95bc7e))
+
 ## [2.7.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.6.0...v2.7.0) (2026-08-29)
 
 ### Novas Funcionalidades
