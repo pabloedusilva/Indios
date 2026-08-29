@@ -7,8 +7,9 @@
 //  · Transições suaves com overlay preto
 // =============================================================
 
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { useBackendStatus } from '../hooks/useBackendStatus'
+import packageJson from '../../package.json'
 
 const ConnectionContext = createContext(null)
 
@@ -17,6 +18,28 @@ export function ConnectionProvider({ children }) {
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [showChildren, setShowChildren] = useState(false)
   const [showOverlay, setShowOverlay] = useState(false)
+  const videoRef = useRef(null)
+
+  // ── Effect: Tentar reproduzir vídeo com som ─────────────────
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    // Tentar reproduzir com som
+    const playWithSound = async () => {
+      try {
+        video.muted = false
+        await video.play()
+      } catch (err) {
+        // Se falhar, reproduzir sem som (fallback para autoplay)
+        console.log('Autoplay com som bloqueado, reproduzindo sem som')
+        video.muted = true
+        await video.play().catch(() => {})
+      }
+    }
+
+    playWithSound()
+  }, [showLoader, error])
 
   // ── Effect: Transição quando conectar ───────────────────────
   useEffect(() => {
@@ -70,8 +93,8 @@ export function ConnectionProvider({ children }) {
           <div className="flex-1 flex items-center justify-center relative -mt-32">
             {/* ── Vídeo de loader (posicionado absolutamente) ────── */}
             <video
+              ref={videoRef}
               src="/loader.mp4"
-              autoPlay
               muted
               playsInline
               className="absolute w-[520px] h-[520px] object-contain"
@@ -130,17 +153,25 @@ export function ConnectionProvider({ children }) {
           </div>
 
           {/* ── Footer ─────────────────────────────────────────── */}
-          <p className="text-center text-xs text-white/30 pb-4">
-            Desenvolvido por{' '}
-            <a
-              href="https://github.com/pabloedusilva"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-brand-orange underline underline-offset-2 hover:text-brand-orange-dark transition-colors"
-            >
-              Pablo Silva
-            </a>
-          </p>
+          <div className="flex items-center justify-between px-6 pb-4">
+            {/* Nome e Versão (esquerda) */}
+            <span className="text-[10px] text-white/40 font-mono leading-none">
+              Índio's Manager v{packageJson.version}
+            </span>
+
+            {/* Créditos (centro-direita) */}
+            <p className="text-center text-xs text-white/30 flex-1 leading-none">
+              Desenvolvido por{' '}
+              <a
+                href="https://github.com/pabloedusilva"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand-orange underline underline-offset-2 hover:text-brand-orange-dark transition-colors"
+              >
+                Pablo Silva
+              </a>
+            </p>
+          </div>
 
           {/* ── Overlay preto para transição final ──────────────── */}
           {showOverlay && (

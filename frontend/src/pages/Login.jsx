@@ -11,10 +11,21 @@ import { useNavigate } from 'react-router-dom'
 import { MdVisibility, MdVisibilityOff, MdPerson, MdLock } from 'react-icons/md'
 import { useLoginForm } from '../hooks/useLoginForm'
 import { useAuth } from '../contexts/AuthContext'
+import packageJson from '../../package.json'
 
 export default function Login() {
   const { autenticado, carregando, loginFn } = useAuth()
   const navigate = useNavigate()
+
+  // Ler tema do localStorage
+  const isDark = (() => {
+    try {
+      const theme = localStorage.getItem('theme')
+      return theme === 'dark'
+    } catch {
+      return false
+    }
+  })()
 
   // Se já estiver autenticado, redireciona direto
   useEffect(() => {
@@ -175,17 +186,28 @@ export default function Login() {
       </div>
 
       {/* ── Rodapé ───────────────────────────────────────── */}
-      <p className="relative z-10 text-center text-xs text-brand-text-3 pb-2">
-        Desenvolvido por{' '}
-        <a
-          href="https://github.com/pabloedusilva"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-brand-orange underline underline-offset-2 hover:text-brand-orange-dark transition-colors"
+      <div className="relative z-10 flex items-center justify-between px-6 pb-2">
+        {/* Nome e Versão (esquerda) */}
+        <span 
+          className="text-[10px] font-mono leading-none"
+          style={{ color: isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)' }}
         >
-          Pablo Silva
-        </a>
-      </p>
+          Índio's Manager v{packageJson.version}
+        </span>
+
+        {/* Créditos (centro-direita) */}
+        <p className="text-center text-xs text-brand-text-3 flex-1 leading-none">
+          Desenvolvido por{' '}
+          <a
+            href="https://github.com/pabloedusilva"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-brand-orange underline underline-offset-2 hover:text-brand-orange-dark transition-colors"
+          >
+            Pablo Silva
+          </a>
+        </p>
+      </div>
 
     </div>
   )
