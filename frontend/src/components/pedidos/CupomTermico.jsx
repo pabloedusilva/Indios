@@ -47,7 +47,7 @@ const CupomTermico = forwardRef(({ pedido }, ref) => {
           {logoBase64 && (
             <img
               src={logoBase64}
-              alt="Índios Churrasco Gourmet"
+              alt="Índio's Manager"
               style={{
                 width: '72px',
                 height: 'auto',
@@ -184,7 +184,7 @@ const CupomTermico = forwardRef(({ pedido }, ref) => {
       <div style={{ textAlign: 'center', marginTop: '6px', fontSize: '10px' }}>
         <div>Obrigado pela preferência!</div>
         <div style={{ marginTop: '3px', fontSize: '9px', color: '#666' }}>
-          Índios Churrasco Gourmet
+          Índio's Manager
         </div>
       </div>
 
