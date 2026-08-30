@@ -92,7 +92,7 @@ export default function Cardapio() {
         <div className="flex justify-center px-4 sm:px-6 pt-3 pb-0">
           <img
             src="/cardapio/slogan.png"
-            alt="Slogan Índios Churrasco Gourmet"
+            alt="Slogan Índio's Manager"
             className="w-full max-w-[200px] sm:max-w-sm md:max-w-md lg:max-w-lg object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] -mb-2"
             draggable={false}
           />
@@ -155,7 +155,7 @@ export default function Cardapio() {
         {/* ── Footer ───────────────────────────────────── */}
         <footer className="border-t border-white/10 mt-2">
           <p className="text-center text-xs text-white/40 py-3">
-            Índios Churrasco Gourmet
+            Índio's Manager
           </p>
         </footer>
       </main>
