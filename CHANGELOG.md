@@ -5,6 +5,38 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.9.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.8.0...v2.9.0) (2026-08-30)
+
+### Novas Funcionalidades
+
+* **contabilidade:** exibe nome do cliente nas notas fiscais ([ee85a3c](https://github.com/pabloedusilva/IndiosManager/commit/ee85a3cca18327947c0be9c2ae8ebb70d391f479))
+
+### Refatorações
+
+* **branding:** renomeia aplicativo para Indios Manager ([b8102ed](https://github.com/pabloedusilva/IndiosManager/commit/b8102ede10fe2311bec333df7a035340dbff5c4f))
+
+### Documentação
+
+* sincronizar CHANGELOG.md com releases do GitHub [skip ci] ([cfdb20b](https://github.com/pabloedusilva/IndiosManager/commit/cfdb20bcb2ebd90fb6e88f4828ed9c9bbe4d5c5d))
+
+### Manutenção
+
+* atualiza package-locks para versão 2.8.0 e novo nome indios-manager ([ac2e139](https://github.com/pabloedusilva/IndiosManager/commit/ac2e139c2aec6f5296696899beda51e92d307c4d))
+* restaura configurações do GitHub ([4592da2](https://github.com/pabloedusilva/IndiosManager/commit/4592da2ea9f6533a4aa49ba0db52d2cc3754e97b))
+* rollback para versão estável ([b232fbf](https://github.com/pabloedusilva/IndiosManager/commit/b232fbf949272a1667432bc1a42db20941e3dc48))
+* sincroniza package-locks após renomeação do projeto ([1e0457f](https://github.com/pabloedusilva/IndiosManager/commit/1e0457f226b5b64c0d7af175298eb31f47c9a75c))
+* sincronizar versões dos package.json para v2.6.0 [skip ci] ([1449f75](https://github.com/pabloedusilva/IndiosManager/commit/1449f75db3570e24d15636a105f6f84901dea78b))
+* sincronizar versões dos package.json para v2.7.0 [skip ci] ([45126c7](https://github.com/pabloedusilva/IndiosManager/commit/45126c7b689fc45c8f9b3d5b78a0dfed93941a55))
+* sincronizar versões dos package.json para v2.8.0 [skip ci] ([5d81b87](https://github.com/pabloedusilva/IndiosManager/commit/5d81b87fb825b2937b543e01d68fb888c7ce1d7c))
+
+Histórico completo de releases do projeto.
+
+## v2.8.0 (29/08/2026)
+
+[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v2.8.0)
+
+[2.8.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.7.0...v2.8.0) (2026-08-29)
+
 ## [2.8.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.7.0...v2.8.0) (2026-08-29)
 
 ### Novas Funcionalidades
