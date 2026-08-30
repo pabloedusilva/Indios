@@ -195,9 +195,15 @@ export default function ModalVisualizarNota({ isOpen, onClose, nota, onCancelar,
           <div className="space-y-3">
             <h4 className="text-[10px] font-semibold text-brand-text-3 uppercase tracking-wider">Destinatário</h4>
             <div className="space-y-2 text-sm">
+              {nota.nomeCliente && (
+                <div>
+                  <span className="text-xs text-brand-text-3">Cliente:</span>
+                  <p className="font-semibold text-brand-text">{nota.nomeCliente}</p>
+                </div>
+              )}
               <div>
-                <span className="text-xs text-brand-text-3">Nome:</span>
-                <p className="font-semibold text-brand-text">{nota.destinatario?.nome || nota.destinatario?.razaoSocial || '—'}</p>
+                <span className="text-xs text-brand-text-3">Nota emitida para:</span>
+                <p className="font-semibold text-brand-text">{nota.destinatario?.nome || nota.destinatario?.razaoSocial || 'Consumidor Final'}</p>
               </div>
               {nota.destinatario?.cpf && (
                 <div>
