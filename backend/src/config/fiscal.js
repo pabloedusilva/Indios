@@ -43,7 +43,7 @@ const EMPRESA_CONFIG = {
   cnpj: process.env.EMPRESA_CNPJ || '66614685000174',
   ie: process.env.EMPRESA_IE || '005520547.00-62',
   razaoSocial: process.env.EMPRESA_RAZAO_SOCIAL || 'INDIOS CHURRASCO GOURMET LTDA',
-  nomeFantasia: process.env.EMPRESA_NOME_FANTASIA || 'Índio\'s Manager',
+  nomeFantasia: process.env.EMPRESA_NOME_FANTASIA || 'Índios Churrasco Gourmet',
   crt: parseInt(process.env.EMPRESA_CRT || '1'), // 1=Simples Nacional
   
   // Endereço fiscal
