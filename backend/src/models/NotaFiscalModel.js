@@ -25,6 +25,7 @@ class NotaFiscalModel {
       status: row.status,
       destinatarioNome: row.destinatario_nome,
       destinatarioCnpjCpf: row.destinatario_cnpj_cpf,
+      nomeCliente: row.nome_cliente, // Nome do cliente do pedido
       valor: parseFloat(row.valor_total),
       xmlNfe: row.xml_nfe,
       danfeUrl: row.danfe_url,
@@ -90,8 +91,10 @@ class NotaFiscalModel {
   async buscarPorId(id) {
     const query = `
       SELECT 
-        nf.*
+        nf.*,
+        p.nome_cliente
       FROM notas_fiscais nf
+      LEFT JOIN pedidos p ON p.id = nf.pedido_id
       WHERE nf.id = $1
     `
     
@@ -159,8 +162,10 @@ class NotaFiscalModel {
     
     let query = `
       SELECT 
-        nf.*
+        nf.*,
+        p.nome_cliente
       FROM notas_fiscais nf
+      LEFT JOIN pedidos p ON p.id = nf.pedido_id
       WHERE 1=1
     `
     
