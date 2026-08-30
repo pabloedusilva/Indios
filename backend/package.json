@@ -25,5 +25,12 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.7"
-  }
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
 }
