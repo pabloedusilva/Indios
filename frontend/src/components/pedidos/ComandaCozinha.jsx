@@ -78,7 +78,7 @@ const ComandaCozinha = forwardRef(({ pedido }, ref) => {
       </div>
 
       <div style={{ textAlign: 'center', fontSize: '10px', marginTop: '6px', color: '#666' }}>
-        Índio's Manager
+        Indio's Manager
       </div>
 
       {/* Espaço para corte */}

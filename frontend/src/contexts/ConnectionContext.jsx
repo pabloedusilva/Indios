@@ -156,7 +156,7 @@ export function ConnectionProvider({ children }) {
           <div className="flex items-center justify-between px-6 pb-4">
             {/* Nome e Versão (esquerda) */}
             <span className="text-[10px] text-white/40 font-mono leading-none">
-              Índio's Manager v{packageJson.version}
+              Indio's Manager v{packageJson.version}
             </span>
 
             {/* Créditos (centro-direita) */}

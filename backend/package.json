@@ -1,7 +1,7 @@
 {
   "name": "indios-manager-api",
   "version": "2.8.0",
-  "description": "API REST — Índio's Manager",
+  "description": "API REST — Indio's Manager",
   "main": "src/server.js",
   "scripts": {
     "dev": "cross-env NODE_OPTIONS='--dns-result-order=ipv4first' nodemon src/server.js",

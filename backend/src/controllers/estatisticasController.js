@@ -71,7 +71,7 @@ function gerarPDFBuffer(stats) {
       margins: { top: 0, bottom: 55, left: 50, right: 50 },
       info: {
         Title:   `Relatorio Mensal ${nomeMesPDF(stats.mes)} ${stats.mes.split('-')[0]}`,
-        Author:  'Índio\'s Manager',
+        Author:  'Indio\'s Manager',
         Subject: 'Relatorio de Estatisticas Mensais',
       },
     })
@@ -247,7 +247,7 @@ function gerarPDFBuffer(stats) {
     doc.moveDown(0.4)
     doc.fontSize(7.5).fillColor(LIGHT)
        .text(
-         `Índio's Manager  |  Relatorio Mensal ${nomeMesPDF(mes)} ${ano}  |  ${geradoEm}`,
+         `Indio's Manager  |  Relatorio Mensal ${nomeMesPDF(mes)} ${ano}  |  ${geradoEm}`,
          { align: 'center' },
        )
 

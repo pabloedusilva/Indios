@@ -34,7 +34,7 @@ function cleanLogger() {
           }
 
           const divider   = `+${'-'.repeat(W + 2)}+`
-          const title     = 'ÍNDIO\'S MANAGER  -  FRONTEND'
+          const title     = 'INDIO\'S MANAGER  -  FRONTEND'
           const titleLine = `| ${title.padStart(Math.floor((W + title.length) / 2)).padEnd(W)} |`
 
           // Verificar status do backend
@@ -70,9 +70,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'logo.png', 'icons/*.png'],
       manifest: {
-        name: 'Índio\'s Manager',
-        short_name: 'Índio\'s Manager',
-        description: 'Sistema de Gestão de Pedidos — Índio\'s Manager',
+        name: 'Indio\'s Manager',
+        short_name: 'Indio\'s Manager',
+        description: 'Sistema de Gestão de Pedidos — Indio\'s Manager',
         theme_color: '#C93517',
         background_color: '#F7F5F2',
         display: 'standalone',
@@ -106,7 +106,7 @@ export default defineConfig({
             sizes: '620x620',
             type: 'image/jpeg',
             form_factor: 'narrow',
-            label: 'Índio\'s Manager',
+            label: 'Indio\'s Manager',
           },
         ],
       },
