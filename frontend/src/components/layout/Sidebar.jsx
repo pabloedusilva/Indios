@@ -94,7 +94,7 @@ export default function Sidebar({ isOpen, onClose }) {
             style={{ backgroundImage: 'url(/sidebar-bg.jpg)' }}
           />
           <div className="relative z-10 flex items-center justify-center px-5 py-4 w-full">
-            <img src="/logo.png" alt="Indio's Manager" className="h-24 w-24 object-contain [filter:drop-shadow(0_4px_16px_rgba(0,0,0,0.45))] dark:[filter:none]" />
+            <img src="/logo.png" alt="Índios Churrasco Gourmet" className="h-24 w-24 object-contain [filter:drop-shadow(0_4px_16px_rgba(0,0,0,0.45))] dark:[filter:none]" />
             
             {/* Badge de versão clicável — mesmo estilo do modal, menor */}
             <button
