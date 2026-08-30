@@ -111,7 +111,7 @@ app.listen(PORT, async () => {
   }
 
   const divider   = `+${'-'.repeat(W + 2)}+`
-  const title     = 'INDIO\'S MANAGER  -  API'
+  const title     = 'INDIOS CHURRASCO GOURMET  -  API'
   const titleLine = `| ${title.padStart(Math.floor((W + title.length) / 2)).padEnd(W)} |`
 
   // Verificar banco de dados

@@ -5,67 +5,35 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
-Histórico completo de releases do projeto.
-
-## v2.8.0 (29/08/2026)
-
-[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v2.8.0)
-
-[2.8.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.7.0...v2.8.0) (2026-08-29)
-
 ## [2.8.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.7.0...v2.8.0) (2026-08-29)
-
 
 ### Novas Funcionalidades
 
 * **ui:** aprimora loader, reprodução de vídeo e identificação de versão ([061bcf0](https://github.com/pabloedusilva/IndiosManager/commit/061bcf04fc95af41020b2a21abb9a8f15d95bc7e))
 
-## v2.7.0 (29/08/2026)
-
-[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v2.7.0)
-
-[2.7.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.6.0...v2.7.0) (2026-08-29)
-
 ## [2.7.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.6.0...v2.7.0) (2026-08-29)
-
 
 ### Novas Funcionalidades
 
 * **ui:** adiciona novo vídeo ao loader e aprimora animações ([d71ba6b](https://github.com/pabloedusilva/IndiosManager/commit/d71ba6bbb84764759c7e8198c0155e131e98257f))
 
-
 ### Documentação
 
 * sincronizar CHANGELOG.md com releases do GitHub [skip ci] ([229a966](https://github.com/pabloedusilva/IndiosManager/commit/229a96679933e66f7aabce70d5a991528e931ded))
 
-## v2.6.0 (28/08/2026)
-
-[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v2.6.0)
-
-[2.6.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.5.0...v2.6.0) (2026-08-28)
-
 ## [2.6.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.5.0...v2.6.0) (2026-08-28)
-
 
 ### Novas Funcionalidades
 
 * **ui:** adapta loader ao tema do usuário ([c949b8a](https://github.com/pabloedusilva/IndiosManager/commit/c949b8a0f068f43df8478c42d237d912d323b1e3))
 
-
 ### Refatorações
 
 * **release:** melhora limpeza e formatação das notas de atualização ([dfa75e6](https://github.com/pabloedusilva/IndiosManager/commit/dfa75e689647d5e77ed6f26ce140c0b502dae0c6))
 
-
 ### Manutenção
 
 * sincronizar versões dos package.json para v2.5.0 [skip ci] ([085d7a8](https://github.com/pabloedusilva/IndiosManager/commit/085d7a8ef3eab5dfb2e47c904002d3990686b7f2))
-
-## v2.5.0 (28/08/2026)
-
-[Ver release](https://github.com/pabloedusilva/IndiosManager/releases/tag/v2.5.0)
-
-[2.5.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.4.0...v2.5.0) (2026-08-28)
 
 ## [2.5.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.4.0...v2.5.0) (2026-08-28)
 

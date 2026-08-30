@@ -1,7 +1,7 @@
 {
-  "name": "indios-manager-api",
+  "name": "indios-churrasco-gourmet-api",
   "version": "2.8.0",
-  "description": "API REST — Indio's Manager",
+  "description": "API REST — Índios Churrasco Gourmet",
   "main": "src/server.js",
   "scripts": {
     "dev": "cross-env NODE_OPTIONS='--dns-result-order=ipv4first' nodemon src/server.js",
@@ -25,12 +25,5 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.7"
-  },
-  "directories": {
-    "doc": "docs"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+  }
 }
