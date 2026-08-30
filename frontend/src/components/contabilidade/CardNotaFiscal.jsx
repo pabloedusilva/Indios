@@ -120,8 +120,13 @@ export default function CardNotaFiscal({
             <span className="text-xs font-mono font-bold text-brand-text-3">
               NF-e #{nota.numero || '---'}
             </span>
-            <span className="text-sm font-semibold text-brand-text truncate">
-              {nota.destinatarioNome || 'Consumidor'}
+            {nota.nomeCliente && (
+              <span className="text-sm font-semibold text-brand-text truncate">
+                {nota.nomeCliente}
+              </span>
+            )}
+            <span className="text-xs text-brand-text-3">
+              Consumidor Final
             </span>
             <StatusBadgeNota status={nota.status} size="sm" />
             

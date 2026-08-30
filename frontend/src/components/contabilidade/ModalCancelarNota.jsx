@@ -194,6 +194,12 @@ export default function ModalCancelarNota({ isOpen, onClose, nota, onConfirmar }
             <span className="text-sm text-brand-text-3">Número da Nota</span>
             <span className="font-semibold text-brand-text">#{nota.numero}</span>
           </div>
+          {nota.nomeCliente && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-brand-text-3">Cliente</span>
+              <span className="font-semibold text-brand-text">{nota.nomeCliente}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-sm text-brand-text-3">Destinatário</span>
             <span className="font-semibold text-brand-text">{nota.destinatarioNome || 'Consumidor Final'}</span>
