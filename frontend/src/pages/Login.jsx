@@ -65,7 +65,7 @@ export default function Login() {
           <div className="flex flex-col items-center gap-4 pb-1">
             <img
               src="/logo.png"
-              alt="Índio's Manager"
+              alt="Índios Churrasco Gourmet"
               className="w-28 h-28 object-contain drop-shadow-lg dark:drop-shadow-none [filter:drop-shadow(0_4px_16px_rgba(0,0,0,0.45))] dark:[filter:none]"
               draggable={false}
             />

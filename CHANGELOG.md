@@ -549,7 +549,7 @@ e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ### Primeira Versão Estável
 
-Esta release marca a primeira versão estável do sistema Índio's Manager.
+Esta release marca a primeira versão estável do sistema Indios Churrasco Gourmet.
 
 A aplicação fornece um dashboard para gerenciamento de pedidos em tempo real e impressão de cupons fiscais, promovendo maior eficiência operacional e organização no atendimento.
 

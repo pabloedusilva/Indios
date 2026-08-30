@@ -34,7 +34,7 @@ function cleanLogger() {
           }
 
           const divider   = `+${'-'.repeat(W + 2)}+`
-          const title     = 'ÍNDIO\'S MANAGER  -  FRONTEND'
+          const title     = 'INDIOS CHURRASCO GOURMET  -  FRONTEND'
           const titleLine = `| ${title.padStart(Math.floor((W + title.length) / 2)).padEnd(W)} |`
 
           // Verificar status do backend
@@ -70,9 +70,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'logo.png', 'icons/*.png'],
       manifest: {
-        name: 'Índio\'s Manager',
-        short_name: 'Índio\'s Manager',
-        description: 'Sistema de Gestão de Pedidos — Índio\'s Manager',
+        name: 'Índios Churrasco Gourmet',
+        short_name: 'Índios CG',
+        description: 'Sistema de Gestão de Pedidos — Índios Churrasco Gourmet',
         theme_color: '#C93517',
         background_color: '#F7F5F2',
         display: 'standalone',
@@ -106,7 +106,7 @@ export default defineConfig({
             sizes: '620x620',
             type: 'image/jpeg',
             form_factor: 'narrow',
-            label: 'Índio\'s Manager',
+            label: 'Índios Churrasco Gourmet',
           },
         ],
       },

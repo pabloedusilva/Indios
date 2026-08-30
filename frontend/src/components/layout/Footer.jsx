@@ -9,7 +9,7 @@ export default function Footer() {
           <div className="w-6 h-6 rounded-lg bg-gradient-brand flex items-center justify-center">
             <MdOutlineLocalFireDepartment className="text-white" size={13} />
           </div>
-          <span className="font-heading text-sm font-bold text-brand-text">Índio's Manager</span>
+          <span className="font-heading text-sm font-bold text-brand-text">Índios Churrasco Gourmet</span>
         </div>
         <p className="text-[11px] text-brand-text-3">© {ano} · Sistema de Gestão</p>
       </div>
