@@ -38,13 +38,22 @@ router.get('/estatisticas', notasFiscaisController.obterEstatisticas)
 router.get('/estatisticas/:periodo', notasFiscaisController.obterEstatisticasPorPeriodo)
 
 /**
- * @route   GET /api/notas-fiscais/download-mes/:periodo
- * @desc    Download de todas as notas autorizadas do mês em ZIP
+ * @route   GET /api/notas-fiscais/download-danfes/:periodo
+ * @desc    Download de todas as DANFEs do período em ZIP
  * @access  Private
  * @params  periodo (formato YYYY-MM, ex: 2024-01)
  * @important Esta rota DEVE vir antes de /:id para evitar conflito de rotas
  */
-router.get('/download-mes/:periodo', notasFiscaisController.downloadMesZip)
+router.get('/download-danfes/:periodo', notasFiscaisController.downloadDanfesMes)
+
+/**
+ * @route   GET /api/notas-fiscais/download-xmls/:periodo
+ * @desc    Download de todos os XMLs do período em ZIP
+ * @access  Private
+ * @params  periodo (formato YYYY-MM, ex: 2024-01)
+ * @important Esta rota DEVE vir antes de /:id para evitar conflito de rotas
+ */
+router.get('/download-xmls/:periodo', notasFiscaisController.downloadXmlsMes)
 
 /**
  * @route   GET /api/notas-fiscais/impostos/:periodo
@@ -59,7 +68,7 @@ router.get('/impostos/:periodo', notasFiscaisController.calcularImpostosPeriodo)
  * @route   GET /api/notas-fiscais/:id
  * @desc    Buscar nota por ID
  * @access  Private
- * @important Esta rota deve vir DEPOIS das rotas específicas (estatisticas, download-mes, impostos, etc)
+ * @important Esta rota deve vir DEPOIS das rotas específicas (estatisticas, download-danfes, download-xmls, impostos, etc)
  */
 router.get('/:id', notasFiscaisController.buscarPorId)
 

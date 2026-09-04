@@ -44,6 +44,7 @@
     "npm": ">=9.0.0"
   },
   "dependencies": {
+    "@api/focus-nfe": "file:.api/apis/focus-nfe",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.1"
   }
