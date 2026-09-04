@@ -186,17 +186,17 @@ export async function downloadDANFE(id) {
 }
 
 /**
- * Download ZIP com backup mensal do Focus NFe
+ * Download ZIP com DANFEs do período
  * 
  * SEGURANÇA:
- * - Download direto do servidor Focus NFe
- * - Validação de autenticação
+ * - Download via API Focus NFe v2/backups
+ * - Autenticação Basic (username e password)
  * - Validação de data de liberação (dia 2)
  * - Tratamento de erros específicos
  */
-export async function downloadMesZip(periodo) {
+export async function downloadDanfesMes(periodo) {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333'
-  const url = `${API_URL}/api${BASE_PATH}/download-mes/${periodo}`
+  const url = `${API_URL}/api${BASE_PATH}/download-danfes/${periodo}`
   
   const response = await fetch(url, {
     method: 'GET',
@@ -207,19 +207,18 @@ export async function downloadMesZip(periodo) {
     const errorData = await response.json().catch(() => ({}))
     
     // Mensagens de erro específicas baseadas no status
-    let mensagem = errorData.message || 'Erro ao baixar backup'
+    let mensagem = errorData.message || 'Erro ao baixar DANFEs'
     
     if (response.status === 403) {
-      // Bloqueio de data de liberação
       mensagem = errorData.message || 'Backup estará disponível a partir do dia 2 do próximo mês'
     } else if (response.status === 404) {
-      mensagem = 'Backup não disponível para este período. O backup pode ainda não ter sido gerado.'
+      mensagem = 'DANFEs não disponíveis para este período.'
     } else if (response.status === 401) {
-      mensagem = 'Erro de autenticação. Verifique as configurações fiscais.'
+      mensagem = 'Erro de autenticação. Verifique as credenciais Focus NFe.'
     } else if (response.status === 400) {
       mensagem = errorData.message || 'Período inválido.'
     } else if (response.status === 504) {
-      mensagem = 'Timeout ao baixar backup. O arquivo pode ser muito grande. Tente novamente.'
+      mensagem = 'Timeout ao baixar DANFEs. Tente novamente.'
     }
     
     throw new Error(mensagem)
@@ -229,7 +228,75 @@ export async function downloadMesZip(periodo) {
   
   // Extrair nome do arquivo do header Content-Disposition
   const contentDisposition = response.headers.get('Content-Disposition')
-  let nomeArquivo = `Backup_NFCe_${periodo}.zip`
+  let nomeArquivo = `DANFEs_NFCe_${periodo}.zip`
+  
+  if (contentDisposition) {
+    const matches = /filename="([^"]+)"/.exec(contentDisposition)
+    if (matches && matches[1]) {
+      nomeArquivo = matches[1]
+    }
+  }
+  
+  // Fazer download
+  const downloadUrl = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = downloadUrl
+  a.download = nomeArquivo
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  window.URL.revokeObjectURL(downloadUrl)
+  
+  return {
+    nomeArquivo,
+    success: true
+  }
+}
+
+/**
+ * Download ZIP com XMLs do período
+ * 
+ * SEGURANÇA:
+ * - Download via API Focus NFe v2/backups
+ * - Autenticação Basic (username e password)
+ * - Validação de data de liberação (dia 2)
+ * - Tratamento de erros específicos
+ */
+export async function downloadXmlsMes(periodo) {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333'
+  const url = `${API_URL}/api${BASE_PATH}/download-xmls/${periodo}`
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    
+    // Mensagens de erro específicas baseadas no status
+    let mensagem = errorData.message || 'Erro ao baixar XMLs'
+    
+    if (response.status === 403) {
+      mensagem = errorData.message || 'Backup estará disponível a partir do dia 2 do próximo mês'
+    } else if (response.status === 404) {
+      mensagem = 'XMLs não disponíveis para este período.'
+    } else if (response.status === 401) {
+      mensagem = 'Erro de autenticação. Verifique as credenciais Focus NFe.'
+    } else if (response.status === 400) {
+      mensagem = errorData.message || 'Período inválido.'
+    } else if (response.status === 504) {
+      mensagem = 'Timeout ao baixar XMLs. Tente novamente.'
+    }
+    
+    throw new Error(mensagem)
+  }
+
+  const blob = await response.blob()
+  
+  // Extrair nome do arquivo do header Content-Disposition
+  const contentDisposition = response.headers.get('Content-Disposition')
+  let nomeArquivo = `XMLs_NFCe_${periodo}.zip`
   
   if (contentDisposition) {
     const matches = /filename="([^"]+)"/.exec(contentDisposition)
@@ -302,7 +369,8 @@ export default {
   consultarStatusBatch,
   downloadXML,
   downloadDANFE,
-  downloadMesZip,
+  downloadDanfesMes,
+  downloadXmlsMes,
   obterEstatisticasPorPeriodo,
   calcularImpostosPeriodo,
   calcularImpostosNota,

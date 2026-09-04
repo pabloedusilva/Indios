@@ -133,7 +133,7 @@ export default function DownloadProgress({ isDownloading, hasError, onClose }) {
                 Preparando download
               </p>
               <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">
-                Gerando arquivo ZIP das notas fiscais
+                Aguarde enquanto geramos o arquivo
               </p>
             </>
           )}

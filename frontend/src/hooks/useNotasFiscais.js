@@ -188,9 +188,14 @@ export function useNotasFiscais(filtrosIniciais = {}) {
     }
   }, [])
 
-  // Download ZIP mensal
-  const downloadMesZip = useCallback(async (periodo) => {
-    await notasFiscaisService.downloadMesZip(periodo)
+  // Download DANFEs do mês
+  const downloadDanfesMes = useCallback(async (periodo) => {
+    await notasFiscaisService.downloadDanfesMes(periodo)
+  }, [])
+
+  // Download XMLs do mês
+  const downloadXmlsMes = useCallback(async (periodo) => {
+    await notasFiscaisService.downloadXmlsMes(periodo)
   }, [])
 
   // Estados derivados
@@ -262,7 +267,8 @@ export function useNotasFiscais(filtrosIniciais = {}) {
     consultarStatus,
     downloadXML,
     downloadDANFE,
-    downloadMesZip,
+    downloadDanfesMes,
+    downloadXmlsMes,
     refetch,
     buscarPorId,
     
