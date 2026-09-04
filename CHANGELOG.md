@@ -5,6 +5,19 @@ Todas as mudanças notáveis deste projeto são documentadas aqui.
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.10.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.9.0...v2.10.0) (2026-09-04)
+
+### Novas Funcionalidades
+
+* **notas-fiscais:** implementa backup de DANFEs e XMLs via Focus NFe ([e810d98](https://github.com/pabloedusilva/IndiosManager/commit/e810d98a31b491f8591f90ddd3fedc5083b70431))
+
+### Manutenção
+
+* **config:** atualiza nome da aplicação e corrige CORS ([244fec9](https://github.com/pabloedusilva/IndiosManager/commit/244fec999784b132c68352f8bca3e4049086772d))
+* resolve conflitos do merge ([03438f2](https://github.com/pabloedusilva/IndiosManager/commit/03438f2e0a0364bd27de23df40eb1371332bf492))
+* restaura versão estável e atualiza nomes das guias ([de01215](https://github.com/pabloedusilva/IndiosManager/commit/de01215d9ebb174940659bfa9cbaca1332efc448))
+* sincronizar versões dos package.json para v2.9.0 [skip ci] ([1a4291c](https://github.com/pabloedusilva/IndiosManager/commit/1a4291c1f4a126edb46d487976e7b50ce4f841e5))
+
 ## [2.9.0](https://github.com/pabloedusilva/IndiosManager/compare/v2.8.0...v2.9.0) (2026-08-30)
 
 ### Novas Funcionalidades
