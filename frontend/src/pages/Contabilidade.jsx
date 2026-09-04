@@ -79,15 +79,20 @@ export default function Contabilidade() {
     consultarStatus,
     downloadXML,
     downloadDANFE,
-    downloadMesZip,
+    downloadDanfesMes,
+    downloadXmlsMes,
     refetch,
     stats,
     buscarPorId,
     notasPorMes,
   } = useNotasFiscais()
   
-  // Estado global de download
+  // Estados globais de download
   const { baixandoZip, setBaixandoZip, erroDownloadZip, setErroDownloadZip } = useApp()
+  
+  // Estados locais para downloads separados
+  const [baixandoDanfes, setBaixandoDanfes] = useState(false)
+  const [baixandoXmls, setBaixandoXmls] = useState(false)
 
   // Estados
   const [modalVisualizar, setModalVisualizar] = useState(null)
@@ -291,7 +296,7 @@ export default function Contabilidade() {
     setPeriodoSelecionado(null)
   }
 
-  const handleDownloadZipMes = async () => {
+  const handleDownloadDanfes = async () => {
     if (!mesAtivo) return
     
     if (notasAutorizadasMes === 0) {
@@ -300,21 +305,53 @@ export default function Contabilidade() {
     }
 
     // Validar se pode baixar (dia 2 ou posterior para o mês atual)
-    const podeBAixar = podeBaixarBackup(mesAtivo)
-    if (!podeBAixar.permitido) {
-      toast.error(podeBAixar.mensagem)
+    const podeBaixar = podeBaixarBackup(mesAtivo)
+    if (!podeBaixar.permitido) {
+      toast.error(podeBaixar.mensagem)
       return
     }
 
-    setBaixandoZip(true)
+    setBaixandoDanfes(true)
+    setBaixandoZip(true) // Indicador global
     setErroDownloadZip(false)
     try {
-      await downloadMesZip(mesAtivo)
-      toast.success('Download concluído com sucesso!')
+      await downloadDanfesMes(mesAtivo)
+      toast.success('Download das DANFEs concluído com sucesso!')
     } catch (error) {
       setErroDownloadZip(true)
-      toast.error(error.message || 'Erro ao baixar backup')
+      toast.error(error.message || 'Erro ao baixar DANFEs')
     } finally {
+      setBaixandoDanfes(false)
+      setBaixandoZip(false)
+    }
+  }
+
+  const handleDownloadXmls = async () => {
+    if (!mesAtivo) return
+    
+    if (notasAutorizadasMes === 0) {
+      toast.error('Não há notas autorizadas para baixar neste período')
+      return
+    }
+
+    // Validar se pode baixar (dia 2 ou posterior para o mês atual)
+    const podeBaixar = podeBaixarBackup(mesAtivo)
+    if (!podeBaixar.permitido) {
+      toast.error(podeBaixar.mensagem)
+      return
+    }
+
+    setBaixandoXmls(true)
+    setBaixandoZip(true) // Indicador global
+    setErroDownloadZip(false)
+    try {
+      await downloadXmlsMes(mesAtivo)
+      toast.success('Download dos XMLs concluído com sucesso!')
+    } catch (error) {
+      setErroDownloadZip(true)
+      toast.error(error.message || 'Erro ao baixar XMLs')
+    } finally {
+      setBaixandoXmls(false)
       setBaixandoZip(false)
     }
   }
@@ -611,9 +648,9 @@ export default function Contabilidade() {
         </div>
       </div>
 
-      {/* Botão Download ZIP */}
+      {/* Botões Download ZIP Separados */}
       {mesAtivo && notasAutorizadasMes > 0 && (
-        <div className="flex justify-end items-center gap-2 animate-slide-down">
+        <div className="flex justify-end items-center gap-3 animate-slide-down">
           {/* Tooltip informativo quando bloqueado */}
           {!statusDownloadMesAtivo.permitido && (
             <div className="group relative">
@@ -634,10 +671,11 @@ export default function Contabilidade() {
             </div>
           )}
           
+          {/* Botão Baixar DANFEs */}
           <button
-            onClick={handleDownloadZipMes}
-            disabled={baixandoZip || !statusDownloadMesAtivo.permitido}
-            title={!statusDownloadMesAtivo.permitido ? statusDownloadMesAtivo.mensagem : 'Baixar backup mensal'}
+            onClick={handleDownloadDanfes}
+            disabled={baixandoDanfes || !statusDownloadMesAtivo.permitido}
+            title={!statusDownloadMesAtivo.permitido ? statusDownloadMesAtivo.mensagem : 'Baixar DANFEs do período (PDFs)'}
             className={`btn-primary gap-2 transition-smooth ${
               !statusDownloadMesAtivo.permitido 
                 ? 'opacity-40 cursor-not-allowed hover:shadow-none' 
@@ -645,7 +683,22 @@ export default function Contabilidade() {
             }`}
           >
             <MdDownload size={18} />
-            {baixandoZip ? 'Gerando ZIP...' : 'Baixar Todas'}
+            {baixandoDanfes ? 'Baixando...' : 'Baixar DANFEs'}
+          </button>
+
+          {/* Botão Baixar XMLs */}
+          <button
+            onClick={handleDownloadXmls}
+            disabled={baixandoXmls || !statusDownloadMesAtivo.permitido}
+            title={!statusDownloadMesAtivo.permitido ? statusDownloadMesAtivo.mensagem : 'Baixar XMLs do período'}
+            className={`btn-secondary gap-2 transition-smooth ${
+              !statusDownloadMesAtivo.permitido 
+                ? 'opacity-40 cursor-not-allowed hover:shadow-none' 
+                : 'hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed'
+            }`}
+          >
+            <MdDownload size={18} />
+            {baixandoXmls ? 'Baixando...' : 'Baixar XMLs'}
           </button>
         </div>
       )}
